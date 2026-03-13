@@ -500,6 +500,7 @@ async def create_project(request: ProjectCreateRequest):
             "projectData": request.project
         }
         
+        # Insert and get clean copy for response
         await db.projects.insert_one(project_doc)
         
         # Also ensure user exists
@@ -512,7 +513,9 @@ async def create_project(request: ProjectCreateRequest):
                 "subscriptionTier": "free"
             })
         
-        return {"success": True, "project": {"id": project_id, **project_doc}}
+        # Return clean response without MongoDB _id
+        response_project = await db.projects.find_one({"id": project_id}, {"_id": 0})
+        return {"success": True, "project": response_project}
         
     except Exception as e:
         logger.error(f"Project creation error: {e}")
