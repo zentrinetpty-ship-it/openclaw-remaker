@@ -1,0 +1,156 @@
+{
+  "identity": {
+    "persona": "E1 - The Anti-AI Designer",
+    "principles": [
+      "Fusion over Imitation: Cinematic + Tech + Glass",
+      "Emotion First: The UI must feel 'Alive' and 'Magical'",
+      "Content is King: The user's video is the hero",
+      "Zoom In: Focus on the canvas",
+      "Negative Space: Give the tools breathing room",
+      "Contrast: Deep blacks vs Neon glows"
+    ],
+    "anti_patterns": [
+      "No purple/teal CTAs (unless category specific)",
+      "No Inter font for headings",
+      "No 'Center-Everything' layouts (except Hero)",
+      "No default Shadcn cards (must customize)"
+    ]
+  },
+  "typography": {
+    "primary_font": {
+      "name": "Outfit",
+      "weights": [300, 500, 700],
+      "usage": "Headings, Large Labels, Hero Text",
+      "fallback": "sans-serif"
+    },
+    "secondary_font": {
+      "name": "Manrope",
+      "weights": [400, 500, 600],
+      "usage": "Body text, UI elements, Inputs, Tooltips",
+      "fallback": "sans-serif"
+    },
+    "import_url": "https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Outfit:wght@100..900&display=swap"
+  },
+  "colors": {
+    "base": {
+      "background": "#030712",
+      "surface": "#111827",
+      "surface_highlight": "#1F2937",
+      "text_primary": "#F9FAFB",
+      "text_secondary": "#9CA3AF",
+      "border": "rgba(255, 255, 255, 0.1)"
+    },
+    "dynamic_categories": {
+      "news": "#EF4444",
+      "explainer": "#3B82F6",
+      "cartoon": "#F97316",
+      "ebook": "#10B981",
+      "biography": "#8B5CF6",
+      "tutorial": "#06B6D4",
+      "datastory": "#6366F1",
+      "youtube": "#DC2626",
+      "motiongraphic": "#EC4899",
+      "remaker": "#84CC16",
+      "history": "#F59E0B",
+      "prayer": "#EAB308",
+      "reporter": "#64748B"
+    },
+    "gradients": {
+      "glass": "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))",
+      "nebula_overlay": "radial-gradient(circle at center, transparent 0%, #030712 100%)"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": {
+      "class": "glass-panel",
+      "css": "@apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;"
+    },
+    "glow_effects": {
+      "strategy": "Use box-shadow matching the active category color",
+      "css": "box-shadow: 0 0 20px rgba([r,g,b], 0.2)"
+    },
+    "nebula_background": {
+      "strategy": "Use the nebula image as a fixed background with overlay",
+      "css": "background-image: url('IMAGE_URL'); background-size: cover; background-attachment: fixed;"
+    }
+  },
+  "layouts": {
+    "landing_page": {
+      "hero": "Centered, large typography, nebula background visible, category grid below",
+      "sections": "Alternating grid layouts, glass cards for features"
+    },
+    "creator_card": {
+      "style": "Floating glass panel, centered or asymmetrical overlay",
+      "form_elements": "Transparent inputs with bottom borders or glass backgrounds"
+    },
+    "editor": {
+      "style": "High-density grid (Bento/Tetris mode)",
+      "sidebar": "Fixed width, collapsible, icon-heavy",
+      "canvas": "Centered, maximum space, dark backdrop",
+      "timeline": "Fixed bottom, scrollable"
+    }
+  },
+  "components": {
+    "buttons": {
+      "style": "Pill-shaped or sharp depending on context",
+      "primary": "Gradient background matching category, white text",
+      "secondary": "Glass background, white border, hover glow"
+    },
+    "inputs": {
+      "style": "Minimalist, remove default browser styles",
+      "active": "Border color matches category"
+    },
+    "cards": {
+      "default": "Glassmorphism style (bg-white/5 backdrop-blur-md)",
+      "hover": "Scale 1.02, increase brightness"
+    }
+  },
+  "assets": {
+    "images": {
+      "nebula_bg": {
+        "url": "https://images.unsplash.com/photo-1757514055001-dcf00bd64a06?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwyfHxjaW5lbWF0aWMlMjBuZWJ1bGElMjBnYWxheHklMjBiYWNrZ3JvdW5kJTIwYWJzdHJhY3QlMjBkYXJrfGVufDB8fHx8MTc3MzQzNzkyNXww&ixlib=rb-4.1.0&q=85",
+        "description": "Primary background for Hero and Landing page",
+        "category": "background"
+      },
+      "abstract_glass": {
+        "url": "https://images.unsplash.com/photo-1748466694158-3e172aac0968?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMDNkJTIwZ2xhc3MlMjBnZW9tZXRyaWMlMjBzaGFwZXMlMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NzM0Mzc5NDF8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Decorative element for feature sections or empty states",
+        "category": "decoration"
+      }
+    },
+    "icons": {
+      "library": "lucide-react",
+      "style": "Stroke width 1.5px or 2px, consistent size"
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. UPDATE `tailwind.config.js`: Add 'Outfit' and 'Manrope' to fontFamily. Add the custom colors to the theme extend.",
+    "2. UPDATE `index.css`: Import the fonts at the top. Set global dark theme styles.",
+    "3. IMPLEMENT `CategoryContext`: Create a React Context to manage the currently selected category and its color. This color should cascade to buttons, borders, and glows.",
+    "4. COMPONENT OVERRIDES: Customize Shadcn components (Button, Input, Card) to use the Glassmorphism styles defined in `visual_enhancers`.",
+    "5. EDITOR LAYOUT: Use a CSS Grid layout for the editor. Sidebar (250px), Properties (300px), Timeline (300px height), Canvas (remaining).",
+    "6. ANIMATIONS: Use Framer Motion for page transitions and the 'Creator Card' appearance. Keyframe the Nebula background if possible (slow pan/zoom).",
+    "7. DATA-TESTID: Ensure all interactive elements have `data-testid` attributes."
+  ],
+  "UNIVERSAL_GUIDELINES": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy",
+    "Use glass-morphism effects with backdrop filters (12-24px blur)",
+    "You MUST NOT apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
+    "You MUST NOT center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
+    "NEVER: use AI assistant Emoji characters for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN",
+    "Prioritize using pre-existing components from src/components/ui when applicable",
+    "Create new components that match the style and conventions of existing components when needed",
+    "Examine existing components to understand the project's component patterns before creating new ones",
+    "Components MUST use named exports (export const ComponentName = ...)",
+    "Pages MUST use default exports (export default function PageName() {...})",
+    "Use `sonner` for toasts. Sonner component are located in `/app/src/components/ui/sonner.tsx`"
+  ]
+}
