@@ -1104,7 +1104,7 @@ async def analyze_video(file: UploadFile = File(...), slideCount: int = 5, durat
         frames_dir.mkdir(exist_ok=True)
         
         # Get video duration
-        probe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(video_path)]
+        probe_cmd = ['/usr/bin/ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(video_path)]
         probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=30)
         video_duration = float(probe_result.stdout.strip()) if probe_result.stdout.strip() else 30.0
         
@@ -1116,7 +1116,7 @@ async def analyze_video(file: UploadFile = File(...), slideCount: int = 5, durat
             seek_time = i * interval
             frame_path = frames_dir / f"frame_{i:03d}.jpg"
             extract_cmd = [
-                'ffmpeg', '-y', '-ss', str(seek_time), '-i', str(video_path),
+                '/usr/bin/ffmpeg', '-y', '-ss', str(seek_time), '-i', str(video_path),
                 '-frames:v', '1', '-q:v', '2', str(frame_path)
             ]
             subprocess.run(extract_cmd, capture_output=True, timeout=15)
@@ -1383,7 +1383,7 @@ def get_audio_duration(filepath: str) -> float:
     """Get audio duration in seconds using ffprobe."""
     try:
         result = subprocess.run(
-            ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', filepath],
+            ['/usr/bin/ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', filepath],
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0 and result.stdout.strip():
@@ -1641,7 +1641,7 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
         # Run Remotion render
         remotion_dir = ROOT_DIR.parent / "remotion"
         render_cmd = [
-            'node', '--max-old-space-size=4096',
+            '/usr/bin/node', '--max-old-space-size=4096',
             str(remotion_dir / 'render.mjs'),
             str(data_file),
             str(output_path),
@@ -1652,6 +1652,7 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=str(remotion_dir),
+            env={**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"},
         )
         
         # Read stderr for progress updates
