@@ -165,6 +165,17 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] **Render Verified**: Successfully renders single-slide and multi-slide MP4 videos with captions and voice audio from both API and UI
 - [x] **Image Generation Fix**: Updated from deprecated `imagen-3.0-generate-002` to `imagen-4.0-generate-001`
 
+### Phase 13 - Timeline & Auto-Sync (March 14)
+- [x] **CapCut-style Timeline Panel**: Toggleable bottom panel with 5 color-coded layers (Video, Voice, Caption, Music, SFX)
+- [x] **Draggable/Resizable Blocks**: Each layer shows proportional blocks with left/right resize handles
+- [x] **Waveform Decorations**: Audio layers show waveform-like visual indicators
+- [x] **Auto Sync System**: One-click button that generates missing TTS voices, analyzes audio durations via ffprobe, and optimizes slide durations
+- [x] **Timeline Controls**: Zoom in/out (0.5x-4x), expand/collapse, layer lock/unlock, time markers, red playhead
+- [x] **Slide Selection**: Clicking timeline selects corresponding slide, blue highlight shows selected range
+- [x] **POST /api/editor/auto-sync**: Generates missing voices, returns optimized timing with BGM analysis
+- [x] **POST /api/audio/duration**: Helper endpoint for frontend to query audio file durations
+- [x] Testing: 100% backend (11/11), 100% frontend
+
 ## Backlog (P1/P2)
 - P1: Real stock asset search integration (Pixabay/Pexels)
 - P1: Real SFX generation (ElevenLabs)
