@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowLeft, Save, Download, Play, Pause, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload } from 'lucide-react';
+import { Sparkles, ArrowLeft, Save, Download, Play, Pause, Square, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -51,8 +51,18 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
   const [playingAudio, setPlayingAudio] = useState(null);
   const [editingPrompts, setEditingPrompts] = useState({});
   const [uploadedAssets, setUploadedAssets] = useState([]);
+  const [musicLibrary, setMusicLibrary] = useState({ tracks: [], categories: [] });
+  const [sfxLibrary, setSfxLibrary] = useState({ sounds: [], categories: [] });
+  const [musicFilter, setMusicFilter] = useState('all');
+  const [sfxFilter, setSfxFilter] = useState('all');
+  const [previewingTrack, setPreviewingTrack] = useState(null);
   const audioRef = React.useRef(null);
+  const previewAudioRef = React.useRef(null);
   
+  React.useEffect(() => {
+    axios.get(`${API}/library/music`).then(r => setMusicLibrary(r.data)).catch(() => {});
+    axios.get(`${API}/library/sfx`).then(r => setSfxLibrary(r.data)).catch(() => {});
+  }, []);
   const activeSlide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
 
   const generateImage = async (slide) => {
@@ -296,31 +306,28 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 
         {activeTab === 'music' && (
           <div className="space-y-4">
+            {/* Current BGM */}
             <div>
               <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Background Music</h3>
               {project?.bgmUrl ? (
                 <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Music className="w-3 h-3 text-violet-400" />
+                    <span className="text-[10px] text-violet-300 font-medium truncate">{project.bgmName || 'Custom Track'}</span>
+                  </div>
                   <audio controls src={project.bgmUrl.startsWith('/api/') ? `${API.replace('/api', '')}${project.bgmUrl}` : project.bgmUrl} className="w-full h-8" data-testid="bgm-audio-player" />
                   <div className="flex items-center gap-2">
                     <Volume2 className="w-3 h-3 text-slate-500" />
                     <Slider 
                       defaultValue={[project.bgmVolume || 0.4]} 
-                      max={1} 
-                      step={0.1} 
-                      className="flex-1"
+                      max={1} step={0.1} className="flex-1"
                       data-testid="bgm-volume-slider"
-                      onValueChange={(v) => {
-                        const { setBgmVolume } = useProjectStore.getState();
-                        setBgmVolume(v[0]);
-                      }}
+                      onValueChange={(v) => { useProjectStore.getState().setBgmVolume(v[0]); }}
                     />
                     <span className="text-[10px] text-slate-400 w-8 text-right">{Math.round((project.bgmVolume || 0.4) * 100)}%</span>
                   </div>
                   <button 
-                    onClick={() => {
-                      const { setBgmUrl } = useProjectStore.getState();
-                      setBgmUrl(null);
-                    }}
+                    onClick={() => { useProjectStore.getState().setBgmUrl(null); setProject({ ...project, bgmUrl: null, bgmName: null }); }}
                     className="w-full px-2 py-1.5 rounded-lg text-[10px] bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition"
                     data-testid="remove-bgm-btn"
                   >
@@ -328,46 +335,94 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-violet-500/50 hover:bg-violet-500/5 transition" data-testid="upload-bgm-label">
-                    <Upload className="w-6 h-6 text-slate-500" />
-                    <span className="text-xs text-slate-400">Upload Background Music</span>
-                    <span className="text-[10px] text-slate-600">MP3, WAV, AAC</span>
-                    <input 
-                      type="file" 
-                      accept="audio/*" 
-                      className="hidden" 
-                      data-testid="upload-bgm-input"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const formData = new FormData();
-                        formData.append('file', file);
-                        try {
-                          const res = await axios.post(`${API}/upload`, formData);
-                          if (res.data.success) {
-                            const { setBgmUrl } = useProjectStore.getState();
-                            setBgmUrl(res.data.url);
-                          }
-                        } catch (err) {
-                          console.error('Music upload failed:', err);
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
+                <label className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-violet-500/50 hover:bg-violet-500/5 transition" data-testid="upload-bgm-label">
+                  <Upload className="w-5 h-5 text-slate-500" />
+                  <span className="text-[10px] text-slate-400">Upload Your Own Music</span>
+                  <span className="text-[9px] text-slate-600">MP3, WAV, AAC</span>
+                  <input type="file" accept="audio/*" className="hidden" data-testid="upload-bgm-input"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      try {
+                        const res = await axios.post(`${API}/upload`, formData);
+                        if (res.data.success) { useProjectStore.getState().setBgmUrl(res.data.url); setProject({ ...project, bgmUrl: res.data.url, bgmName: file.name }); }
+                      } catch (err) { console.error('Music upload failed:', err); }
+                    }}
+                  />
+                </label>
               )}
             </div>
-            {project?.suggestedMusic?.length > 0 && (
-              <div>
-                <h4 className="text-[10px] font-semibold text-slate-400 uppercase mb-2">AI Suggestions</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {project.suggestedMusic.slice(0, 5).map((m, i) => (
-                    <span key={i} className="px-2 py-1 rounded-lg text-[10px] bg-violet-500/10 border border-violet-500/30 text-violet-300 cursor-pointer hover:bg-violet-500/20">{m}</span>
-                  ))}
-                </div>
+
+            {/* Music Library */}
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Music Library <span className="text-[9px] text-slate-500 font-normal ml-1">{musicLibrary.total || 0} tracks</span></h3>
+              <div className="flex flex-wrap gap-1 mb-3">
+                <button onClick={() => setMusicFilter('all')} className={`px-2 py-0.5 rounded-full text-[9px] font-medium transition ${musicFilter === 'all' ? 'bg-violet-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`} data-testid="music-filter-all">All</button>
+                {musicLibrary.categories?.map(c => (
+                  <button key={c} onClick={() => setMusicFilter(c)} className={`px-2 py-0.5 rounded-full text-[9px] font-medium capitalize transition ${musicFilter === c ? 'bg-violet-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`} data-testid={`music-filter-${c}`}>{c}</button>
+                ))}
               </div>
-            )}
+              <div className="space-y-1 max-h-[280px] overflow-y-auto pr-1">
+                {(musicFilter === 'all' ? musicLibrary.tracks : musicLibrary.tracks?.filter(t => t.category === musicFilter))?.map(track => (
+                  <div key={track.id} className={`flex items-center gap-2 p-2 rounded-lg border transition cursor-pointer group ${project?.bgmUrl === track.url ? 'bg-violet-500/15 border-violet-500/40' : 'bg-slate-800/30 border-slate-800 hover:border-slate-600'}`} data-testid={`music-track-${track.id}`}>
+                    <button 
+                      onClick={() => {
+                        if (previewingTrack === track.id) { previewAudioRef.current?.pause(); setPreviewingTrack(null); }
+                        else { if (previewAudioRef.current) { previewAudioRef.current.src = `${API.replace('/api', '')}${track.url}`; previewAudioRef.current.play().catch(() => {}); } setPreviewingTrack(track.id); }
+                      }}
+                      className="w-6 h-6 rounded-full bg-slate-700 group-hover:bg-violet-500 flex items-center justify-center flex-shrink-0 transition"
+                    >
+                      {previewingTrack === track.id ? <Square className="w-2.5 h-2.5 text-white" /> : <Play className="w-2.5 h-2.5 text-white ml-0.5" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-white font-medium truncate">{track.name}</p>
+                      <p className="text-[9px] text-slate-500 truncate">{track.mood} &middot; {track.duration}s</p>
+                    </div>
+                    <button 
+                      onClick={() => { useProjectStore.getState().setBgmUrl(track.url); setProject({ ...project, bgmUrl: track.url, bgmName: track.name }); if (previewAudioRef.current) previewAudioRef.current.pause(); setPreviewingTrack(null); }}
+                      className={`px-2 py-0.5 rounded text-[9px] flex-shrink-0 transition ${project?.bgmUrl === track.url ? 'bg-violet-500 text-white' : 'bg-violet-500/20 text-violet-300 hover:bg-violet-500/40'}`}
+                    >
+                      {project?.bgmUrl === track.url ? 'Active' : 'Use'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* SFX Library */}
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Sound Effects <span className="text-[9px] text-slate-500 font-normal ml-1">{sfxLibrary.total || 0} sounds</span></h3>
+              <div className="flex flex-wrap gap-1 mb-3">
+                <button onClick={() => setSfxFilter('all')} className={`px-2 py-0.5 rounded-full text-[9px] font-medium transition ${sfxFilter === 'all' ? 'bg-pink-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`} data-testid="sfx-filter-all">All</button>
+                {sfxLibrary.categories?.map(c => (
+                  <button key={c} onClick={() => setSfxFilter(c)} className={`px-2 py-0.5 rounded-full text-[9px] font-medium capitalize transition ${sfxFilter === c ? 'bg-pink-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`} data-testid={`sfx-filter-${c}`}>{c}</button>
+                ))}
+              </div>
+              <div className="space-y-1 max-h-[250px] overflow-y-auto pr-1">
+                {(sfxFilter === 'all' ? sfxLibrary.sounds : sfxLibrary.sounds?.filter(s => s.category === sfxFilter))?.map(sfx => (
+                  <div key={sfx.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/30 border border-slate-800 hover:border-slate-600 transition group" data-testid={`sfx-item-${sfx.id}`}>
+                    <button 
+                      onClick={() => {
+                        if (previewingTrack === sfx.id) { previewAudioRef.current?.pause(); setPreviewingTrack(null); }
+                        else { if (previewAudioRef.current) { previewAudioRef.current.src = `${API.replace('/api', '')}${sfx.url}`; previewAudioRef.current.play().catch(() => {}); } setPreviewingTrack(sfx.id); }
+                      }}
+                      className="w-6 h-6 rounded-full bg-slate-700 group-hover:bg-pink-500 flex items-center justify-center flex-shrink-0 transition"
+                    >
+                      {previewingTrack === sfx.id ? <Square className="w-2.5 h-2.5 text-white" /> : <Play className="w-2.5 h-2.5 text-white ml-0.5" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-white font-medium truncate">{sfx.name}</p>
+                      <p className="text-[9px] text-slate-500 truncate">{sfx.description} &middot; {sfx.duration}s</p>
+                    </div>
+                    <span className="px-1.5 py-0.5 rounded text-[8px] bg-slate-700 text-slate-400 capitalize flex-shrink-0">{sfx.category}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <audio ref={previewAudioRef} onEnded={() => setPreviewingTrack(null)} className="hidden" />
           </div>
         )}
 

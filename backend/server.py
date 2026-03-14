@@ -44,6 +44,95 @@ UPLOADS_DIR = ROOT_DIR / 'uploads'
 UPLOADS_DIR.mkdir(exist_ok=True)
 RENDERS_DIR = ROOT_DIR / 'renders'
 RENDERS_DIR.mkdir(exist_ok=True)
+MUSIC_LIB_DIR = ROOT_DIR / 'library' / 'music'
+MUSIC_LIB_DIR.mkdir(parents=True, exist_ok=True)
+SFX_LIB_DIR = ROOT_DIR / 'library' / 'sfx'
+SFX_LIB_DIR.mkdir(parents=True, exist_ok=True)
+
+# ─── Library Catalog ─────────────────────────────────────────────────────────
+MUSIC_CATALOG = [
+    {"id": "cinematic-epic-rise", "name": "Epic Rise", "category": "cinematic", "mood": "dramatic", "duration": 25, "description": "Building tension with dramatic overtones"},
+    {"id": "cinematic-dark-suspense", "name": "Dark Suspense", "category": "cinematic", "mood": "mysterious", "duration": 25, "description": "Deep mysterious atmosphere"},
+    {"id": "cinematic-emotional", "name": "Emotional Touch", "category": "cinematic", "mood": "emotional", "duration": 25, "description": "Touching emotional melody with harmonics"},
+    {"id": "cinematic-triumph", "name": "Orchestral Triumph", "category": "cinematic", "mood": "triumphant", "duration": 25, "description": "Victory and achievement feel"},
+    {"id": "cinematic-tension", "name": "Rising Tension", "category": "cinematic", "mood": "suspenseful", "duration": 25, "description": "Slow-building tension and anticipation"},
+    {"id": "corporate-forward", "name": "Business Forward", "category": "corporate", "mood": "professional", "duration": 25, "description": "Clean professional upbeat track"},
+    {"id": "corporate-innovation", "name": "Innovation Drive", "category": "corporate", "mood": "modern", "duration": 25, "description": "Tech-forward corporate energy"},
+    {"id": "corporate-teamwork", "name": "Team Spirit", "category": "corporate", "mood": "collaborative", "duration": 25, "description": "Warm collaborative team feel"},
+    {"id": "corporate-presentation", "name": "Presentation Ready", "category": "corporate", "mood": "focused", "duration": 25, "description": "Clean background for presentations"},
+    {"id": "ambient-deep-space", "name": "Deep Space", "category": "ambient", "mood": "cosmic", "duration": 25, "description": "Vast cosmic atmosphere"},
+    {"id": "ambient-ocean-breeze", "name": "Ocean Breeze", "category": "ambient", "mood": "calm", "duration": 25, "description": "Gentle ocean waves atmosphere"},
+    {"id": "ambient-forest-dawn", "name": "Forest Dawn", "category": "ambient", "mood": "natural", "duration": 25, "description": "Morning nature with birdsong"},
+    {"id": "ambient-night-sky", "name": "Night Sky", "category": "ambient", "mood": "dreamy", "duration": 25, "description": "Peaceful nighttime ambience"},
+    {"id": "ambient-meditation", "name": "Meditation Flow", "category": "ambient", "mood": "zen", "duration": 25, "description": "Calming meditation frequency"},
+    {"id": "upbeat-happy-days", "name": "Happy Days", "category": "upbeat", "mood": "cheerful", "duration": 25, "description": "Fun and cheerful bright melody"},
+    {"id": "upbeat-dance-energy", "name": "Dance Energy", "category": "upbeat", "mood": "energetic", "duration": 25, "description": "High energy dance rhythm"},
+    {"id": "upbeat-sunny-walk", "name": "Sunny Walk", "category": "upbeat", "mood": "light", "duration": 25, "description": "Light breezy walking pace"},
+    {"id": "upbeat-celebration", "name": "Celebration", "category": "upbeat", "mood": "festive", "duration": 25, "description": "Festive party celebration"},
+    {"id": "lofi-late-night", "name": "Late Night Study", "category": "lofi", "mood": "chill", "duration": 25, "description": "Chill beats for late night focus"},
+    {"id": "lofi-rainy-window", "name": "Rainy Window", "category": "lofi", "mood": "cozy", "duration": 25, "description": "Cozy rainy day vibes"},
+    {"id": "lofi-coffee-shop", "name": "Coffee Shop", "category": "lofi", "mood": "warm", "duration": 25, "description": "Warm coffee shop atmosphere"},
+    {"id": "lofi-dreamy", "name": "Dreamy Drift", "category": "lofi", "mood": "dreamy", "duration": 25, "description": "Soft dreamy floating feeling"},
+    {"id": "electronic-neon-pulse", "name": "Neon Pulse", "category": "electronic", "mood": "futuristic", "duration": 25, "description": "Pulsing neon synthwave"},
+    {"id": "electronic-digital-dreams", "name": "Digital Dreams", "category": "electronic", "mood": "tech", "duration": 25, "description": "Futuristic digital soundscape"},
+    {"id": "electronic-cyber-grid", "name": "Cyber Grid", "category": "electronic", "mood": "intense", "duration": 25, "description": "Intense cyber rhythm"},
+    {"id": "electronic-synthwave", "name": "Synthwave Ride", "category": "electronic", "mood": "retro", "duration": 25, "description": "Retro synthwave cruise"},
+    {"id": "inspirational-new-beginnings", "name": "New Beginnings", "category": "inspirational", "mood": "hopeful", "duration": 25, "description": "Fresh start with hope"},
+    {"id": "inspirational-rise-above", "name": "Rise Above", "category": "inspirational", "mood": "motivational", "duration": 25, "description": "Uplifting motivational energy"},
+    {"id": "inspirational-dream-chaser", "name": "Dream Chaser", "category": "inspirational", "mood": "aspirational", "duration": 25, "description": "Chasing dreams and ambitions"},
+    {"id": "inspirational-hope", "name": "Rays of Hope", "category": "inspirational", "mood": "uplifting", "duration": 25, "description": "Bright hopeful melody"},
+    {"id": "acoustic-morning-light", "name": "Morning Light", "category": "acoustic", "mood": "warm", "duration": 25, "description": "Warm morning guitar-like tones"},
+    {"id": "acoustic-gentle-stream", "name": "Gentle Stream", "category": "acoustic", "mood": "peaceful", "duration": 25, "description": "Soft natural flowing melody"},
+    {"id": "acoustic-campfire", "name": "Campfire Stories", "category": "acoustic", "mood": "nostalgic", "duration": 25, "description": "Warm campfire folk feeling"},
+    {"id": "acoustic-sunset", "name": "Golden Sunset", "category": "acoustic", "mood": "serene", "duration": 25, "description": "Serene sunset golden hour"},
+]
+
+SFX_CATALOG = [
+    {"id": "transition-swoosh", "name": "Swoosh", "category": "transitions", "duration": 0.8, "description": "Fast air swoosh"},
+    {"id": "transition-whoosh-low", "name": "Whoosh Low", "category": "transitions", "duration": 1.0, "description": "Deep bass whoosh"},
+    {"id": "transition-slide-in", "name": "Slide In", "category": "transitions", "duration": 0.6, "description": "Smooth slide entrance"},
+    {"id": "transition-reverse", "name": "Reverse Swoosh", "category": "transitions", "duration": 0.8, "description": "Reversed air swoosh"},
+    {"id": "transition-zoom", "name": "Zoom", "category": "transitions", "duration": 0.5, "description": "Quick zoom effect"},
+    {"id": "transition-fast-cut", "name": "Fast Cut", "category": "transitions", "duration": 0.3, "description": "Sharp fast cut"},
+    {"id": "transition-heavy-whoosh", "name": "Heavy Whoosh", "category": "transitions", "duration": 1.2, "description": "Heavy powerful whoosh"},
+    {"id": "transition-glide", "name": "Glide", "category": "transitions", "duration": 0.8, "description": "Smooth gliding transition"},
+    {"id": "ui-click", "name": "Click", "category": "ui", "duration": 0.08, "description": "Clean button click"},
+    {"id": "ui-pop", "name": "Pop", "category": "ui", "duration": 0.15, "description": "Soft bubble pop"},
+    {"id": "ui-ding", "name": "Ding", "category": "ui", "duration": 1.2, "description": "Notification bell ding"},
+    {"id": "ui-success", "name": "Success", "category": "ui", "duration": 0.8, "description": "Achievement success chime"},
+    {"id": "ui-error", "name": "Error", "category": "ui", "duration": 0.6, "description": "Error alert tone"},
+    {"id": "ui-toggle", "name": "Toggle", "category": "ui", "duration": 0.1, "description": "Quick toggle switch"},
+    {"id": "ui-notification", "name": "Notification", "category": "ui", "duration": 0.8, "description": "Gentle notification alert"},
+    {"id": "ui-hover", "name": "Hover", "category": "ui", "duration": 0.06, "description": "Subtle hover feedback"},
+    {"id": "impact-boom", "name": "Boom", "category": "impact", "duration": 1.5, "description": "Deep powerful bass boom"},
+    {"id": "impact-hit", "name": "Hit", "category": "impact", "duration": 0.3, "description": "Sharp impact hit"},
+    {"id": "impact-thud", "name": "Thud", "category": "impact", "duration": 0.8, "description": "Heavy ground thud"},
+    {"id": "impact-crash", "name": "Crash", "category": "impact", "duration": 1.0, "description": "Shattering crash"},
+    {"id": "impact-slam", "name": "Slam", "category": "impact", "duration": 0.6, "description": "Door slam with reverb"},
+    {"id": "impact-punch", "name": "Punch", "category": "impact", "duration": 0.25, "description": "Quick punch impact"},
+    {"id": "tech-glitch", "name": "Glitch", "category": "tech", "duration": 0.4, "description": "Digital data glitch"},
+    {"id": "tech-beep", "name": "Beep", "category": "tech", "duration": 0.3, "description": "Scanner beep"},
+    {"id": "tech-data", "name": "Data Transfer", "category": "tech", "duration": 0.8, "description": "Fast data stream"},
+    {"id": "tech-power-up", "name": "Power Up", "category": "tech", "duration": 1.0, "description": "Charging power up"},
+    {"id": "tech-power-down", "name": "Power Down", "category": "tech", "duration": 1.0, "description": "System shutdown"},
+    {"id": "tech-scan", "name": "Scan", "category": "tech", "duration": 0.6, "description": "Quick scan sweep"},
+    {"id": "tech-digital-blip", "name": "Digital Blip", "category": "tech", "duration": 0.15, "description": "Short digital blip"},
+    {"id": "tech-robot", "name": "Robot Voice", "category": "tech", "duration": 0.5, "description": "Robotic vocal tone"},
+    {"id": "nature-thunder", "name": "Thunder", "category": "nature", "duration": 3.0, "description": "Rolling thunder crack"},
+    {"id": "nature-rain", "name": "Rain", "category": "nature", "duration": 5.0, "description": "Gentle rain ambience"},
+    {"id": "nature-wind", "name": "Wind", "category": "nature", "duration": 4.0, "description": "Soft wind gust"},
+    {"id": "nature-birds", "name": "Birds", "category": "nature", "duration": 3.0, "description": "Chirping bird calls"},
+    {"id": "nature-water-drop", "name": "Water Drop", "category": "nature", "duration": 0.5, "description": "Single water droplet"},
+    {"id": "nature-ocean-wave", "name": "Ocean Wave", "category": "nature", "duration": 4.0, "description": "Rolling ocean wave"},
+    {"id": "nature-crickets", "name": "Crickets", "category": "nature", "duration": 3.0, "description": "Evening cricket chorus"},
+    {"id": "comic-boing", "name": "Boing", "category": "comic", "duration": 0.8, "description": "Springy bounce"},
+    {"id": "comic-fail", "name": "Fail", "category": "comic", "duration": 1.2, "description": "Sad trombone fail"},
+    {"id": "comic-win", "name": "Win Fanfare", "category": "comic", "duration": 1.0, "description": "Victory fanfare"},
+    {"id": "comic-magic", "name": "Magic Sparkle", "category": "comic", "duration": 1.0, "description": "Sparkly magic effect"},
+    {"id": "comic-cartoon", "name": "Cartoon Wobble", "category": "comic", "duration": 0.6, "description": "Wobbly cartoon effect"},
+    {"id": "comic-spring", "name": "Spring", "category": "comic", "duration": 0.5, "description": "Coiled spring release"},
+    {"id": "comic-whistle", "name": "Whistle", "category": "comic", "duration": 0.8, "description": "Short whistle tune"},
+]
 
 # ─── Auth Configuration ─────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("JWT_SECRET", "explainapro-secret-key-change-in-production-2026")
@@ -803,6 +892,46 @@ async def get_render(filename: str):
         filename=filename,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+# ─── Library Routes ──────────────────────────────────────────────────────────
+
+@api_router.get("/library/music")
+async def get_music_library(category: Optional[str] = None):
+    """Get music library catalog, optionally filtered by category."""
+    tracks = MUSIC_CATALOG
+    if category:
+        tracks = [t for t in tracks if t["category"] == category]
+    for t in tracks:
+        t["url"] = f"/api/library/music/{t['id']}.mp3"
+    categories = sorted(set(t["category"] for t in MUSIC_CATALOG))
+    return {"success": True, "tracks": tracks, "categories": categories, "total": len(tracks)}
+
+@api_router.get("/library/sfx")
+async def get_sfx_library(category: Optional[str] = None):
+    """Get SFX library catalog, optionally filtered by category."""
+    sounds = SFX_CATALOG
+    if category:
+        sounds = [s for s in sounds if s["category"] == category]
+    for s in sounds:
+        s["url"] = f"/api/library/sfx/{s['id']}.mp3"
+    categories = sorted(set(s["category"] for s in SFX_CATALOG))
+    return {"success": True, "sounds": sounds, "categories": categories, "total": len(sounds)}
+
+@api_router.get("/library/music/{filename}")
+async def serve_music(filename: str):
+    """Serve a music track from the library."""
+    filepath = MUSIC_LIB_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Track not found")
+    return FileResponse(filepath, media_type="audio/mpeg")
+
+@api_router.get("/library/sfx/{filename}")
+async def serve_sfx(filename: str):
+    """Serve an SFX sample from the library."""
+    filepath = SFX_LIB_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="SFX not found")
+    return FileResponse(filepath, media_type="audio/mpeg")
 
 # ─── Video Render Routes ────────────────────────────────────────────────────
 
