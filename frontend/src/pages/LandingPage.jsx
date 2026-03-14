@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, Play, Clock, Layers, Image, Palette, Mic2, ChevronDown, ChevronUp, Wand2, Globe, Flame, User, LogOut } from 'lucide-react';
+import { Sparkles, ArrowRight, Play, Clock, Layers, Image, Palette, Mic2, ChevronDown, ChevronUp, Wand2, Globe, Flame, User, LogOut, Upload, Film } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { useProjectStore, CATEGORIES } from '../store/useProjectStore';
@@ -47,7 +47,7 @@ function HeroBackground({ color }) {
 export default function LandingPage() {
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
-  const { setRawInput, setInputType, setVideoDuration, setVideoTone, setVideoCategory, setSlideCount, setAssetType, setPreferredVisualStyle, setStep } = useProjectStore();
+  const { setRawInput, setInputType, setVideoDuration, setVideoTone, setVideoCategory, setSlideCount, setAssetType, setPreferredVisualStyle, setStep, setProject } = useProjectStore();
   
   const [selectedCategory, setSelectedCategory] = useState('explainer');
   const [inputValue, setInputValue] = useState('');
@@ -60,6 +60,8 @@ export default function LandingPage() {
   const [showTone, setShowTone] = useState(false);
   const [prayerStyle, setPrayerStyle] = useState('Nigerian Style');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [remakerFile, setRemakerFile] = useState(null);
+  const [remakerUploading, setRemakerUploading] = useState(false);
 
   const cat = useMemo(() => CATEGORIES.find(c => c.id === selectedCategory), [selectedCategory]);
 
@@ -68,7 +70,56 @@ export default function LandingPage() {
     setInputValue('');
   }, [selectedCategory, cat]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (selectedCategory === 'remaker') {
+      if (!remakerFile || remakerUploading) return;
+      setRemakerUploading(true);
+      setIsSubmitting(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', remakerFile);
+        formData.append('slideCount', slideCount);
+        formData.append('duration', duration);
+        formData.append('tone', tone);
+        formData.append('visualStyle', visualStyle);
+        
+        const API = process.env.REACT_APP_BACKEND_URL + '/api';
+        const res = await fetch(`${API}/analyze-video?slideCount=${slideCount}&duration=${duration}&tone=${tone}&visualStyle=${visualStyle}`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        
+        if (!data.success) throw new Error(data.detail || 'Analysis failed');
+        
+        const project = {
+          ...data.data,
+          slides: (data.data.slides || []).map(s => ({
+            ...s, assetType: 'none', assetUrl: null, assetGenerating: false,
+            graphics: (s.graphics || []).map(g => ({ ...g, url: null, assetGenerating: false }))
+          }))
+        };
+        
+        setRawInput(data.data.originalVideoAnalysis || remakerFile.name);
+        setInputType('idea');
+        setVideoDuration(duration);
+        setVideoTone(tone);
+        setVideoCategory(selectedCategory);
+        setSlideCount(slideCount);
+        setAssetType(localAssetType);
+        setPreferredVisualStyle(visualStyle);
+        setProject(project);
+        setStep('storyboard');
+        navigate('/create');
+      } catch (e) {
+        alert('Video analysis failed: ' + (e.message || 'Unknown error'));
+      } finally {
+        setRemakerUploading(false);
+        setIsSubmitting(false);
+      }
+      return;
+    }
+    
     if (!inputValue.trim() || isSubmitting) return;
     setIsSubmitting(true);
     setRawInput(inputValue.trim());
@@ -191,9 +242,36 @@ export default function LandingPage() {
               </div>
             )}
 
-            {/* Textarea */}
+            {/* Input Area */}
             <div className="px-6 pt-4 pb-2">
-              <Textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={cat?.placeholder} className="min-h-[120px] resize-none bg-transparent text-slate-200 text-sm placeholder:text-slate-600 focus-visible:ring-0 border-0 p-0" onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(); }} data-testid="input-textarea" />
+              {selectedCategory === 'remaker' ? (
+                <div className="space-y-3">
+                  <label className="flex flex-col items-center justify-center min-h-[120px] rounded-xl border-2 border-dashed border-slate-600 hover:border-violet-500 cursor-pointer transition bg-white/[0.02] hover:bg-violet-500/5" data-testid="remaker-upload">
+                    <input type="file" accept="video/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setRemakerFile(f); }} />
+                    {remakerFile ? (
+                      <div className="flex items-center gap-3 p-4">
+                        <Film className="w-8 h-8 text-violet-400" />
+                        <div>
+                          <p className="text-sm text-white font-semibold">{remakerFile.name}</p>
+                          <p className="text-[10px] text-slate-500">{(remakerFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                        </div>
+                        <button onClick={(e) => { e.preventDefault(); setRemakerFile(null); }} className="ml-auto text-slate-500 hover:text-red-400">
+                          <span className="text-xs">Remove</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center p-4">
+                        <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400">Upload a video to remake</p>
+                        <p className="text-[10px] text-slate-600 mt-1">MP4, MOV, AVI up to 100MB</p>
+                      </div>
+                    )}
+                  </label>
+                  <Textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Optional: Add notes about what style or changes you want in the remake..." className="min-h-[60px] resize-none bg-transparent text-slate-200 text-sm placeholder:text-slate-600 focus-visible:ring-0 border-0 p-0" data-testid="remaker-notes" />
+                </div>
+              ) : (
+                <Textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={cat?.placeholder} className="min-h-[120px] resize-none bg-transparent text-slate-200 text-sm placeholder:text-slate-600 focus-visible:ring-0 border-0 p-0" onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(); }} data-testid="input-textarea" />
+              )}
             </div>
 
             {/* Visual Style */}
@@ -253,8 +331,8 @@ export default function LandingPage() {
             {/* Footer */}
             <div className="px-6 py-4 border-t border-white/[0.06] flex items-center justify-between">
               <span className="text-[10px] text-slate-600 font-mono">{inputValue.length} chars · ⌘↵</span>
-              <motion.button onClick={handleSubmit} disabled={!inputValue.trim() || isSubmitting} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40" style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }} data-testid="generate-btn">
-                {isSubmitting ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> Generate {cat?.label}</>}
+              <motion.button onClick={handleSubmit} disabled={(selectedCategory === 'remaker' ? !remakerFile : !inputValue.trim()) || isSubmitting} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40" style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }} data-testid="generate-btn">
+                {isSubmitting ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {selectedCategory === 'remaker' ? 'Analyzing Video...' : 'Generating...'}</> : <><Wand2 className="w-3.5 h-3.5" /> {selectedCategory === 'remaker' ? 'Analyze & Remake' : `Generate ${cat?.label}`}</>}
               </motion.button>
             </div>
           </motion.div>

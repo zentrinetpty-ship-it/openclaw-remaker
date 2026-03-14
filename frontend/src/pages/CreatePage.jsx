@@ -325,13 +325,17 @@ function ReadyStep({ onOpenEditor, onBack }) {
 
 export default function CreatePage() {
   const navigate = useNavigate();
-  const { rawInput, error, setError, reset, videoCategory } = useProjectStore();
-  const [localStep, setLocalStep] = useState(0);
+  const { rawInput, error, setError, reset, videoCategory, project, step } = useProjectStore();
+  const [localStep, setLocalStep] = useState(() => {
+    // If project already exists (e.g., from Video Remaker), skip to storyboard
+    if (project && step === 'storyboard') return 1;
+    return 0;
+  });
   const cat = CATEGORIES.find(c => c.id === videoCategory);
 
   useEffect(() => {
-    if (!rawInput) navigate('/');
-  }, [rawInput, navigate]);
+    if (!rawInput && !project) navigate('/');
+  }, [rawInput, project, navigate]);
 
   const goBack = () => {
     if (localStep === 0) navigate('/');

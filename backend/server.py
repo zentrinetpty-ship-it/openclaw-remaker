@@ -309,7 +309,22 @@ def build_master_prompt(request: ScriptRequest) -> str:
       "videoPrompt": "Animation/camera movement description",
       "transition": "fade|slide|zoom|none",
       "onScreenText": "Optional short bold text overlay",
-      "visualStyle": "abstract|realistic|illustrated|chart|screencast"
+      "visualStyle": "abstract|realistic|illustrated|chart|screencast",
+      "graphics": [
+        {{
+          "type": "title-card|lower-third|kinetic-text|stat-counter",
+          "startTime": 0,
+          "duration": 3,
+          "title": "For title-card: main title text",
+          "subtitle": "For title-card: subtitle text",
+          "name": "For lower-third: person name",
+          "text": "For kinetic-text: animated text content",
+          "value": "For stat-counter: numeric value",
+          "label": "For stat-counter: metric label",
+          "prefix": "For stat-counter: prefix like $",
+          "suffix": "For stat-counter: suffix like %"
+        }}
+      ]
     }}
   ],
   "voiceoverStyle": "professional|energetic|calm|storytelling",
@@ -322,13 +337,29 @@ def build_master_prompt(request: ScriptRequest) -> str:
   "suggestedSfx": ["5 specific AI sound effect generation prompts for this video"]
 }}'''
 
+    motion_graphics_instruction = ""
+    if request.category == "motiongraphic":
+        motion_graphics_instruction = """
+MOTION GRAPHICS INSTRUCTIONS:
+This is a MOTION GRAPHICS video. Every slide MUST include a "graphics" array with at least 1-2 animated overlays.
+Available graphic types:
+- "title-card": Big animated title with optional subtitle. Use for intro slides and key section headers.
+- "lower-third": Name/title bar at bottom of screen. Use to introduce speakers, sources, or topics.
+- "kinetic-text": Large animated text that appears word-by-word. Use for key quotes or statements.
+- "stat-counter": Animated number counter with label. Use for statistics, percentages, amounts.
+
+For each graphic, specify: type, startTime (seconds into the slide), duration (seconds), and the relevant text fields.
+The imagePrompt for motion graphics should be abstract, geometric, or gradient backgrounds - NOT busy photorealistic scenes.
+"""
+
     visual_instruction = f'''
 CRITICAL: The user has selected a preferred visual style: "{request.preferredVisualStyle}". 
 1. Identify 1-2 key characters that should appear consistently throughout the video. 
 2. Define them in the "characters" array with specific physical descriptions.
 3. Reference these character names in the "imagePrompt" of EVERY slide where they appear.
 4. Ensure all "imagePrompt" fields are strictly tailored to the "{request.preferredVisualStyle}" style.
-5. Provide "suggestedMusic" (5 ideas), "suggestedVfx" (5 prompts), and "suggestedSfx" (5 prompts).'''
+5. Provide "suggestedMusic" (5 ideas), "suggestedVfx" (5 prompts), and "suggestedSfx" (5 prompts).
+{motion_graphics_instruction}'''
 
     return f'''You are a {persona}.
 
@@ -891,6 +922,139 @@ async def get_render(filename: str):
 
 # ─── Library Routes ──────────────────────────────────────────────────────────
 
+@api_router.post("/analyze-video")
+async def analyze_video(file: UploadFile = File(...), slideCount: int = 5, duration: int = 30, tone: str = "professional", visualStyle: str = "Cinematic"):
+    """Upload a video, extract key frames, and analyze with Gemini to generate a remake storyboard."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        api_key = os.getenv("EMERGENT_LLM_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
+        
+        # Save uploaded video
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        random_suffix = str(uuid.uuid4())[:7]
+        ext = Path(file.filename).suffix or '.mp4'
+        video_filename = f"remaker-{timestamp}-{random_suffix}{ext}"
+        video_path = UPLOADS_DIR / video_filename
+        
+        content = await file.read()
+        async with aiofiles.open(video_path, 'wb') as f:
+            await f.write(content)
+        
+        logger.info(f"Video uploaded for analysis: {video_path} ({len(content)} bytes)")
+        
+        # Extract key frames using FFmpeg
+        frames_dir = UPLOADS_DIR / f"frames-{random_suffix}"
+        frames_dir.mkdir(exist_ok=True)
+        
+        # Get video duration
+        probe_cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(video_path)]
+        probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=30)
+        video_duration = float(probe_result.stdout.strip()) if probe_result.stdout.strip() else 30.0
+        
+        # Extract frames at regular intervals (1 per slide)
+        frame_count = min(slideCount, 8)
+        interval = max(1, video_duration / frame_count)
+        
+        for i in range(frame_count):
+            seek_time = i * interval
+            frame_path = frames_dir / f"frame_{i:03d}.jpg"
+            extract_cmd = [
+                'ffmpeg', '-y', '-ss', str(seek_time), '-i', str(video_path),
+                '-frames:v', '1', '-q:v', '2', str(frame_path)
+            ]
+            subprocess.run(extract_cmd, capture_output=True, timeout=15)
+        
+        # Read extracted frames as base64
+        frame_descriptions = []
+        frame_files = sorted(frames_dir.glob("*.jpg"))
+        
+        for i, fp in enumerate(frame_files):
+            with open(fp, 'rb') as f:
+                frame_data = base64.b64encode(f.read()).decode()
+            frame_descriptions.append({
+                "index": i,
+                "timestamp": round(i * interval, 1),
+                "base64": frame_data
+            })
+        
+        # Clean up frames directory
+        shutil.rmtree(frames_dir, ignore_errors=True)
+        
+        # Analyze with Gemini using text description of frames
+        analysis_prompt = f"""You are analyzing a video to create a remake storyboard. The video is {video_duration:.1f} seconds long and I extracted {len(frame_descriptions)} key frames.
+
+Frame timestamps: {', '.join([f'{fd["timestamp"]}s' for fd in frame_descriptions])}
+
+Based on these video frames, create a {slideCount}-slide storyboard that recreates the essence and style of this video with a fresh perspective. Total duration: {duration} seconds.
+
+Analyze the visual themes, pacing, subjects, and mood from the frames to inform your storyboard.
+
+Output ONLY valid JSON matching this schema:
+{{
+  "title": "Remake title",
+  "duration": {duration},
+  "style": "{visualStyle}",
+  "colorScheme": "#HEX primary color from the video",
+  "slides": [
+    {{
+      "id": "1",
+      "title": "Slide title",
+      "narration": "Narration text (1-2 sentences, tone: {tone})",
+      "duration": {round(duration / slideCount)},
+      "imagePrompt": "Detailed image prompt inspired by the video's visual style. 16:9 landscape. No text.",
+      "videoPrompt": "Camera movement/animation description",
+      "transition": "fade|slide|zoom|none",
+      "onScreenText": "Optional bold text overlay",
+      "visualStyle": "{visualStyle}"
+    }}
+  ],
+  "voiceoverStyle": "professional|energetic|calm|storytelling",
+  "musicMood": "uplifting|corporate|cinematic|minimal",
+  "characters": [],
+  "suggestedMusic": ["5 music ideas matching the original video's mood"],
+  "suggestedVfx": ["5 VFX ideas"],
+  "suggestedSfx": ["5 SFX ideas"],
+  "originalVideoAnalysis": "Brief 2-sentence summary of what the original video was about"
+}}"""
+
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"remaker-{uuid.uuid4()}",
+            system_message="You are an expert video content strategist. Analyze video content and create compelling remake storyboards. Always respond with valid JSON only."
+        )
+        chat.with_model("gemini", "gemini-2.5-flash")
+        
+        user_message = UserMessage(text=analysis_prompt)
+        response = await chat.send_message(user_message)
+        
+        # Clean and parse
+        import json
+        cleaned = response.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+        
+        parsed = json.loads(cleaned)
+        
+        # Clean up video file after analysis
+        video_path.unlink(missing_ok=True)
+        
+        return {"success": True, "data": parsed, "framesAnalyzed": len(frame_descriptions), "originalDuration": video_duration}
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parse error in video analysis: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse AI analysis response")
+    except Exception as e:
+        logger.error(f"Video analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/library/music")
 async def get_music_library(category: Optional[str] = None):
     """Get music library catalog, optionally filtered by category."""
@@ -939,6 +1103,7 @@ class RenderRequest(BaseModel):
     generateVoice: bool = True
     voiceId: str = "en-US-Journey-D"
     captionStyleId: Optional[str] = None
+    captionMode: str = "words"
     bgmUrl: Optional[str] = None
     bgmVolume: float = 0.4
 
@@ -1065,7 +1230,7 @@ async def generate_voice_for_slide(text: str, voice_id: str, api_key: str) -> Op
         logger.error(f"Voice generation error: {e}")
         return None
 
-async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None, bgm_url: str = None, bgm_volume: float = 0.4):
+async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None, caption_mode: str = "words", bgm_url: str = None, bgm_volume: float = 0.4):
     """Background task to render video using Remotion with animated slides, transitions, and captions."""
     try:
         render_jobs[job_id] = {"status": "processing", "progress": 0, "step": "Preparing assets..."}
@@ -1122,6 +1287,7 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
                 "duration": duration,
                 "transition": transition,
                 "voiceUrl": voice_http_url,
+                "graphics": slide.get('graphics', []),
             })
         
         if not remotion_slides:
@@ -1148,6 +1314,7 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
         remotion_data = {
             "slides": remotion_slides,
             "captionStyleId": caption_style_id,
+            "captionMode": caption_mode,
             "bgmUrl": bgm_http_url,
             "bgmVolume": bgm_volume,
         }
@@ -1254,6 +1421,7 @@ async def start_render(request: RenderRequest, background_tasks: BackgroundTasks
         request.generateVoice,
         request.voiceId,
         request.captionStyleId,
+        request.captionMode,
         request.bgmUrl,
         request.bgmVolume
     )

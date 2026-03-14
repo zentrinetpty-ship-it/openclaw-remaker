@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowLeft, Save, Download, Play, Pause, Square, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload } from 'lucide-react';
+import { Sparkles, ArrowLeft, Save, Download, Play, Pause, Square, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload, Type } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -14,6 +14,7 @@ const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const TABS = [
   { id: 'script', label: 'Script', icon: FileText },
   { id: 'assets', label: 'Assets', icon: Image },
+  { id: 'graphics', label: 'Graphics', icon: Type },
   { id: 'music', label: 'Music', icon: Music },
   { id: 'voice', label: 'Voice', icon: Mic },
   { id: 'captions', label: 'Captions', icon: Captions },
@@ -523,6 +524,213 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
           </div>
         )}
 
+        {activeTab === 'graphics' && activeSlide && (
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Motion Graphics</h3>
+            <p className="text-[10px] text-slate-500">Add animated overlays to this slide</p>
+            
+            {/* Current graphics on this slide */}
+            {(activeSlide.graphics || []).length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-semibold text-slate-400 uppercase">Active Graphics</h4>
+                {activeSlide.graphics.map((g, gi) => (
+                  <div key={gi} className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <span className="text-[10px] text-violet-400 font-semibold capitalize flex-1">{g.type?.replace('-', ' ')}</span>
+                    <span className="text-[9px] text-slate-500">@{g.startTime || 0}s</span>
+                    <button onClick={() => {
+                      const newGraphics = [...(activeSlide.graphics || [])];
+                      newGraphics.splice(gi, 1);
+                      updateSlide(activeSlide.id, { graphics: newGraphics });
+                    }} className="w-5 h-5 rounded flex items-center justify-center bg-red-500/20 text-red-400 hover:bg-red-500/40" data-testid={`remove-graphic-${gi}`}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="h-px bg-slate-800" />
+            
+            {/* Add Graphics */}
+            <h4 className="text-[10px] font-semibold text-slate-400 uppercase">Add Graphic</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { type: 'title-card', label: 'Title Card', desc: 'Big animated title' },
+                { type: 'lower-third', label: 'Lower Third', desc: 'Name & title bar' },
+                { type: 'kinetic-text', label: 'Kinetic Text', desc: 'Animated words' },
+                { type: 'stat-counter', label: 'Stat Counter', desc: 'Number animation' },
+              ].map(opt => (
+                <button
+                  key={opt.type}
+                  onClick={() => {
+                    const newGraphic = {
+                      type: opt.type,
+                      startTime: 0,
+                      duration: 3,
+                      ...(opt.type === 'title-card' ? { title: activeSlide.title || 'Title', subtitle: '' } : {}),
+                      ...(opt.type === 'lower-third' ? { name: 'Speaker Name', title: 'Title' } : {}),
+                      ...(opt.type === 'kinetic-text' ? { text: activeSlide.onScreenText || activeSlide.title || 'Key Point' } : {}),
+                      ...(opt.type === 'stat-counter' ? { value: '100', label: 'Metric', suffix: '%', prefix: '' } : {}),
+                    };
+                    updateSlide(activeSlide.id, { graphics: [...(activeSlide.graphics || []), newGraphic] });
+                  }}
+                  className="p-3 rounded-xl border border-slate-700 hover:border-violet-500 hover:bg-violet-500/5 transition text-left"
+                  data-testid={`add-graphic-${opt.type}`}
+                >
+                  <p className="text-[11px] text-white font-semibold">{opt.label}</p>
+                  <p className="text-[9px] text-slate-500">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Edit selected graphic properties */}
+            {(activeSlide.graphics || []).length > 0 && (
+              <div className="space-y-3">
+                <div className="h-px bg-slate-800" />
+                <h4 className="text-[10px] font-semibold text-slate-400 uppercase">Edit Properties</h4>
+                {activeSlide.graphics.map((g, gi) => (
+                  <div key={gi} className="p-2 rounded-lg bg-slate-800/30 border border-slate-800 space-y-2">
+                    <p className="text-[10px] text-violet-400 font-bold capitalize">{g.type?.replace('-', ' ')} #{gi + 1}</p>
+                    
+                    {/* Common: startTime + duration */}
+                    <div className="flex gap-2">
+                      <label className="flex-1">
+                        <span className="text-[9px] text-slate-500">Start (s)</span>
+                        <input type="number" min={0} step={0.5} value={g.startTime || 0}
+                          onChange={(e) => {
+                            const updated = [...activeSlide.graphics];
+                            updated[gi] = { ...updated[gi], startTime: parseFloat(e.target.value) || 0 };
+                            updateSlide(activeSlide.id, { graphics: updated });
+                          }}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-start`}
+                        />
+                      </label>
+                      <label className="flex-1">
+                        <span className="text-[9px] text-slate-500">Duration (s)</span>
+                        <input type="number" min={0.5} step={0.5} value={g.duration || 3}
+                          onChange={(e) => {
+                            const updated = [...activeSlide.graphics];
+                            updated[gi] = { ...updated[gi], duration: parseFloat(e.target.value) || 3 };
+                            updateSlide(activeSlide.id, { graphics: updated });
+                          }}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-duration`}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Type-specific fields */}
+                    {(g.type === 'title-card' || g.type === 'kinetic-text') && (
+                      <label>
+                        <span className="text-[9px] text-slate-500">{g.type === 'title-card' ? 'Title' : 'Text'}</span>
+                        <input type="text" value={g.title || g.text || ''}
+                          onChange={(e) => {
+                            const updated = [...activeSlide.graphics];
+                            const key = g.type === 'title-card' ? 'title' : 'text';
+                            updated[gi] = { ...updated[gi], [key]: e.target.value };
+                            updateSlide(activeSlide.id, { graphics: updated });
+                          }}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-text`}
+                        />
+                      </label>
+                    )}
+                    {g.type === 'title-card' && (
+                      <label>
+                        <span className="text-[9px] text-slate-500">Subtitle</span>
+                        <input type="text" value={g.subtitle || ''}
+                          onChange={(e) => {
+                            const updated = [...activeSlide.graphics];
+                            updated[gi] = { ...updated[gi], subtitle: e.target.value };
+                            updateSlide(activeSlide.id, { graphics: updated });
+                          }}
+                          className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-subtitle`}
+                        />
+                      </label>
+                    )}
+                    {g.type === 'lower-third' && (
+                      <>
+                        <label>
+                          <span className="text-[9px] text-slate-500">Name</span>
+                          <input type="text" value={g.name || ''}
+                            onChange={(e) => {
+                              const updated = [...activeSlide.graphics];
+                              updated[gi] = { ...updated[gi], name: e.target.value };
+                              updateSlide(activeSlide.id, { graphics: updated });
+                            }}
+                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-name`}
+                          />
+                        </label>
+                        <label>
+                          <span className="text-[9px] text-slate-500">Title</span>
+                          <input type="text" value={g.title || ''}
+                            onChange={(e) => {
+                              const updated = [...activeSlide.graphics];
+                              updated[gi] = { ...updated[gi], title: e.target.value };
+                              updateSlide(activeSlide.id, { graphics: updated });
+                            }}
+                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-title`}
+                          />
+                        </label>
+                      </>
+                    )}
+                    {g.type === 'stat-counter' && (
+                      <>
+                        <div className="flex gap-2">
+                          <label className="flex-1">
+                            <span className="text-[9px] text-slate-500">Value</span>
+                            <input type="text" value={g.value || ''}
+                              onChange={(e) => {
+                                const updated = [...activeSlide.graphics];
+                                updated[gi] = { ...updated[gi], value: e.target.value };
+                                updateSlide(activeSlide.id, { graphics: updated });
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-value`}
+                            />
+                          </label>
+                          <label className="flex-1">
+                            <span className="text-[9px] text-slate-500">Label</span>
+                            <input type="text" value={g.label || ''}
+                              onChange={(e) => {
+                                const updated = [...activeSlide.graphics];
+                                updated[gi] = { ...updated[gi], label: e.target.value };
+                                updateSlide(activeSlide.id, { graphics: updated });
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white" data-testid={`graphic-${gi}-label`}
+                            />
+                          </label>
+                        </div>
+                        <div className="flex gap-2">
+                          <label className="flex-1">
+                            <span className="text-[9px] text-slate-500">Prefix</span>
+                            <input type="text" value={g.prefix || ''} placeholder="$"
+                              onChange={(e) => {
+                                const updated = [...activeSlide.graphics];
+                                updated[gi] = { ...updated[gi], prefix: e.target.value };
+                                updateSlide(activeSlide.id, { graphics: updated });
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                            />
+                          </label>
+                          <label className="flex-1">
+                            <span className="text-[9px] text-slate-500">Suffix</span>
+                            <input type="text" value={g.suffix || ''} placeholder="%"
+                              onChange={(e) => {
+                                const updated = [...activeSlide.graphics];
+                                updated[gi] = { ...updated[gi], suffix: e.target.value };
+                                updateSlide(activeSlide.id, { graphics: updated });
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
+                            />
+                          </label>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'effects' && activeSlide && (
           <div className="space-y-4">
             {/* Transition Style */}
@@ -1006,6 +1214,7 @@ export default function EditorPage() {
         generateVoice: true,
         voiceId: project.voiceId || 'en-US-Journey-D',
         captionStyleId: activeCaptionStyleId || null,
+        captionMode: captionMode || 'words',
         bgmUrl: project.bgmUrl || null,
         bgmVolume: project.bgmVolume || 0.4
       });

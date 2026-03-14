@@ -14,6 +14,7 @@ export const Root = () => {
       defaultProps={{
         slides: [],
         captionStyleId: null,
+        captionMode: "words",
         bgmUrl: null,
         bgmVolume: 0.4,
       }}
