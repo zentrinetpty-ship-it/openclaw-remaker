@@ -769,11 +769,16 @@ async def get_upload(filename: str):
 
 @api_router.get("/renders/{filename}")
 async def get_render(filename: str):
-    """Serve rendered videos."""
+    """Serve rendered videos as downloadable MP4."""
     filepath = RENDERS_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Render not found")
-    return FileResponse(filepath, media_type="video/mp4")
+    return FileResponse(
+        filepath, 
+        media_type="video/mp4",
+        filename=filename,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 # ─── Video Render Routes ────────────────────────────────────────────────────
 

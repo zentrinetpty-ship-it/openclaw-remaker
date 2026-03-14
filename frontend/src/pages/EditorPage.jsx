@@ -435,10 +435,17 @@ export default function EditorPage() {
                       <Check className="w-8 h-8 text-emerald-400" />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">Video Ready!</h3>
-                    <p className="text-sm text-slate-400 mb-6">Your video has been rendered successfully.</p>
+                    <p className="text-sm text-slate-400 mb-6">Your video has been rendered with voice narration.</p>
                     <div className="flex gap-3 justify-center">
                       <Button variant="outline" onClick={() => setShowExportModal(false)}>Close</Button>
-                      <a href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} download className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700" data-testid="download-video-btn">
+                      <a 
+                        href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} 
+                        download={`${project?.title || 'video'}.mp4`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700" 
+                        data-testid="download-video-btn"
+                      >
                         <Download className="w-4 h-4" /> Download MP4
                       </a>
                     </div>
