@@ -60,6 +60,14 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] File upload handler sends to server (no more blob: URLs)
 - [x] Pre-render validation warns about missing slide images
 
+### Phase 6 - Music & SFX Library (March 14)
+- [x] Generated 78 audio files using FFmpeg synthesis (34 music + 44 SFX)
+- [x] Music Library: 34 tracks across 8 categories (cinematic, corporate, ambient, upbeat, lofi, electronic, inspirational, acoustic)
+- [x] SFX Library: 44 sounds across 6 categories (transitions, ui, impact, tech, nature, comic)
+- [x] Backend endpoints: GET /api/library/music, GET /api/library/sfx with category filtering
+- [x] Frontend: Browsable library with category filters, preview playback, and one-click selection
+- [x] SFX preview with play/stop buttons per sound
+
 ## API Endpoints
 **Auth:**
 - POST /api/auth/register
