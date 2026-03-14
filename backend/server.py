@@ -369,7 +369,7 @@ async def restructure_script(request: ScriptRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/generate-image")
-async def generate_image(request: ImageGenerateRequest):
+async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get_current_user)):
     """Generate image using Gemini Nano Banana."""
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -406,14 +406,16 @@ async def generate_image(request: ImageGenerateRequest):
             async with aiofiles.open(filepath, 'wb') as f:
                 await f.write(image_bytes)
             
-            # Save to database
+            # Save to database - link to user
+            user_id = user.get("id") if user else request.userId
             asset_doc = {
                 "id": str(uuid.uuid4()),
                 "type": "image",
                 "url": f"/api/uploads/{filename}",
                 "prompt": request.description,
+                "style": request.style,
                 "projectId": request.projectId,
-                "userId": request.userId,
+                "userId": user_id,
                 "createdAt": datetime.now(timezone.utc).isoformat()
             }
             await db.generated_assets.insert_one(asset_doc)
@@ -421,6 +423,7 @@ async def generate_image(request: ImageGenerateRequest):
             return {
                 "success": True,
                 "image": f"/api/uploads/{filename}",
+                "assetId": asset_doc["id"],
                 "mimeType": images[0].get('mime_type', 'image/png')
             }
         else:
@@ -431,7 +434,7 @@ async def generate_image(request: ImageGenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/generate-video")
-async def generate_video(request: VideoGenerateRequest):
+async def generate_video(request: VideoGenerateRequest, user: dict = Depends(get_current_user)):
     """Generate video background image using Gemini."""
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -462,13 +465,14 @@ async def generate_video(request: VideoGenerateRequest):
             async with aiofiles.open(filepath, 'wb') as f:
                 await f.write(image_bytes)
             
+            user_id = user.get("id") if user else request.userId
             asset_doc = {
                 "id": str(uuid.uuid4()),
                 "type": "video",
                 "url": f"/api/uploads/{filename}",
                 "prompt": request.description,
                 "projectId": request.projectId,
-                "userId": request.userId,
+                "userId": user_id,
                 "createdAt": datetime.now(timezone.utc).isoformat()
             }
             await db.generated_assets.insert_one(asset_doc)
@@ -476,6 +480,7 @@ async def generate_video(request: VideoGenerateRequest):
             return {
                 "success": True,
                 "video": f"/api/uploads/{filename}",
+                "assetId": asset_doc["id"],
                 "mimeType": "image/png"
             }
         else:
@@ -486,19 +491,79 @@ async def generate_video(request: VideoGenerateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/generate-voice")
-async def generate_voice(request: VoiceGenerateRequest):
-    """Generate TTS voice (mocked for MVP - returns placeholder)."""
+async def generate_voice(request: VoiceGenerateRequest, user: dict = Depends(get_current_user)):
+    """Generate TTS voice using Google Cloud Text-to-Speech API."""
     try:
-        # For MVP, return a placeholder silent audio
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        random_suffix = str(uuid.uuid4())[:7]
-        filename = f"voice-{timestamp}-{random_suffix}.mp3"
+        import httpx
         
-        return {
-            "success": True,
-            "url": f"/api/uploads/{filename}",
-            "message": "Voice generation mocked for MVP"
+        api_key = os.getenv("GOOGLE_TTS_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="GOOGLE_TTS_API_KEY not configured")
+        
+        # Map voice IDs to Google TTS format
+        voice_mapping = {
+            "en-US-Journey-D": {"languageCode": "en-US", "name": "en-US-Journey-D"},
+            "en-US-Journey-F": {"languageCode": "en-US", "name": "en-US-Journey-F"},
+            "en-US-Wavenet-D": {"languageCode": "en-US", "name": "en-US-Wavenet-D"},
+            "en-US-Wavenet-F": {"languageCode": "en-US", "name": "en-US-Wavenet-F"},
+            "en-GB-Neural2-B": {"languageCode": "en-GB", "name": "en-GB-Neural2-B"},
+            "en-GB-Neural2-A": {"languageCode": "en-GB", "name": "en-GB-Neural2-A"},
+            "en-AU-Neural2-B": {"languageCode": "en-AU", "name": "en-AU-Neural2-B"},
+            "en-AU-Neural2-C": {"languageCode": "en-AU", "name": "en-AU-Neural2-C"},
         }
+        
+        voice_config = voice_mapping.get(request.voiceId, {"languageCode": "en-US", "name": "en-US-Wavenet-D"})
+        
+        # Call Google TTS API
+        tts_url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+        payload = {
+            "input": {"text": request.text},
+            "voice": voice_config,
+            "audioConfig": {"audioEncoding": "MP3", "speakingRate": 1.0, "pitch": 0}
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(tts_url, json=payload, timeout=30)
+            
+            if response.status_code != 200:
+                logger.error(f"TTS API error: {response.text}")
+                raise HTTPException(status_code=500, detail=f"TTS API error: {response.status_code}")
+            
+            result = response.json()
+            audio_content = result.get("audioContent")
+            
+            if not audio_content:
+                raise HTTPException(status_code=500, detail="No audio content returned")
+            
+            # Save audio file
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            random_suffix = str(uuid.uuid4())[:7]
+            filename = f"voice-{timestamp}-{random_suffix}.mp3"
+            filepath = UPLOADS_DIR / filename
+            
+            audio_bytes = base64.b64decode(audio_content)
+            async with aiofiles.open(filepath, 'wb') as f:
+                await f.write(audio_bytes)
+            
+            # Save to user's generated assets
+            user_id = user.get("id") if user else request.userId
+            asset_doc = {
+                "id": str(uuid.uuid4()),
+                "type": "voice",
+                "url": f"/api/uploads/{filename}",
+                "prompt": request.text[:100],
+                "metadata": {"voiceId": request.voiceId, "textLength": len(request.text)},
+                "projectId": request.projectId,
+                "userId": user_id,
+                "createdAt": datetime.now(timezone.utc).isoformat()
+            }
+            await db.generated_assets.insert_one(asset_doc)
+            
+            return {
+                "success": True,
+                "url": f"/api/uploads/{filename}",
+                "assetId": asset_doc["id"]
+            }
     except Exception as e:
         logger.error(f"Voice generation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -555,6 +620,46 @@ async def search_audio(q: str = "ambient"):
         {"id": "2", "name": "Cinematic Epic", "previews": {"preview-hq-mp3": "/api/uploads/mock-audio-2.mp3"}},
     ]
     return {"results": mock_results}
+
+# ─── User Assets Routes ─────────────────────────────────────────────────────
+
+@api_router.get("/user/assets")
+async def get_user_assets(user: dict = Depends(require_auth), type: Optional[str] = None, limit: int = 50):
+    """Get all assets generated by the current user."""
+    try:
+        query = {"userId": user["id"]}
+        if type:
+            query["type"] = type
+        
+        assets = await db.generated_assets.find(query, {"_id": 0}).sort("createdAt", -1).to_list(limit)
+        return {"success": True, "assets": assets}
+    except Exception as e:
+        logger.error(f"Get user assets error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/user/stats")
+async def get_user_stats(user: dict = Depends(require_auth)):
+    """Get statistics for the current user."""
+    try:
+        # Count assets by type
+        image_count = await db.generated_assets.count_documents({"userId": user["id"], "type": "image"})
+        voice_count = await db.generated_assets.count_documents({"userId": user["id"], "type": "voice"})
+        video_count = await db.generated_assets.count_documents({"userId": user["id"], "type": "video"})
+        project_count = await db.projects.count_documents({"userId": user["id"]})
+        
+        return {
+            "success": True,
+            "stats": {
+                "images": image_count,
+                "voices": voice_count,
+                "videos": video_count,
+                "projects": project_count,
+                "total": image_count + voice_count + video_count
+            }
+        }
+    except Exception as e:
+        logger.error(f"Get user stats error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/projects")
 async def create_project(request: ProjectCreateRequest):

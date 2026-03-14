@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink, User, LogOut } from 'lucide-react';
+import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink, User, LogOut, Image, Mic, Film, BarChart3 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/AuthModal';
@@ -13,22 +13,39 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const [projects, setProjects] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('projects');
 
   useEffect(() => {
-    const loadProjects = async () => {
+    const loadData = async () => {
       try {
-        // If user is logged in, filter by their userId
+        // Load projects
         const url = user?.id ? `${API}/projects?userId=${user.id}` : `${API}/projects`;
         const res = await axios.get(url);
         if (res.data.success) setProjects(res.data.projects || []);
+        
+        // Load user assets and stats if logged in
+        if (user?.id) {
+          try {
+            const [assetsRes, statsRes] = await Promise.all([
+              axios.get(`${API}/user/assets?limit=20`),
+              axios.get(`${API}/user/stats`)
+            ]);
+            if (assetsRes.data.success) setAssets(assetsRes.data.assets || []);
+            if (statsRes.data.success) setStats(statsRes.data.stats);
+          } catch (e) {
+            console.log('Could not load user data');
+          }
+        }
       } catch (e) {
-        console.error('Failed to load projects:', e);
+        console.error('Failed to load data:', e);
       }
       setLoading(false);
     };
-    loadProjects();
+    loadData();
   }, [user]);
 
   return (
@@ -69,58 +86,94 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-black text-white font-['Outfit']">Your Projects</h1>
-            <p className="text-slate-500 mt-1">Manage and edit your video projects</p>
+        {/* Stats Banner - Only for logged in users */}
+        {isAuthenticated && stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Folder className="w-4 h-4 text-violet-400" />
+                <span className="text-xs text-slate-400 uppercase">Projects</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.projects}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Image className="w-4 h-4 text-blue-400" />
+                <span className="text-xs text-slate-400 uppercase">Images</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.images}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Mic className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs text-slate-400 uppercase">Voices</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.voices}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-500/5 border border-pink-500/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Film className="w-4 h-4 text-pink-400" />
+                <span className="text-xs text-slate-400 uppercase">Videos</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{stats.videos}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Folder className="w-4 h-4" />
-            <span>{projects.length} projects</span>
-          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex items-center gap-4 border-b border-slate-800 mb-6">
+          <button onClick={() => setActiveTab('projects')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px ${activeTab === 'projects' ? 'border-violet-500 text-white' : 'border-transparent text-slate-500'}`} data-testid="tab-projects">
+            Projects ({projects.length})
+          </button>
+          {isAuthenticated && (
+            <button onClick={() => setActiveTab('assets')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px ${activeTab === 'assets' ? 'border-violet-500 text-white' : 'border-transparent text-slate-500'}`} data-testid="tab-assets">
+              Generated Assets ({assets.length})
+            </button>
+          )}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <Sparkles className="w-8 h-8 text-violet-500 animate-pulse mx-auto mb-2" />
-              <p className="text-sm text-slate-400">Loading projects...</p>
+              <p className="text-sm text-slate-400">Loading...</p>
             </div>
           </div>
-        ) : projects.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-20 h-20 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
-              <Folder className="w-10 h-10 text-slate-600" />
+        ) : activeTab === 'projects' ? (
+          projects.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
+                <Folder className="w-10 h-10 text-slate-600" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">No projects yet</h2>
+              <p className="text-slate-500 mb-6">Create your first AI-powered video</p>
+              <Button onClick={() => navigate('/')} size="lg">
+                <Plus className="w-4 h-4 mr-2" /> Create New Project
+              </Button>
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">No projects yet</h2>
-            <p className="text-slate-500 mb-6">Create your first AI-powered video</p>
-            <Button onClick={() => navigate('/')} size="lg">
-              <Plus className="w-4 h-4 mr-2" /> Create New Project
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project, idx) => (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="group rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden hover:border-violet-500/50 transition-colors"
-              >
-                <div className="aspect-video relative bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                  {project.projectData?.slides?.[0]?.assetUrl ? (
-                    <img 
-                      src={project.projectData.slides[0].assetUrl.startsWith('/api') 
-                        ? `${process.env.REACT_APP_BACKEND_URL}${project.projectData.slides[0].assetUrl}` 
-                        : project.projectData.slides[0].assetUrl
-                      } 
-                      className="w-full h-full object-cover" 
-                      alt={project.title} 
-                    />
-                  ) : (
-                    <Play className="w-12 h-12 text-slate-600" />
-                  )}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {projects.map((project, idx) => (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="group rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden hover:border-violet-500/50 transition-colors"
+                >
+                  <div className="aspect-video relative bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                    {project.projectData?.slides?.[0]?.assetUrl ? (
+                      <img 
+                        src={project.projectData.slides[0].assetUrl.startsWith('/api') 
+                          ? `${process.env.REACT_APP_BACKEND_URL}${project.projectData.slides[0].assetUrl}` 
+                          : project.projectData.slides[0].assetUrl
+                        } 
+                        className="w-full h-full object-cover" 
+                        alt={project.title} 
+                      />
+                    ) : (
+                      <Play className="w-12 h-12 text-slate-600" />
+                    )}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                     <Button size="sm" onClick={() => navigate(`/editor/${project.id}`)} data-testid={`open-project-${project.id}`}>
                       <ExternalLink className="w-4 h-4 mr-1" /> Open
@@ -144,6 +197,54 @@ export default function DashboardPage() {
               </motion.div>
             ))}
           </div>
+          )
+        ) : (
+          /* Assets Tab */
+          assets.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
+                <Image className="w-10 h-10 text-slate-600" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">No generated assets yet</h2>
+              <p className="text-slate-500 mb-6">Start creating to see your generated images, voices, and videos here</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {assets.map((asset, idx) => (
+                <motion.div
+                  key={asset.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.03 }}
+                  className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden group"
+                >
+                  {asset.type === 'image' || asset.type === 'video' ? (
+                    <div className="aspect-video relative bg-slate-800">
+                      <img 
+                        src={`${process.env.REACT_APP_BACKEND_URL}${asset.url}`} 
+                        alt={asset.prompt?.slice(0, 30)} 
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase bg-black/50 text-white">
+                        {asset.type}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="aspect-video relative bg-gradient-to-br from-emerald-900/30 to-slate-900 flex items-center justify-center">
+                      <Mic className="w-8 h-8 text-emerald-400" />
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase bg-black/50 text-white">
+                        voice
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <p className="text-xs text-slate-400 line-clamp-2">{asset.prompt || 'No description'}</p>
+                    <p className="text-[9px] text-slate-600 mt-1">{new Date(asset.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>
