@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowLeft, Save, Download, Play, Pause, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film } from 'lucide-react';
+import { Sparkles, ArrowLeft, Save, Download, Play, Pause, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -30,15 +30,28 @@ const CAPTION_STYLES = [
 ];
 
 const VFX_OPTIONS = ['none', 'cinematic', 'vhs', 'glitch', 'grayscale', 'blur'];
+const TRANSITION_OPTIONS = ['fade', 'slide', 'zoom', 'none'];
+const VOICES = [
+  { id: 'en-US-Journey-D', name: 'Journey D', accent: 'American', gender: 'Male', type: 'Narrative' },
+  { id: 'en-US-Journey-F', name: 'Journey F', accent: 'American', gender: 'Female', type: 'Narrative' },
+  { id: 'en-US-Wavenet-D', name: 'Wavenet D', accent: 'American', gender: 'Male', type: 'Standard' },
+  { id: 'en-US-Wavenet-F', name: 'Wavenet F', accent: 'American', gender: 'Female', type: 'Standard' },
+  { id: 'en-GB-Neural2-B', name: 'Neural2 B', accent: 'British', gender: 'Male', type: 'Pro' },
+  { id: 'en-GB-Neural2-A', name: 'Neural2 A', accent: 'British', gender: 'Female', type: 'Pro' },
+  { id: 'en-AU-Neural2-B', name: 'Neural2 B', accent: 'Australian', gender: 'Male', type: 'Pro' },
+  { id: 'en-AU-Neural2-C', name: 'Neural2 C', accent: 'Australian', gender: 'Female', type: 'Pro' },
+];
 
-function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCategory, primaryColor }) {
+function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCategory, primaryColor, selectedSlideId, setSelectedSlideId }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   const { setProject } = useProjectStore();
   const { activeCaptionStyleId, setActiveCaptionStyleId, captionMode, setCaptionMode } = useCaptionStore();
   const [generating, setGenerating] = useState({});
-  const [musicSearch, setMusicSearch] = useState('');
-  const [audioSearch, setAudioSearch] = useState('');
-  const activeSlide = project?.slides?.[0];
+  const [selectedVoice, setSelectedVoice] = useState('en-US-Journey-D');
+  const [playingAudio, setPlayingAudio] = useState(null);
+  const audioRef = React.useRef(null);
+  
+  const activeSlide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
 
   const generateImage = async (slide) => {
     setGenerating(g => ({ ...g, [slide.id]: 'image' }));
@@ -51,9 +64,47 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
     setGenerating(g => ({ ...g, [slide.id]: null }));
   };
 
+  const generateVoice = async (slide) => {
+    if (!slide.narration) return;
+    setGenerating(g => ({ ...g, [`voice_${slide.id}`]: true }));
+    try {
+      const res = await axios.post(`${API}/generate-voice`, { 
+        text: slide.narration, 
+        voiceId: selectedVoice 
+      });
+      if (res.data.success) {
+        updateSlide(slide.id, { voiceUrl: res.data.url });
+      }
+    } catch (e) { 
+      console.error('Voice generation error:', e); 
+    }
+    setGenerating(g => ({ ...g, [`voice_${slide.id}`]: false }));
+  };
+
+  const generateAllVoices = async () => {
+    for (const slide of project?.slides || []) {
+      if (!slide.voiceUrl && slide.narration) {
+        await generateVoice(slide);
+      }
+    }
+  };
+
   const generateAllMissing = async () => {
     for (const slide of project?.slides || []) {
       if (!slide.assetUrl) await generateImage(slide);
+    }
+  };
+
+  const playAudio = (url) => {
+    if (audioRef.current) {
+      if (playingAudio === url) {
+        audioRef.current.pause();
+        setPlayingAudio(null);
+      } else {
+        audioRef.current.src = `${process.env.REACT_APP_BACKEND_URL}${url}`;
+        audioRef.current.play();
+        setPlayingAudio(url);
+      }
     }
   };
 
@@ -68,6 +119,8 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
         ))}
       </div>
 
+      <audio ref={audioRef} onEnded={() => setPlayingAudio(null)} className="hidden" />
+      
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
         {activeTab === 'script' && (
           <div className="space-y-3">
@@ -76,7 +129,7 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
               <span className="text-[10px] text-slate-500">{project?.slides?.length || 0} total</span>
             </div>
             {project?.slides?.map((slide, idx) => (
-              <div key={slide.id} className="p-3 rounded-xl bg-slate-800/50 border border-slate-700 hover:border-violet-500/50 cursor-pointer group">
+              <div key={slide.id} onClick={() => setSelectedSlideId(slide.id)} className={`p-3 rounded-xl bg-slate-800/50 border cursor-pointer group ${selectedSlideId === slide.id ? 'border-violet-500' : 'border-slate-700 hover:border-violet-500/50'}`}>
                 <div className="flex items-start gap-3">
                   <div className="w-16 h-10 rounded-lg bg-slate-900 flex-shrink-0 overflow-hidden flex items-center justify-center">
                     {slide.assetUrl ? (
@@ -86,12 +139,16 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-white truncate">{slide.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-white truncate">{slide.title}</p>
+                      {slide.voiceUrl && <Mic className="w-3 h-3 text-emerald-400" />}
+                    </div>
                     <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5">{slide.narration}</p>
                     <div className="flex items-center gap-2 mt-1 text-[9px] text-slate-600">
                       <span>{slide.duration}s</span>
                       <span>·</span>
-                      <span>{slide.transition}</span>
+                      <span className="capitalize">{slide.transition || 'fade'}</span>
+                      {slide.vfx && slide.vfx !== 'none' && <span className="text-violet-400">· {slide.vfx}</span>}
                     </div>
                   </div>
                 </div>
@@ -146,18 +203,92 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 
         {activeTab === 'voice' && (
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Voice Settings</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {['en-US-Journey-D', 'en-US-Journey-F', 'en-GB-Neural2-B', 'en-AU-Neural2-C'].map(voice => (
-                <button key={voice} className="p-2 rounded-xl border border-slate-700 hover:border-violet-500/50 text-left" data-testid={`voice-${voice}`}>
-                  <p className="text-xs font-semibold text-white">{voice.split('-')[2]}</p>
-                  <p className="text-[9px] text-slate-500">{voice.split('-').slice(0, 2).join('-')}</p>
-                </button>
-              ))}
+            {/* Voice Selection */}
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Select Voice</h3>
+              <div className="grid grid-cols-1 gap-2">
+                {VOICES.map(voice => (
+                  <button 
+                    key={voice.id} 
+                    onClick={() => setSelectedVoice(voice.id)}
+                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between ${selectedVoice === voice.id ? 'border-violet-500 bg-violet-500/10' : 'border-slate-700 hover:border-slate-600'}`}
+                    data-testid={`voice-${voice.id}`}
+                  >
+                    <div>
+                      <p className="text-xs font-semibold text-white">{voice.name}</p>
+                      <p className="text-[9px] text-slate-500">{voice.accent} · {voice.gender} · {voice.type}</p>
+                    </div>
+                    {selectedVoice === voice.id && <Check className="w-4 h-4 text-violet-400" />}
+                  </button>
+                ))}
+              </div>
             </div>
-            <Button size="sm" className="w-full" style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }} data-testid="gen-voice-all">
-              <Mic className="w-3 h-3 mr-1" /> Generate All Voices
-            </Button>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* Per-Slide Voice Generation */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Slide Voices</h3>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={generateAllVoices}
+                  className="text-[10px] h-7"
+                  data-testid="gen-all-voices"
+                >
+                  <Sparkles className="w-3 h-3 mr-1" /> Generate All
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {project?.slides?.map((slide, idx) => (
+                  <div key={slide.id} className="p-3 rounded-xl bg-slate-800/50 border border-slate-700">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-semibold text-slate-400">Slide {idx + 1}: {slide.title}</p>
+                        <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5 italic">"{slide.narration}"</p>
+                      </div>
+                    </div>
+                    
+                    {slide.voiceUrl ? (
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => playAudio(slide.voiceUrl)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold"
+                        >
+                          {playingAudio === slide.voiceUrl ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                          {playingAudio === slide.voiceUrl ? 'Pause' : 'Play'}
+                        </button>
+                        <button 
+                          onClick={() => generateVoice(slide)}
+                          disabled={generating[`voice_${slide.id}`]}
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-[10px]"
+                        >
+                          <RefreshCcw className="w-3 h-3" /> Regen
+                        </button>
+                        <span className="text-[9px] text-emerald-400 flex items-center gap-1"><Check className="w-3 h-3" /> Done</span>
+                      </div>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        onClick={() => generateVoice(slide)}
+                        disabled={generating[`voice_${slide.id}`] || !slide.narration}
+                        className="w-full h-8 text-[10px]"
+                        style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }}
+                        data-testid={`gen-voice-${slide.id}`}
+                      >
+                        {generating[`voice_${slide.id}`] ? (
+                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Generating...</>
+                        ) : (
+                          <><Wand2 className="w-3 h-3 mr-1" /> Generate Voice</>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -184,11 +315,65 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 
         {activeTab === 'effects' && activeSlide && (
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider">VFX Effects</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {VFX_OPTIONS.map(vfx => (
-                <button key={vfx} onClick={() => updateSlide(activeSlide.id, { vfx })} className={`p-3 rounded-xl border text-xs font-semibold capitalize ${activeSlide.vfx === vfx ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 text-slate-400'}`} data-testid={`vfx-${vfx}`}>{vfx}</button>
-              ))}
+            {/* Transition Style */}
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Transition</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {TRANSITION_OPTIONS.map(trans => (
+                  <button 
+                    key={trans} 
+                    onClick={() => updateSlide(activeSlide.id, { transition: trans })} 
+                    className={`p-2.5 rounded-xl border text-xs font-semibold capitalize ${activeSlide.transition === trans ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 text-slate-400'}`}
+                    data-testid={`trans-${trans}`}
+                  >
+                    {trans}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* VFX Effects */}
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Visual Effects</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {VFX_OPTIONS.map(vfx => (
+                  <button 
+                    key={vfx} 
+                    onClick={() => updateSlide(activeSlide.id, { vfx })} 
+                    className={`p-2.5 rounded-xl border text-xs font-semibold capitalize ${activeSlide.vfx === vfx ? 'border-violet-500 bg-violet-500/10 text-white' : 'border-slate-700 text-slate-400'}`} 
+                    data-testid={`vfx-${vfx}`}
+                  >
+                    {vfx}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* Apply to All */}
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Batch Apply</h3>
+              <div className="space-y-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => project?.slides?.forEach(s => updateSlide(s.id, { transition: activeSlide.transition }))}
+                >
+                  Apply transition to all slides
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => project?.slides?.forEach(s => updateSlide(s.id, { vfx: activeSlide.vfx }))}
+                >
+                  Apply VFX to all slides
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -197,11 +382,17 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
   );
 }
 
-function CanvasPreview({ project, videoCategory }) {
+function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSlideId }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   const [playing, setPlaying] = useState(false);
-  const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
+  const currentSlideIdx = project?.slides?.findIndex(s => s.id === selectedSlideId) ?? 0;
   const currentSlide = project?.slides?.[currentSlideIdx];
+
+  const goToSlide = (idx) => {
+    if (project?.slides?.[idx]) {
+      setSelectedSlideId(project.slides[idx].id);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-[#050a14]">
@@ -234,16 +425,16 @@ function CanvasPreview({ project, videoCategory }) {
       <div className="p-4 border-t border-slate-800 bg-[#0a0f1a]">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-center gap-4 mb-3">
-            <button onClick={() => setCurrentSlideIdx(Math.max(0, currentSlideIdx - 1))} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><SkipBack className="w-5 h-5" /></button>
+            <button onClick={() => goToSlide(Math.max(0, currentSlideIdx - 1))} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><SkipBack className="w-5 h-5" /></button>
             <button onClick={() => setPlaying(!playing)} className="w-12 h-12 rounded-full flex items-center justify-center text-white" style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }} data-testid="play-btn">
               {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 translate-x-0.5" />}
             </button>
-            <button onClick={() => setCurrentSlideIdx(Math.min((project?.slides?.length || 1) - 1, currentSlideIdx + 1))} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><SkipForward className="w-5 h-5" /></button>
+            <button onClick={() => goToSlide(Math.min((project?.slides?.length || 1) - 1, currentSlideIdx + 1))} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><SkipForward className="w-5 h-5" /></button>
           </div>
           {/* Timeline */}
           <div className="flex gap-1">
             {project?.slides?.map((s, i) => (
-              <button key={s.id} onClick={() => setCurrentSlideIdx(i)} className="flex-1 h-2 rounded-full" style={{ background: i === currentSlideIdx ? `linear-gradient(90deg, ${cat?.color}, #EC4899)` : i < currentSlideIdx ? '#10b981' : '#1e293b' }} />
+              <button key={s.id} onClick={() => goToSlide(i)} className="flex-1 h-2 rounded-full transition-all" style={{ background: i === currentSlideIdx ? `linear-gradient(90deg, ${cat?.color}, #EC4899)` : i < currentSlideIdx ? '#10b981' : '#1e293b' }} />
             ))}
           </div>
         </div>
@@ -252,8 +443,8 @@ function CanvasPreview({ project, videoCategory }) {
   );
 }
 
-function RightSidebar({ project, primaryColor, setPrimaryColor, selectedFont, setSelectedFont }) {
-  const currentSlide = project?.slides?.[0];
+function RightSidebar({ project, primaryColor, setPrimaryColor, selectedFont, setSelectedFont, selectedSlideId, updateSlide }) {
+  const currentSlide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
 
   return (
     <div className="w-72 bg-[#0a0f1a] border-l border-slate-800 p-4 space-y-6">
@@ -286,16 +477,34 @@ function RightSidebar({ project, primaryColor, setPrimaryColor, selectedFont, se
               <input type="text" value={currentSlide.title} readOnly className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 uppercase">Duration</label>
-              <div className="flex items-center gap-2 mt-1">
-                <Slider defaultValue={[currentSlide.duration]} max={30} step={1} className="flex-1" />
-                <span className="text-xs text-slate-400 w-8">{currentSlide.duration}s</span>
-              </div>
+              <label className="text-[10px] text-slate-500 uppercase">Duration ({currentSlide.duration}s)</label>
+              <Slider 
+                value={[currentSlide.duration]} 
+                onValueChange={(val) => updateSlide(currentSlide.id, { duration: val[0] })}
+                max={30} 
+                min={2}
+                step={1} 
+                className="mt-2" 
+              />
             </div>
             <div>
               <label className="text-[10px] text-slate-500 uppercase">Transition</label>
-              <select value={currentSlide.transition} className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
-                {['fade', 'slide', 'zoom', 'none'].map(t => <option key={t}>{t}</option>)}
+              <select 
+                value={currentSlide.transition || 'fade'} 
+                onChange={(e) => updateSlide(currentSlide.id, { transition: e.target.value })}
+                className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
+              >
+                {['fade', 'slide', 'zoom', 'none'].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase">VFX Effect</label>
+              <select 
+                value={currentSlide.vfx || 'none'} 
+                onChange={(e) => updateSlide(currentSlide.id, { vfx: e.target.value })}
+                className="w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"
+              >
+                {['none', 'cinematic', 'vhs', 'glitch', 'grayscale', 'blur'].map(v => <option key={v} value={v}>{v}</option>)}
               </select>
             </div>
           </div>
@@ -319,6 +528,7 @@ export default function EditorPage() {
   const [renderStep, setRenderStep] = useState('');
   const [renderUrl, setRenderUrl] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedSlideId, setSelectedSlideId] = useState(null);
   const cat = CATEGORIES.find(c => c.id === videoCategory);
 
   useEffect(() => {
@@ -337,6 +547,13 @@ export default function EditorPage() {
     };
     loadProject();
   }, [projectId, project, setProject]);
+
+  // Set initial selected slide
+  useEffect(() => {
+    if (project?.slides?.length && !selectedSlideId) {
+      setSelectedSlideId(project.slides[0].id);
+    }
+  }, [project, selectedSlideId]);
 
   const startRender = async () => {
     if (!project || rendering) return;
@@ -498,9 +715,9 @@ export default function EditorPage() {
 
       {/* Main Editor */}
       <div className="flex-1 flex overflow-hidden">
-        <LeftSidebar activeTab={activeTab} setActiveTab={setActiveTab} project={project} updateSlide={updateSlide} videoCategory={videoCategory} primaryColor={primaryColor} />
-        <CanvasPreview project={project} videoCategory={videoCategory} />
-        <RightSidebar project={project} primaryColor={primaryColor} setPrimaryColor={setPrimaryColor} selectedFont={selectedFont} setSelectedFont={setSelectedFont} />
+        <LeftSidebar activeTab={activeTab} setActiveTab={setActiveTab} project={project} updateSlide={updateSlide} videoCategory={videoCategory} primaryColor={primaryColor} selectedSlideId={selectedSlideId} setSelectedSlideId={setSelectedSlideId} />
+        <CanvasPreview project={project} videoCategory={videoCategory} selectedSlideId={selectedSlideId} setSelectedSlideId={setSelectedSlideId} />
+        <RightSidebar project={project} primaryColor={primaryColor} setPrimaryColor={setPrimaryColor} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedSlideId={selectedSlideId} updateSlide={updateSlide} />
       </div>
     </div>
   );
