@@ -19,7 +19,7 @@ export const Root = () => {
       }}
       calculateMetadata={({ props }) => {
         const fps = 24;
-        const transitionFrames = 12;
+        const transitionFrames = 15;
         const slides = props.slides || [];
         let totalFrames = 0;
         slides.forEach((s, idx) => {

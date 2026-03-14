@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="14" time="289.163" timestamp="2026-03-14T20:25:35.196592+00:00" hostname="agent-env-356571e6-fa4c-4bca-b9c9-350a7ae931f5"><testcase classname="tests.test_p0_fixes.TestAuth" name="test_login_success" time="0.420" /><testcase classname="tests.test_p0_fixes.TestAuth" name="test_login_invalid_credentials" time="0.134" /><testcase classname="tests.test_p0_fixes.TestAuth" name="test_auth_me_with_token" time="0.414" /><testcase classname="tests.test_p0_fixes.TestProjectSaveUpsert" name="test_create_new_project" time="0.421" /><testcase classname="tests.test_p0_fixes.TestProjectSaveUpsert" name="test_save_same_title_updates_not_duplicates" time="0.662" /><testcase classname="tests.test_p0_fixes.TestProjectSaveUpsert" name="test_different_title_creates_new" time="0.524" /><testcase classname="tests.test_p0_fixes.TestLibraryEndpoints" name="test_music_library_returns_catalog" time="0.163" /><testcase classname="tests.test_p0_fixes.TestLibraryEndpoints" name="test_music_library_filter_by_category" time="0.140" /><testcase classname="tests.test_p0_fixes.TestLibraryEndpoints" name="test_sfx_library_returns_catalog" time="0.144" /><testcase classname="tests.test_p0_fixes.TestLibraryEndpoints" name="test_sfx_library_filter_by_category" time="0.138" /><testcase classname="tests.test_p0_fixes.TestRenderEndpoint" name="test_render_start_with_3_slides" time="0.427" /><testcase classname="tests.test_p0_fixes.TestRenderEndpoint" name="test_render_status_polling" time="162.202"><failure message="requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))">/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:787: in urlopen
+    response = self._make_request(
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:534: in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/urllib3/connection.py:571: in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:1395: in getresponse
+    response.begin()
+/usr/local/lib/python3.11/http/client.py:325: in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:294: in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+E   http.client.RemoteDisconnected: Remote end closed connection without response
+
+During handling of the above exception, another exception occurred:
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:644: in send
+    resp = conn.urlopen(
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:841: in urlopen
+    retries = retries.increment(
+/root/.venv/lib/python3.11/site-packages/urllib3/util/retry.py:490: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/urllib3/util/util.py:38: in reraise
+    raise value.with_traceback(tb)
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:787: in urlopen
+    response = self._make_request(
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:534: in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/urllib3/connection.py:571: in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:1395: in getresponse
+    response.begin()
+/usr/local/lib/python3.11/http/client.py:325: in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:294: in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+E   urllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+
+During handling of the above exception, another exception occurred:
+tests/test_p0_fixes.py:339: in test_render_status_polling
+    status_response = api_client.get(f"{BASE_URL}/api/render/{job_id}")
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:602: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:589: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:703: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:659: in send
+    raise ConnectionError(err, request=request)
+E   requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))</failure></testcase><testcase classname="tests.test_p0_fixes.TestRenderEndpoint" name="test_render_invalid_job_returns_404" time="0.312" /><testcase classname="tests.test_p0_fixes.TestRenderEndpoint" name="test_rendered_video_downloadable" time="122.296" /></testsuite></testsuites>
