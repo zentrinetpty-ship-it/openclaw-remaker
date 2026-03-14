@@ -1,156 +1,144 @@
 {
   "identity": {
     "persona": "E1 - The Anti-AI Designer",
+    "mission": "Create a high-energy, cinematic, and colorful landing page that breaks the standard 'SaaS Dark Mode' convention while retaining professional credibility.",
     "principles": [
-      "Fusion over Imitation: Cinematic + Tech + Glass",
-      "Emotion First: The UI must feel 'Alive' and 'Magical'",
-      "Content is King: The user's video is the hero",
-      "Zoom In: Focus on the canvas",
-      "Negative Space: Give the tools breathing room",
-      "Contrast: Deep blacks vs Neon glows"
-    ],
-    "anti_patterns": [
-      "No purple/teal CTAs (unless category specific)",
-      "No Inter font for headings",
-      "No 'Center-Everything' layouts (except Hero)",
-      "No default Shadcn cards (must customize)"
+      "Fusion over Imitation: Mix 'Neo-Brutalist' shapes with 'Cinematic' lighting.",
+      "Emotion First: The page should feel like a creative studio—messy but organized, colorful but purposeful.",
+      "Content is King: The video categories and creator card are the heroes.",
+      "Contrast: High contrast between the clean white background and the deep, vivid brand colors."
     ]
   },
   "typography": {
-    "primary_font": {
-      "name": "Outfit",
-      "weights": [300, 500, 700],
-      "usage": "Headings, Large Labels, Hero Text",
-      "fallback": "sans-serif"
+    "font_family": "Poppins, sans-serif",
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "bold": 700,
+      "black": 900
     },
-    "secondary_font": {
-      "name": "Manrope",
-      "weights": [400, 500, 600],
-      "usage": "Body text, UI elements, Inputs, Tooltips",
-      "fallback": "sans-serif"
+    "scale": {
+      "h1": "text-5xl md:text-7xl font-black tracking-tight leading-none",
+      "h2": "text-4xl md:text-5xl font-bold tracking-tight",
+      "h3": "text-2xl md:text-3xl font-bold",
+      "body": "text-base md:text-lg font-normal leading-relaxed text-slate-600",
+      "label": "text-sm font-bold uppercase tracking-wider text-slate-500"
     },
-    "import_url": "https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Outfit:wght@100..900&display=swap"
+    "instructions": "Use Poppins for EVERYTHING. Headings should be tight and bold. Body text should have relaxed line-height."
   },
   "colors": {
-    "base": {
-      "background": "#030712",
-      "surface": "#111827",
-      "surface_highlight": "#1F2937",
-      "text_primary": "#F9FAFB",
-      "text_secondary": "#9CA3AF",
-      "border": "rgba(255, 255, 255, 0.1)"
+    "palette_name": "Electric Studio (Light Mode)",
+    "mode": "light",
+    "theme": {
+      "background": "#F8FAFC",
+      "foreground": "#0F172A",
+      "primary": "#4F46E5",
+      "primary_foreground": "#FFFFFF",
+      "secondary": "#DB2777",
+      "secondary_foreground": "#FFFFFF",
+      "accent": "#06B6D4",
+      "accent_foreground": "#FFFFFF",
+      "muted": "#F1F5F9",
+      "muted_foreground": "#64748B",
+      "card": "#FFFFFF",
+      "card_foreground": "#0F172A",
+      "border": "#E2E8F0",
+      "input": "#E2E8F0",
+      "ring": "#4F46E5"
     },
-    "dynamic_categories": {
-      "news": "#EF4444",
-      "explainer": "#3B82F6",
-      "cartoon": "#F97316",
-      "ebook": "#10B981",
-      "biography": "#8B5CF6",
-      "tutorial": "#06B6D4",
-      "datastory": "#6366F1",
-      "youtube": "#DC2626",
-      "motiongraphic": "#EC4899",
-      "remaker": "#84CC16",
-      "history": "#F59E0B",
-      "prayer": "#EAB308",
-      "reporter": "#64748B"
+    "accents": {
+      "purple": "#7C3AED",
+      "pink": "#EC4899",
+      "cyan": "#06B6D4",
+      "orange": "#F59E0B"
     },
-    "gradients": {
-      "glass": "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))",
-      "nebula_overlay": "radial-gradient(circle at center, transparent 0%, #030712 100%)"
-    }
-  },
-  "visual_enhancers": {
-    "glassmorphism": {
-      "class": "glass-panel",
-      "css": "@apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;"
-    },
-    "glow_effects": {
-      "strategy": "Use box-shadow matching the active category color",
-      "css": "box-shadow: 0 0 20px rgba([r,g,b], 0.2)"
-    },
-    "nebula_background": {
-      "strategy": "Use the nebula image as a fixed background with overlay",
-      "css": "background-image: url('IMAGE_URL'); background-size: cover; background-attachment: fixed;"
-    }
-  },
-  "layouts": {
-    "landing_page": {
-      "hero": "Centered, large typography, nebula background visible, category grid below",
-      "sections": "Alternating grid layouts, glass cards for features"
-    },
-    "creator_card": {
-      "style": "Floating glass panel, centered or asymmetrical overlay",
-      "form_elements": "Transparent inputs with bottom borders or glass backgrounds"
-    },
-    "editor": {
-      "style": "High-density grid (Bento/Tetris mode)",
-      "sidebar": "Fixed width, collapsible, icon-heavy",
-      "canvas": "Centered, maximum space, dark backdrop",
-      "timeline": "Fixed bottom, scrollable"
+    "usage": {
+      "background": "Use pure white (#FFFFFF) for cards and #F8FAFC for the main page background to create subtle depth.",
+      "text": "Use Slate-900 (#0F172A) for headings and Slate-600 (#475569) for body text. Never use pure black.",
+      "gradients": "Use vivid gradients ONLY for text clips or button backgrounds, never for full sections. Example: 'bg-gradient-to-r from-indigo-500 to-pink-500'."
     }
   },
   "components": {
-    "buttons": {
-      "style": "Pill-shaped or sharp depending on context",
-      "primary": "Gradient background matching category, white text",
-      "secondary": "Glass background, white border, hover glow"
+    "style": "Modern Sharp (Neo-Geo)",
+    "border_radius": {
+      "default": "rounded-sm",
+      "button": "rounded-none",
+      "card": "rounded-md",
+      "input": "rounded-sm"
     },
-    "inputs": {
-      "style": "Minimalist, remove default browser styles",
-      "active": "Border color matches category"
+    "shadows": {
+      "card": "shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15)]",
+      "button": "shadow-[4px_4px_0px_0px_rgba(79,70,229,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(79,70,229,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
     },
-    "cards": {
-      "default": "Glassmorphism style (bg-white/5 backdrop-blur-md)",
-      "hover": "Scale 1.02, increase brightness"
+    "overrides": {
+      "Button": "Use 'rounded-none' and the distinct shadow interaction defined above. Font-weight should be bold.",
+      "Card": "Use 'bg-white' with a subtle border 'border-slate-200' and the sharp shadow.",
+      "Input": "Sharp edges. Focus ring should be 'ring-2 ring-indigo-500 ring-offset-2'."
     }
   },
-  "assets": {
-    "images": {
-      "nebula_bg": {
-        "url": "https://images.unsplash.com/photo-1757514055001-dcf00bd64a06?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwyfHxjaW5lbWF0aWMlMjBuZWJ1bGElMjBnYWxheHklMjBiYWNrZ3JvdW5kJTIwYWJzdHJhY3QlMjBkYXJrfGVufDB8fHx8MTc3MzQzNzkyNXww&ixlib=rb-4.1.0&q=85",
-        "description": "Primary background for Hero and Landing page",
-        "category": "background"
-      },
-      "abstract_glass": {
-        "url": "https://images.unsplash.com/photo-1748466694158-3e172aac0968?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMDNkJTIwZ2xhc3MlMjBnZW9tZXRyaWMlMjBzaGFwZXMlMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NzM0Mzc5NDF8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Decorative element for feature sections or empty states",
-        "category": "decoration"
-      }
-    },
-    "icons": {
-      "library": "lucide-react",
-      "style": "Stroke width 1.5px or 2px, consistent size"
+  "layout_strategy": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "spacing": "Use comfortable spacing. Section padding: 'py-20' or 'py-24'. Element spacing: 'gap-6' or 'gap-8'.",
+    "grid": "Use Bento Grids (CSS Grid) for feature sections. Mix col-span-1 and col-span-2 cards."
+  },
+  "motion": {
+    "library": "framer-motion",
+    "principles": [
+      "Stagger children for lists (Categories, Features).",
+      "Hover effects should be snappy (duration: 0.2s).",
+      "Scroll animations should be smooth and reveal content upwards."
+    ],
+    "examples": {
+      "button_hover": "whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}",
+      "card_hover": "whileHover={{ y: -5 }}"
     }
   },
-  "instructions_to_main_agent": [
-    "1. UPDATE `tailwind.config.js`: Add 'Outfit' and 'Manrope' to fontFamily. Add the custom colors to the theme extend.",
-    "2. UPDATE `index.css`: Import the fonts at the top. Set global dark theme styles.",
-    "3. IMPLEMENT `CategoryContext`: Create a React Context to manage the currently selected category and its color. This color should cascade to buttons, borders, and glows.",
-    "4. COMPONENT OVERRIDES: Customize Shadcn components (Button, Input, Card) to use the Glassmorphism styles defined in `visual_enhancers`.",
-    "5. EDITOR LAYOUT: Use a CSS Grid layout for the editor. Sidebar (250px), Properties (300px), Timeline (300px height), Canvas (remaining).",
-    "6. ANIMATIONS: Use Framer Motion for page transitions and the 'Creator Card' appearance. Keyframe the Nebula background if possible (slow pan/zoom).",
-    "7. DATA-TESTID: Ensure all interactive elements have `data-testid` attributes."
+  "sections": {
+    "hero": {
+      "structure": "Split layout or Centered. Big H1. Animated text. Background: Abstract colorful swirls or video production studio.",
+      "image_url": "https://images.unsplash.com/photo-1758553026412-bc1da0ebd366?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwzfHxmaWxtbWFrZXIlMjB2aWRlbyUyMGVkaXRvciUyMHdvcmtpbmclMjBhdCUyMGNvbXB1dGVyJTIwc2NyZWVucyUyMGNvbG9yZnVsJTIwbGlnaHRpbmd8ZW58MHx8fHwxNzczNTIzNTE0fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Filmmaker's desk with camera and monitors. Use as a subtle background with overlay or as a side image."
+    },
+    "categories": {
+      "structure": "Horizontal scrollable bar or wrapped pill list. High energy chips.",
+      "items": [
+        "Explainer", "Tutorial", "Motion Graphics", "Social Media", 
+        "Product Demo", "Educational", "Corporate", "Cinematic", 
+        "Animation", "Vlogs", "Ads", "Real Estate", "Music Video"
+      ]
+    },
+    "creator_card": {
+      "structure": "Central focus. A 'floating' card that looks like a simplified video editor interface.",
+      "elements": ["Text Input", "Style Selector", "Generate Button", "Progress Bar"]
+    },
+    "features": {
+      "structure": "Bento Grid. 3-4 cards explaining 'AI Scripting', 'Auto-Editing', 'Voiceovers'.",
+      "bg_image": "https://images.unsplash.com/photo-1763932229068-d7712cf78f1d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMDNkJTIwY29sb3JmdWwlMjBzaGFwZXMlMjB2aXZpZCUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzczNTIzNTAwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Use this abstract swirl image as a background pattern or decoration for the features section."
+    },
+    "social_proof": {
+      "structure": "Marquee of logos or grid of user testimonials.",
+      "images": [
+        "https://images.unsplash.com/photo-1675186914580-94356f7c012c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwzfHxjcmVhdGl2ZSUyMGRpdmVyc2UlMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHMlMjBzbWlsaW5nfGVufDB8fHx8MTc3MzUyMzUwMHww&ixlib=rb-4.1.0&q=85",
+        "https://images.unsplash.com/photo-1652772589253-c1ab2308fbf4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHw0fHxjcmVhdGl2ZSUyMGRpdmVyc2UlMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHMlMjBzbWlsaW5nfGVufDB8fHx8MTc3MzUyMzUwMHww&ixlib=rb-4.1.0&q=85",
+        "https://images.unsplash.com/photo-1658909835269-e76abd3ffb5d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwxfHxjcmVhdGl2ZSUyMGRpdmVyc2UlMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdHMlMjBzbWlsaW5nfGVufDB8fHx8MTc3MzUyMzUwMHww&ixlib=rb-4.1.0&q=85"
+      ]
+    }
+  },
+  "universal_guidelines": [
+    "Always use 'Poppins' font.",
+    "Do NOT use pure black (#000000). Use #0F172A.",
+    "Interactive elements MUST have 'data-testid' attributes.",
+    "Use 'lucide-react' for icons.",
+    "Ensure 'Creator Card' functionality (input + generate) remains intact.",
+    "Maintain responsive design (Mobile First).",
+    "Use 'framer-motion' for all animations.",
+    "Avoid standard 'Bootstrap' layouts. Use asymmetry where possible."
   ],
-  "UNIVERSAL_GUIDELINES": [
-    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
-    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
-    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
-    "Create depth through layered design elements with z-index hierarchy",
-    "Use glass-morphism effects with backdrop filters (12-24px blur)",
-    "You MUST NOT apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
-    "You MUST NOT center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text",
-    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
-    "NEVER: use AI assistant Emoji characters for icons.",
-    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
-    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
-    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
-    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN",
-    "Prioritize using pre-existing components from src/components/ui when applicable",
-    "Create new components that match the style and conventions of existing components when needed",
-    "Examine existing components to understand the project's component patterns before creating new ones",
-    "Components MUST use named exports (export const ComponentName = ...)",
-    "Pages MUST use default exports (export default function PageName() {...})",
-    "Use `sonner` for toasts. Sonner component are located in `/app/src/components/ui/sonner.tsx`"
-  ]
+  "image_credits": {
+    "hero": "Unsplash - Filmmaker Desk",
+    "abstract": "Unsplash - Colorful 3D Swirls",
+    "people": "Unsplash - Creative Portraits"
+  }
 }
