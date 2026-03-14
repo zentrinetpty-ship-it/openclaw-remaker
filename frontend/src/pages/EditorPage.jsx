@@ -103,16 +103,36 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
   const handleUpload = async (e, type) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setUploadedAssets(prev => [...prev, { type, url, name: file.name }]);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await axios.post(`${API}/upload`, formData);
+      if (res.data.success) {
+        setUploadedAssets(prev => [...prev, { type, url: res.data.url, name: file.name }]);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+    }
   };
 
-  const handleSlideUpload = (e, slideId) => {
+  const handleSlideUpload = async (e, slideId) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
     const type = file.type.startsWith('video/') ? 'video' : 'image';
-    updateSlide(slideId, { assetType: type, assetUrl: url });
+    
+    // Upload to server for proper URL
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await axios.post(`${API}/upload`, formData);
+      if (res.data.success) {
+        updateSlide(slideId, { assetType: type, assetUrl: res.data.url });
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      // Fallback to blob URL for preview only (won't work in render)
+      updateSlide(slideId, { assetType: type, assetUrl: URL.createObjectURL(file) });
+    }
   };
 
   const playAudio = (url) => {
@@ -829,8 +849,39 @@ export default function EditorPage() {
     }
   }, [project, selectedSlideId]);
 
+  const saveProject = async () => {
+    if (!project || !user) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API}/projects`, {
+        title: project.title,
+        project: project,
+        userId: user.id
+      }, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      return true;
+    } catch (e) {
+      console.error('Save error:', e);
+      return false;
+    }
+  };
+
   const startRender = async () => {
     if (!project || rendering) return;
+    
+    // Check how many slides have images
+    const slidesWithImages = project.slides?.filter(s => s.assetUrl) || [];
+    const totalSlides = project.slides?.length || 0;
+    
+    if (slidesWithImages.length === 0) {
+      alert(`None of your ${totalSlides} slides have images. Please generate or upload images in the Assets tab first.`);
+      return;
+    }
+    
+    if (slidesWithImages.length < totalSlides) {
+      const proceed = window.confirm(`Only ${slidesWithImages.length}/${totalSlides} slides have images. Slides without images will use a dark placeholder. Continue rendering?`);
+      if (!proceed) return;
+    }
+    
     setRendering(true);
     setRenderProgress(0);
     setRenderStatus('starting');
@@ -980,7 +1031,7 @@ export default function EditorPage() {
           <span className="text-sm font-semibold text-white">{project.title}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" data-testid="save-btn"><Save className="w-4 h-4 mr-1" /> Save</Button>
+          <Button variant="outline" size="sm" onClick={saveProject} data-testid="save-btn"><Save className="w-4 h-4 mr-1" /> Save</Button>
           <Button onClick={startRender} disabled={rendering} size="sm" style={{ background: `linear-gradient(135deg, ${cat?.color || primaryColor}, #10b981)` }} data-testid="export-btn">
             {rendering ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
             {rendering ? 'Rendering...' : 'Export MP4'}

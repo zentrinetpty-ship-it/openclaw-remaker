@@ -759,6 +759,30 @@ async def get_project(project_id: str):
 # Serve uploaded files
 from fastapi.responses import FileResponse
 
+@api_router.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Upload a file (image, video, audio) to the server."""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        random_suffix = str(uuid.uuid4())[:7]
+        ext = Path(file.filename).suffix or '.png'
+        filename = f"upload-{timestamp}-{random_suffix}{ext}"
+        filepath = UPLOADS_DIR / filename
+        
+        content = await file.read()
+        async with aiofiles.open(filepath, 'wb') as f:
+            await f.write(content)
+        
+        return {
+            "success": True,
+            "url": f"/api/uploads/{filename}",
+            "filename": filename,
+            "size": len(content)
+        }
+    except Exception as e:
+        logger.error(f"File upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/uploads/{filename}")
 async def get_upload(filename: str):
     """Serve uploaded files."""
@@ -941,23 +965,43 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
             narration = slide.get('narration', '')
             voice_url = slide.get('voiceUrl')
             
+            logger.info(f"Slide {idx+1}: assetUrl={asset_url}, duration={duration}, voiceUrl={voice_url}")
+            
             # Handle image
             img_path = temp_dir / f"slide_{idx:03d}.png"
             if asset_url:
-                if asset_url.startswith('/api/uploads/'):
-                    src_file = UPLOADS_DIR / asset_url.split('/')[-1]
+                # Normalize URL - extract /api/uploads/ path from full URLs
+                normalized_url = asset_url
+                if '/api/uploads/' in asset_url and not asset_url.startswith('/api/'):
+                    normalized_url = '/api/uploads/' + asset_url.split('/api/uploads/')[-1]
+                
+                if normalized_url.startswith('/api/uploads/'):
+                    src_file = UPLOADS_DIR / normalized_url.split('/')[-1]
+                    logger.info(f"Slide {idx+1}: Looking for local file {src_file}, exists={src_file.exists()}")
                     if src_file.exists():
                         shutil.copy(src_file, img_path)
+                        logger.info(f"Slide {idx+1}: Copied image from {src_file}")
                 elif asset_url.startswith('http'):
                     import httpx
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.get(asset_url)
+                    logger.info(f"Slide {idx+1}: Downloading image from {asset_url}")
+                    async with httpx.AsyncClient() as http_client:
+                        resp = await http_client.get(asset_url, timeout=30)
                         if resp.status_code == 200:
                             async with aiofiles.open(img_path, 'wb') as f:
                                 await f.write(resp.content)
+                            logger.info(f"Slide {idx+1}: Downloaded image successfully")
+                        else:
+                            logger.warning(f"Slide {idx+1}: Failed to download image, status={resp.status_code}")
+                elif asset_url.startswith('blob:'):
+                    logger.warning(f"Slide {idx+1}: blob: URL cannot be used server-side, using placeholder")
+                else:
+                    logger.warning(f"Slide {idx+1}: Unknown assetUrl format: {asset_url[:100]}")
+            else:
+                logger.warning(f"Slide {idx+1}: No assetUrl provided")
             
             if not img_path.exists():
                 # Create placeholder
+                logger.warning(f"Slide {idx+1}: Using placeholder image")
                 subprocess.run([
                     'ffmpeg', '-y', '-f', 'lavfi', '-i', 
                     'color=c=#1a1a2e:s=1920x1080:d=1', 
@@ -994,6 +1038,8 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
         render_jobs[job_id]["progress"] = 50
         render_jobs[job_id]["step"] = "Creating video..."
         
+        logger.info(f"Total slides to render: {len(image_files)}")
+        
         # Create concat file for images
         concat_file = temp_dir / "concat.txt"
         with open(concat_file, 'w') as f:
@@ -1001,6 +1047,10 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
                 f.write(f"file '{img_path}'\n")
                 f.write(f"duration {duration}\n")
             f.write(f"file '{image_files[-1][0]}'\n")
+        
+        # Log concat file content
+        with open(concat_file, 'r') as f:
+            logger.info(f"Concat file:\n{f.read()}")
         
         render_jobs[job_id]["progress"] = 55
         
