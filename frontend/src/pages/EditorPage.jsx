@@ -471,8 +471,10 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 
 function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSlideId }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
+  const { activeCaptionStyleId } = useCaptionStore();
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [globalTime, setGlobalTime] = useState(0);
   const audioRef = React.useRef(null);
   const playIntervalRef = React.useRef(null);
   
@@ -486,7 +488,6 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
     }
   };
 
-  // Calculate time offset for current slide
   const getSlideTimeOffset = (idx) => {
     let offset = 0;
     for (let i = 0; i < idx; i++) {
@@ -495,13 +496,24 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
     return offset;
   };
 
-  // Auto-play through slides
+  const getCaptionStyle = () => {
+    const styles = {
+      'bold-pop': { background: '#FBBF24', color: '#000', fontWeight: 'bold', padding: '8px 24px', borderRadius: '8px' },
+      'netflix': { background: 'transparent', color: '#fff', fontWeight: 'bold', textShadow: '2px 2px 4px rgba(0,0,0,0.9), -1px -1px 3px rgba(0,0,0,0.6)', padding: '8px 16px' },
+      'minimal': { background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '10px 24px', borderRadius: '12px' },
+      'tiktok': { background: '#1a1a1a', color: '#FF2D55', fontWeight: 'bold', padding: '8px 24px', borderRadius: '8px' },
+      'neon': { background: 'transparent', color: '#00F5FF', fontWeight: 'bold', textShadow: '0 0 10px #00F5FF, 0 0 20px #00F5FF, 0 0 40px #00F5FF', padding: '8px 16px' },
+      'glass': { background: 'rgba(255,255,255,0.1)', color: '#fff', backdropFilter: 'blur(8px)', padding: '10px 24px', borderRadius: '12px' },
+    };
+    return styles[activeCaptionStyleId] || styles['minimal'];
+  };
+
+  // Auto-play through all slides continuously
   React.useEffect(() => {
     if (playing && project?.slides?.length) {
       const slideDuration = currentSlide?.duration || 6;
       let elapsed = 0;
       
-      // Play voice if available
       if (currentSlide?.voiceUrl && audioRef.current) {
         audioRef.current.src = `${process.env.REACT_APP_BACKEND_URL}${currentSlide.voiceUrl}`;
         audioRef.current.play().catch(() => {});
@@ -512,17 +524,19 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
         const slideProgress = (elapsed / slideDuration) * 100;
         setProgress(slideProgress);
         
+        const slideOffset = getSlideTimeOffset(currentSlideIdx);
+        setGlobalTime(slideOffset + elapsed);
+        
         if (elapsed >= slideDuration) {
-          // Move to next slide
           const nextIdx = currentSlideIdx + 1;
           if (nextIdx < project.slides.length) {
             goToSlide(nextIdx);
             elapsed = 0;
           } else {
-            // End of video
             setPlaying(false);
             goToSlide(0);
             setProgress(0);
+            setGlobalTime(0);
           }
         }
       }, 100);
@@ -537,7 +551,6 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
     }
   }, [playing, currentSlideIdx, currentSlide]);
 
-  // Stop playing when slide manually changes
   React.useEffect(() => {
     setProgress(0);
   }, [selectedSlideId]);
@@ -545,9 +558,14 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
   const togglePlay = () => {
     if (!playing) {
       setProgress(0);
+      setGlobalTime(getSlideTimeOffset(currentSlideIdx));
     }
     setPlaying(!playing);
   };
+
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+  const captionCss = getCaptionStyle();
 
   return (
     <div className="flex-1 flex flex-col bg-[#050a14]">
@@ -583,11 +601,11 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
             </div>
           </div>
           
-          {/* Narration text overlay (shown during playback) */}
-          {playing && currentSlide?.narration && (
-            <div className="absolute bottom-16 left-4 right-4">
-              <div className="px-4 py-3 rounded-xl bg-black/70 backdrop-blur-sm">
-                <p className="text-sm text-white text-center leading-relaxed">{currentSlide.narration}</p>
+          {/* Caption overlay - shows with selected caption style */}
+          {currentSlide?.narration && activeCaptionStyleId && (playing || true) && (
+            <div className="absolute bottom-14 left-4 right-4 flex justify-center">
+              <div style={captionCss} className="max-w-[80%]">
+                <p className="text-sm text-center leading-relaxed">{currentSlide.narration}</p>
               </div>
             </div>
           )}
@@ -599,12 +617,12 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
             </div>
           )}
           
-          {/* Progress bar during playback */}
+          {/* Progress bar - global video progress */}
           {playing && (
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
               <div 
                 className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-100" 
-                style={{ width: `${progress}%` }} 
+                style={{ width: `${(globalTime / totalDuration) * 100}%` }} 
               />
             </div>
           )}
@@ -686,9 +704,11 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
             ))}
           </div>
           
-          {/* Total duration */}
+          {/* Total duration with time counter */}
           <div className="text-center mt-2">
-            <span className="text-[10px] text-slate-600">Total duration: {totalDuration}s</span>
+            <span className="text-[10px] text-slate-600">
+              {playing ? `${formatTime(globalTime)} / ${formatTime(totalDuration)}` : `Total duration: ${totalDuration}s`}
+            </span>
           </div>
         </div>
       </div>
@@ -773,6 +793,7 @@ export default function EditorPage() {
   const { user } = useAuth();
   const { project, setProject, updateSlide, videoCategory } = useProjectStore();
   const { primaryColor, setPrimaryColor, selectedFont, setSelectedFont } = useBrandKitStore();
+  const { activeCaptionStyleId } = useCaptionStore();
   const [activeTab, setActiveTab] = useState('script');
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
@@ -823,7 +844,8 @@ export default function EditorPage() {
         title: project.title,
         duration: project.duration,
         generateVoice: true,
-        voiceId: project.voiceId || 'en-US-Journey-D'
+        voiceId: project.voiceId || 'en-US-Journey-D',
+        captionStyleId: activeCaptionStyleId || null
       });
       
       if (res.data.success) {

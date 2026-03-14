@@ -7,7 +7,7 @@ from datetime import datetime
 import time
 
 class ExplainaProAPITester:
-    def __init__(self, base_url="https://cinematic-ai-72.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://explaina-preview.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0

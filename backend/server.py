@@ -789,8 +789,95 @@ class RenderRequest(BaseModel):
     duration: int = 30
     generateVoice: bool = True
     voiceId: str = "en-US-Journey-D"
+    captionStyleId: Optional[str] = None
 
 render_jobs = {}
+
+def format_ass_time(seconds):
+    """Convert seconds to ASS time format H:MM:SS.CC"""
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    cs = int((seconds % 1) * 100)
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+def create_ass_subtitle(slides, caption_style_id, temp_dir):
+    """Create ASS subtitle file for burning captions into rendered video."""
+    CAPTION_ASS_STYLES = {
+        'bold-pop': {
+            'PrimaryColour': '&H00000000',
+            'BackColour': '&H0024BFFB',
+            'OutlineColour': '&H0024BFFB',
+            'BorderStyle': '3', 'Outline': '0', 'Shadow': '0',
+            'Bold': '-1', 'Fontsize': '46',
+        },
+        'netflix': {
+            'PrimaryColour': '&H00FFFFFF',
+            'BackColour': '&H80000000',
+            'OutlineColour': '&H00000000',
+            'BorderStyle': '1', 'Outline': '3', 'Shadow': '2',
+            'Bold': '-1', 'Fontsize': '48',
+        },
+        'minimal': {
+            'PrimaryColour': '&H00FFFFFF',
+            'BackColour': '&H4D000000',
+            'OutlineColour': '&H00000000',
+            'BorderStyle': '3', 'Outline': '0', 'Shadow': '0',
+            'Bold': '0', 'Fontsize': '42',
+        },
+        'tiktok': {
+            'PrimaryColour': '&H00552DFF',
+            'BackColour': '&HF01A1A1A',
+            'OutlineColour': '&H001A1A1A',
+            'BorderStyle': '3', 'Outline': '0', 'Shadow': '0',
+            'Bold': '-1', 'Fontsize': '46',
+        },
+        'neon': {
+            'PrimaryColour': '&H00FFF500',
+            'BackColour': '&H00000000',
+            'OutlineColour': '&H00FFF500',
+            'BorderStyle': '1', 'Outline': '4', 'Shadow': '0',
+            'Bold': '-1', 'Fontsize': '46',
+        },
+        'glass': {
+            'PrimaryColour': '&H00FFFFFF',
+            'BackColour': '&HE6FFFFFF',
+            'OutlineColour': '&H40FFFFFF',
+            'BorderStyle': '3', 'Outline': '0', 'Shadow': '0',
+            'Bold': '0', 'Fontsize': '42',
+        },
+    }
+    style = CAPTION_ASS_STYLES.get(caption_style_id, CAPTION_ASS_STYLES['minimal'])
+    
+    ass_content = f"""[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Liberation Sans,{style['Fontsize']},{style['PrimaryColour']},&H000000FF,{style['OutlineColour']},{style['BackColour']},{style['Bold']},0,0,0,100,100,0,0,{style['BorderStyle']},{style['Outline']},{style['Shadow']},2,60,60,80,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    time_offset = 0
+    for slide in slides:
+        narration = slide.get('narration', '')
+        duration = slide.get('duration', 6)
+        if narration:
+            start = format_ass_time(time_offset)
+            end = format_ass_time(time_offset + duration)
+            text = narration.replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}')
+            ass_content += f"Dialogue: 0,{start},{end},Default,,0,0,0,,{text}\n"
+        time_offset += duration
+    
+    ass_path = temp_dir / "captions.ass"
+    with open(ass_path, 'w', encoding='utf-8') as f:
+        f.write(ass_content)
+    logger.info(f"Created ASS subtitle file at {ass_path} with style '{caption_style_id}'")
+    return ass_path
 
 async def generate_voice_for_slide(text: str, voice_id: str, api_key: str) -> Optional[bytes]:
     """Generate voice audio for a slide using Google TTS."""
@@ -827,7 +914,7 @@ async def generate_voice_for_slide(text: str, voice_id: str, api_key: str) -> Op
         logger.error(f"Voice generation error: {e}")
         return None
 
-async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D"):
+async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None):
     """Background task to render video using FFmpeg with voice audio."""
     try:
         render_jobs[job_id] = {"status": "processing", "progress": 0, "step": "Preparing..."}
@@ -873,7 +960,7 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
                 # Create placeholder
                 subprocess.run([
                     'ffmpeg', '-y', '-f', 'lavfi', '-i', 
-                    f'color=c=#1a1a2e:s=1920x1080:d=1', 
+                    'color=c=#1a1a2e:s=1920x1080:d=1', 
                     '-frames:v', '1', str(img_path)
                 ], capture_output=True)
             
@@ -924,12 +1011,23 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
         output_path = RENDERS_DIR / output_filename
         video_only_path = temp_dir / "video_only.mp4"
         
+        # Build video filter with optional caption burn-in
+        vf_chain = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
+        
+        if caption_style_id:
+            render_jobs[job_id]["step"] = "Creating captions..."
+            ass_path = create_ass_subtitle(slides, caption_style_id, temp_dir)
+            ass_path_escaped = str(ass_path).replace('\\', '/').replace(':', '\\:')
+            vf_chain += f",ass={ass_path_escaped}"
+        
+        vf_chain += ',format=yuv420p'
+        
         # First render video only
         render_jobs[job_id]["step"] = "Rendering video..."
         ffmpeg_video_cmd = [
             'ffmpeg', '-y',
             '-f', 'concat', '-safe', '0', '-i', str(concat_file),
-            '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
+            '-vf', vf_chain,
             '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
             '-movflags', '+faststart',
             str(video_only_path)
@@ -1046,7 +1144,8 @@ async def start_render(request: RenderRequest, background_tasks: BackgroundTasks
         request.slides, 
         request.title,
         request.generateVoice,
-        request.voiceId
+        request.voiceId,
+        request.captionStyleId
     )
     
     return {"success": True, "jobId": job_id, "status": "started"}

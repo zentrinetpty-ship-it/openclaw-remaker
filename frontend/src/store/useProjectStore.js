@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export const CATEGORIES = [
   { id: 'news', label: 'Trending News', color: '#EF4444', badge: 'HOT', placeholder: 'Enter a news topic...', tone: 'documentary' },
@@ -16,7 +17,7 @@ export const CATEGORIES = [
   { id: 'reporter', label: 'News Reporter', color: '#64748B', badge: 'NEW', placeholder: 'Write the story for the reporter...', tone: 'professional' },
 ];
 
-export const useProjectStore = create((set, get) => ({
+export const useProjectStore = create(persist((set, get) => ({
   rawInput: '',
   inputType: 'idea',
   videoDuration: 30,
@@ -65,7 +66,7 @@ export const useProjectStore = create((set, get) => ({
     rawInput: '', videoDuration: 30, videoTone: 'professional', videoCategory: 'explainer',
     slideCount: 5, assetType: 'image', step: 'landing', project: null, error: null
   }),
-}));
+}), { name: 'explaina-pro-storage' }));
 
 export const useBrandKitStore = create((set) => ({
   primaryColor: '#7c3aed',
@@ -74,9 +75,9 @@ export const useBrandKitStore = create((set) => ({
   setSelectedFont: (f) => set({ selectedFont: f }),
 }));
 
-export const useCaptionStore = create((set) => ({
+export const useCaptionStore = create(persist((set) => ({
   activeCaptionStyleId: 'bold-pop',
   setActiveCaptionStyleId: (id) => set({ activeCaptionStyleId: id }),
   captionMode: 'lines',
   setCaptionMode: (m) => set({ captionMode: m }),
-}));
+}), { name: 'explaina-caption-storage' }));
