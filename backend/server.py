@@ -782,13 +782,50 @@ class RenderRequest(BaseModel):
     slides: List[Dict[str, Any]]
     title: str
     duration: int = 30
+    generateVoice: bool = True
+    voiceId: str = "en-US-Journey-D"
 
 render_jobs = {}
 
-async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str):
-    """Background task to render video using FFmpeg."""
+async def generate_voice_for_slide(text: str, voice_id: str, api_key: str) -> Optional[bytes]:
+    """Generate voice audio for a slide using Google TTS."""
     try:
-        render_jobs[job_id] = {"status": "processing", "progress": 0}
+        import httpx
+        
+        voice_mapping = {
+            "en-US-Journey-D": {"languageCode": "en-US", "name": "en-US-Journey-D"},
+            "en-US-Journey-F": {"languageCode": "en-US", "name": "en-US-Journey-F"},
+            "en-US-Wavenet-D": {"languageCode": "en-US", "name": "en-US-Wavenet-D"},
+            "en-US-Wavenet-F": {"languageCode": "en-US", "name": "en-US-Wavenet-F"},
+            "en-GB-Neural2-B": {"languageCode": "en-GB", "name": "en-GB-Neural2-B"},
+            "en-GB-Neural2-A": {"languageCode": "en-GB", "name": "en-GB-Neural2-A"},
+        }
+        
+        voice_config = voice_mapping.get(voice_id, {"languageCode": "en-US", "name": "en-US-Wavenet-D"})
+        
+        tts_url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+        payload = {
+            "input": {"text": text},
+            "voice": voice_config,
+            "audioConfig": {"audioEncoding": "MP3", "speakingRate": 1.0, "pitch": 0}
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(tts_url, json=payload, timeout=30)
+            if response.status_code == 200:
+                result = response.json()
+                audio_content = result.get("audioContent")
+                if audio_content:
+                    return base64.b64decode(audio_content)
+        return None
+    except Exception as e:
+        logger.error(f"Voice generation error: {e}")
+        return None
+
+async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D"):
+    """Background task to render video using FFmpeg with voice audio."""
+    try:
+        render_jobs[job_id] = {"status": "processing", "progress": 0, "step": "Preparing..."}
         
         # Create temp directory for this render
         temp_dir = RENDERS_DIR / f"temp_{job_id}"
@@ -796,94 +833,187 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
         
         total_slides = len(slides)
         image_files = []
+        audio_files = []
         
-        # Download/copy images for each slide
+        # Get TTS API key
+        tts_api_key = os.getenv("GOOGLE_TTS_API_KEY")
+        
+        # Process each slide - images and voice
         for idx, slide in enumerate(slides):
-            render_jobs[job_id]["progress"] = int((idx / total_slides) * 50)
+            progress = int((idx / total_slides) * 40)
+            render_jobs[job_id]["progress"] = progress
+            render_jobs[job_id]["step"] = f"Processing slide {idx + 1}/{total_slides}"
             
             asset_url = slide.get('assetUrl')
             duration = slide.get('duration', 6)
+            narration = slide.get('narration', '')
+            voice_url = slide.get('voiceUrl')
             
+            # Handle image
+            img_path = temp_dir / f"slide_{idx:03d}.png"
             if asset_url:
-                # If it's a local file
                 if asset_url.startswith('/api/uploads/'):
                     src_file = UPLOADS_DIR / asset_url.split('/')[-1]
                     if src_file.exists():
-                        img_path = temp_dir / f"slide_{idx:03d}.png"
                         shutil.copy(src_file, img_path)
-                        image_files.append((str(img_path), duration))
                 elif asset_url.startswith('http'):
-                    # Download external image
                     import httpx
                     async with httpx.AsyncClient() as client:
                         resp = await client.get(asset_url)
                         if resp.status_code == 200:
-                            img_path = temp_dir / f"slide_{idx:03d}.png"
                             async with aiofiles.open(img_path, 'wb') as f:
                                 await f.write(resp.content)
-                            image_files.append((str(img_path), duration))
-            else:
-                # Create placeholder image
-                img_path = temp_dir / f"slide_{idx:03d}.png"
-                # Use FFmpeg to create a solid color placeholder
+            
+            if not img_path.exists():
+                # Create placeholder
                 subprocess.run([
                     'ffmpeg', '-y', '-f', 'lavfi', '-i', 
                     f'color=c=#1a1a2e:s=1920x1080:d=1', 
                     '-frames:v', '1', str(img_path)
                 ], capture_output=True)
-                image_files.append((str(img_path), duration))
+            
+            image_files.append((str(img_path), duration))
+            
+            # Handle voice audio
+            audio_path = temp_dir / f"audio_{idx:03d}.mp3"
+            if voice_url and voice_url.startswith('/api/uploads/'):
+                # Use existing voice file
+                src_audio = UPLOADS_DIR / voice_url.split('/')[-1]
+                if src_audio.exists():
+                    shutil.copy(src_audio, audio_path)
+                    audio_files.append((str(audio_path), duration))
+            elif generate_voice and narration and tts_api_key:
+                # Generate voice on the fly
+                render_jobs[job_id]["step"] = f"Generating voice for slide {idx + 1}"
+                audio_bytes = await generate_voice_for_slide(narration, voice_id, tts_api_key)
+                if audio_bytes:
+                    async with aiofiles.open(audio_path, 'wb') as f:
+                        await f.write(audio_bytes)
+                    audio_files.append((str(audio_path), duration))
+                else:
+                    audio_files.append((None, duration))
+            else:
+                audio_files.append((None, duration))
         
         if not image_files:
             render_jobs[job_id] = {"status": "failed", "error": "No images to render"}
             return
         
-        render_jobs[job_id]["progress"] = 60
+        render_jobs[job_id]["progress"] = 50
+        render_jobs[job_id]["step"] = "Creating video..."
         
-        # Create concat file for FFmpeg
+        # Create concat file for images
         concat_file = temp_dir / "concat.txt"
         with open(concat_file, 'w') as f:
             for img_path, duration in image_files:
                 f.write(f"file '{img_path}'\n")
                 f.write(f"duration {duration}\n")
-            # Add last image again (FFmpeg concat demuxer quirk)
             f.write(f"file '{image_files[-1][0]}'\n")
         
-        render_jobs[job_id]["progress"] = 70
+        render_jobs[job_id]["progress"] = 55
         
-        # Output filename
+        # Output filenames
         safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         output_filename = f"{safe_title}-{timestamp}.mp4"
         output_path = RENDERS_DIR / output_filename
+        video_only_path = temp_dir / "video_only.mp4"
         
-        # Render video with FFmpeg
-        ffmpeg_cmd = [
+        # First render video only
+        render_jobs[job_id]["step"] = "Rendering video..."
+        ffmpeg_video_cmd = [
             'ffmpeg', '-y',
             '-f', 'concat', '-safe', '0', '-i', str(concat_file),
             '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
             '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
             '-movflags', '+faststart',
-            str(output_path)
+            str(video_only_path)
         ]
         
-        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-        
+        result = subprocess.run(ffmpeg_video_cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            logger.error(f"FFmpeg error: {result.stderr}")
-            render_jobs[job_id] = {"status": "failed", "error": "FFmpeg rendering failed"}
+            logger.error(f"FFmpeg video error: {result.stderr}")
+            render_jobs[job_id] = {"status": "failed", "error": "Video rendering failed"}
             return
+        
+        render_jobs[job_id]["progress"] = 70
+        
+        # Combine audio files if we have any
+        has_audio = any(af[0] is not None for af in audio_files)
+        
+        if has_audio:
+            render_jobs[job_id]["step"] = "Merging audio..."
+            
+            # Create a combined audio file with proper timing
+            combined_audio_path = temp_dir / "combined_audio.mp3"
+            
+            # Build ffmpeg filter for audio concatenation with silence padding
+            audio_inputs = []
+            filter_parts = []
+            
+            for idx, (audio_path, duration) in enumerate(audio_files):
+                if audio_path and Path(audio_path).exists():
+                    audio_inputs.extend(['-i', audio_path])
+                    # Pad audio to match slide duration
+                    filter_parts.append(f"[{idx}:a]apad=whole_dur={duration}[a{idx}]")
+                else:
+                    # Create silence for this duration
+                    audio_inputs.extend(['-f', 'lavfi', '-i', f'anullsrc=r=44100:cl=stereo:d={duration}'])
+                    filter_parts.append(f"[{idx}:a]acopy[a{idx}]")
+            
+            # Concatenate all audio streams
+            concat_labels = ''.join([f'[a{i}]' for i in range(len(audio_files))])
+            filter_complex = ';'.join(filter_parts) + f';{concat_labels}concat=n={len(audio_files)}:v=0:a=1[outa]'
+            
+            audio_cmd = ['ffmpeg', '-y'] + audio_inputs + [
+                '-filter_complex', filter_complex,
+                '-map', '[outa]',
+                '-c:a', 'libmp3lame', '-q:a', '2',
+                str(combined_audio_path)
+            ]
+            
+            audio_result = subprocess.run(audio_cmd, capture_output=True, text=True)
+            
+            render_jobs[job_id]["progress"] = 85
+            
+            if audio_result.returncode == 0 and combined_audio_path.exists():
+                # Merge video and audio
+                render_jobs[job_id]["step"] = "Finalizing..."
+                merge_cmd = [
+                    'ffmpeg', '-y',
+                    '-i', str(video_only_path),
+                    '-i', str(combined_audio_path),
+                    '-c:v', 'copy',
+                    '-c:a', 'aac', '-b:a', '192k',
+                    '-shortest',
+                    '-movflags', '+faststart',
+                    str(output_path)
+                ]
+                
+                merge_result = subprocess.run(merge_cmd, capture_output=True, text=True)
+                
+                if merge_result.returncode != 0:
+                    logger.warning(f"Audio merge failed, using video only: {merge_result.stderr}")
+                    shutil.copy(video_only_path, output_path)
+            else:
+                logger.warning("Audio combination failed, using video only")
+                shutil.copy(video_only_path, output_path)
+        else:
+            # No audio, just use video
+            shutil.copy(video_only_path, output_path)
         
         render_jobs[job_id]["progress"] = 95
         
         # Clean up temp directory
         shutil.rmtree(temp_dir, ignore_errors=True)
         
-        # Update job and database
+        # Update job status
         video_url = f"/api/renders/{output_filename}"
         render_jobs[job_id] = {
             "status": "completed",
             "progress": 100,
-            "videoUrl": video_url
+            "videoUrl": video_url,
+            "hasAudio": has_audio
         }
         
         # Update project in database
@@ -892,7 +1022,7 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
             {"$set": {"renderUrl": video_url, "status": "rendered"}}
         )
         
-        logger.info(f"Render completed: {output_path}")
+        logger.info(f"Render completed with audio: {output_path}")
         
     except Exception as e:
         logger.error(f"Render error: {e}")
@@ -900,16 +1030,18 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
 
 @api_router.post("/render")
 async def start_render(request: RenderRequest, background_tasks: BackgroundTasks):
-    """Start video rendering process."""
+    """Start video rendering process with voice audio."""
     job_id = str(uuid.uuid4())
-    render_jobs[job_id] = {"status": "pending", "progress": 0}
+    render_jobs[job_id] = {"status": "pending", "progress": 0, "step": "Starting..."}
     
     background_tasks.add_task(
         render_video_task, 
         job_id, 
         request.projectId, 
         request.slides, 
-        request.title
+        request.title,
+        request.generateVoice,
+        request.voiceId
     )
     
     return {"success": True, "jobId": job_id, "status": "started"}

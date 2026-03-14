@@ -316,6 +316,7 @@ export default function EditorPage() {
   const [rendering, setRendering] = useState(false);
   const [renderProgress, setRenderProgress] = useState(0);
   const [renderStatus, setRenderStatus] = useState(null);
+  const [renderStep, setRenderStep] = useState('');
   const [renderUrl, setRenderUrl] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const cat = CATEGORIES.find(c => c.id === videoCategory);
@@ -342,6 +343,7 @@ export default function EditorPage() {
     setRendering(true);
     setRenderProgress(0);
     setRenderStatus('starting');
+    setRenderStep('Initializing...');
     setShowExportModal(true);
     
     try {
@@ -349,7 +351,9 @@ export default function EditorPage() {
         projectId: projectId || 'new',
         slides: project.slides,
         title: project.title,
-        duration: project.duration
+        duration: project.duration,
+        generateVoice: true,
+        voiceId: project.voiceId || 'en-US-Journey-D'
       });
       
       if (res.data.success) {
@@ -361,6 +365,7 @@ export default function EditorPage() {
           try {
             const statusRes = await axios.get(`${API}/render/${jobId}`);
             setRenderProgress(statusRes.data.progress || 0);
+            if (statusRes.data.step) setRenderStep(statusRes.data.step);
             
             if (statusRes.data.status === 'completed') {
               clearInterval(pollInterval);
@@ -452,8 +457,8 @@ export default function EditorPage() {
                     <div className="w-16 h-16 rounded-full bg-violet-500/20 flex items-center justify-center mx-auto mb-4">
                       <Film className="w-8 h-8 text-violet-400 animate-pulse" />
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Rendering Video...</h3>
-                    <p className="text-sm text-slate-400 mb-4">Creating your cinematic masterpiece</p>
+                    <h3 className="text-xl font-bold text-white mb-2">Rendering Video with Audio...</h3>
+                    <p className="text-sm text-slate-400 mb-4">{renderStep || 'Processing...'}</p>
                     <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2">
                       <motion.div className="h-full bg-gradient-to-r from-violet-500 to-pink-500" style={{ width: `${renderProgress}%` }} />
                     </div>
