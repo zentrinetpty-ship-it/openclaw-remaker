@@ -157,9 +157,6 @@ export default function LandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <span className="inline-flex items-center gap-2 mb-6 px-4 py-1.5 rounded-none border-2 border-indigo-200 bg-indigo-50 text-xs font-bold text-indigo-700 uppercase tracking-wider">
-              <Zap className="w-3.5 h-3.5" /> AI-Powered Video Creation Platform
-            </span>
           </motion.div>
 
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="text-5xl md:text-7xl font-black tracking-tight leading-none text-slate-900 mb-6">

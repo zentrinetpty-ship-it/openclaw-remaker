@@ -148,3 +148,12 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-6px);
   box-shadow: 0 12px 40px -8px rgba(79, 70, 229, 0.15);
 }
+
+/* Hide Made with Emergent badge */
+[data-testid="made-with-emergent"],
+a[href*="emergentagent"],
+div[class*="emergent-badge"],
+.emergent-badge,
+div[style*="z-index: 2147483647"] {
+  display: none !important;
+}
