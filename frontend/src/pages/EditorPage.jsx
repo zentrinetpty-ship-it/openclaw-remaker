@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowLeft, Save, Download, Play, Pause, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw } from 'lucide-react';
+import { Sparkles, ArrowLeft, Save, Download, Play, Pause, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -49,19 +49,22 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
   const [generating, setGenerating] = useState({});
   const [selectedVoice, setSelectedVoice] = useState('en-US-Journey-D');
   const [playingAudio, setPlayingAudio] = useState(null);
+  const [editingPrompts, setEditingPrompts] = useState({});
+  const [uploadedAssets, setUploadedAssets] = useState([]);
   const audioRef = React.useRef(null);
   
   const activeSlide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
 
   const generateImage = async (slide) => {
-    setGenerating(g => ({ ...g, [slide.id]: 'image' }));
-    updateSlide(slide.id, { assetGenerating: true });
+    const prompt = editingPrompts[slide.id] ?? slide.imagePrompt;
+    setGenerating(g => ({ ...g, [slide.id]: true }));
+    updateSlide(slide.id, { assetGenerating: true, imagePrompt: prompt });
     try {
-      const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: 'Cinematic', characters: project?.characters });
+      const res = await axios.post(`${API}/generate-image`, { description: prompt, style: 'Cinematic', characters: project?.characters });
       if (res.data.success) updateSlide(slide.id, { assetType: 'image', assetUrl: res.data.image, assetGenerating: false });
     } catch (e) { console.error(e); }
     updateSlide(slide.id, { assetGenerating: false });
-    setGenerating(g => ({ ...g, [slide.id]: null }));
+    setGenerating(g => ({ ...g, [slide.id]: false }));
   };
 
   const generateVoice = async (slide) => {
@@ -82,17 +85,34 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
   };
 
   const generateAllVoices = async () => {
+    setGenerating(g => ({ ...g, allVoices: true }));
     for (const slide of project?.slides || []) {
-      if (!slide.voiceUrl && slide.narration) {
+      if (slide.narration) {
         await generateVoice(slide);
       }
     }
+    setGenerating(g => ({ ...g, allVoices: false }));
   };
 
   const generateAllMissing = async () => {
     for (const slide of project?.slides || []) {
       if (!slide.assetUrl) await generateImage(slide);
     }
+  };
+
+  const handleUpload = async (e, type) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setUploadedAssets(prev => [...prev, { type, url, name: file.name }]);
+  };
+
+  const handleSlideUpload = (e, slideId) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const type = file.type.startsWith('video/') ? 'video' : 'image';
+    updateSlide(slideId, { assetType: type, assetUrl: url });
   };
 
   const playAudio = (url) => {
@@ -107,6 +127,9 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
       }
     }
   };
+
+  const voicesGenerated = project?.slides?.filter(s => s.voiceUrl).length || 0;
+  const totalSlides = project?.slides?.length || 0;
 
   return (
     <div className="w-80 bg-[#0a0f1a] border-r border-slate-800 flex flex-col h-full">
@@ -157,18 +180,97 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
           </div>
         )}
 
-        {activeTab === 'assets' && activeSlide && (
+        {activeTab === 'assets' && (
           <div className="space-y-4">
+            {/* Upload Section */}
             <div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Image Prompt</h3>
-              <Textarea value={activeSlide.imagePrompt} className="min-h-[80px] text-xs bg-slate-900 border-slate-700" readOnly />
-              <Button onClick={() => generateImage(activeSlide)} disabled={generating[activeSlide.id]} size="sm" className="w-full mt-2" style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }} data-testid="gen-image-btn">
-                <Wand2 className="w-3 h-3 mr-1" /> Generate Image
-              </Button>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Upload Assets</h3>
+              <div className="grid grid-cols-3 gap-2">
+                <label className="flex flex-col items-center gap-1 p-3 rounded-xl border border-dashed border-slate-700 hover:border-violet-500 cursor-pointer">
+                  <Image className="w-5 h-5 text-slate-500" />
+                  <span className="text-[9px] text-slate-500">Image</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(e, 'image')} />
+                </label>
+                <label className="flex flex-col items-center gap-1 p-3 rounded-xl border border-dashed border-slate-700 hover:border-violet-500 cursor-pointer">
+                  <Film className="w-5 h-5 text-slate-500" />
+                  <span className="text-[9px] text-slate-500">Video</span>
+                  <input type="file" accept="video/*" className="hidden" onChange={(e) => handleUpload(e, 'video')} />
+                </label>
+                <label className="flex flex-col items-center gap-1 p-3 rounded-xl border border-dashed border-slate-700 hover:border-violet-500 cursor-pointer">
+                  <Music className="w-5 h-5 text-slate-500" />
+                  <span className="text-[9px] text-slate-500">Music</span>
+                  <input type="file" accept="audio/*" className="hidden" onChange={(e) => handleUpload(e, 'music')} />
+                </label>
+              </div>
             </div>
-            <Button variant="outline" onClick={generateAllMissing} size="sm" className="w-full" data-testid="gen-all-btn">
-              <Sparkles className="w-3 h-3 mr-1" /> Generate All Missing
-            </Button>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* All Slides Assets */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Slide Assets</h3>
+                <Button variant="outline" size="sm" onClick={generateAllMissing} className="text-[10px] h-7">
+                  <Sparkles className="w-3 h-3 mr-1" /> Gen All
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {project?.slides?.map((slide, idx) => (
+                  <div key={slide.id} className={`p-3 rounded-xl border ${selectedSlideId === slide.id ? 'border-violet-500 bg-violet-500/5' : 'border-slate-700 bg-slate-800/30'}`}>
+                    <div className="flex gap-3">
+                      {/* Thumbnail */}
+                      <div className="w-20 h-14 rounded-lg bg-slate-900 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {slide.assetUrl ? (
+                          <img src={slide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${slide.assetUrl}` : slide.assetUrl} className="w-full h-full object-cover" alt="" />
+                        ) : (
+                          <span className="text-[10px] text-slate-600">No asset</span>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-semibold text-white mb-1">Slide {idx + 1}: {slide.title}</p>
+                        
+                        {/* Editable Prompt */}
+                        <textarea
+                          value={editingPrompts[slide.id] ?? slide.imagePrompt}
+                          onChange={(e) => setEditingPrompts(p => ({ ...p, [slide.id]: e.target.value }))}
+                          onBlur={() => {
+                            if (editingPrompts[slide.id] !== undefined) {
+                              updateSlide(slide.id, { imagePrompt: editingPrompts[slide.id] });
+                            }
+                          }}
+                          className="w-full text-[9px] text-slate-400 bg-slate-900/50 border border-slate-700 rounded p-1.5 resize-none h-12"
+                          placeholder="Image prompt..."
+                        />
+                        
+                        {/* Actions */}
+                        <div className="flex gap-1.5 mt-1.5">
+                          <button
+                            onClick={() => generateImage(slide)}
+                            disabled={generating[slide.id]}
+                            className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-semibold text-white"
+                            style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }}
+                          >
+                            {generating[slide.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                            {slide.assetUrl ? 'Regen' : 'Generate'}
+                          </button>
+                          <label className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-semibold bg-slate-700 text-slate-300 cursor-pointer">
+                            <Upload className="w-3 h-3" /> Upload
+                            <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleSlideUpload(e, slide.id)} />
+                          </label>
+                          {slide.assetUrl && (
+                            <button onClick={() => updateSlide(slide.id, { assetUrl: null, assetType: 'none' })} className="px-2 py-1 rounded text-[9px] bg-red-500/20 text-red-400">
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -203,88 +305,73 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 
         {activeTab === 'voice' && (
           <div className="space-y-4">
-            {/* Voice Selection */}
+            {/* Voice Selection - Single Voice for All */}
             <div>
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Select Voice</h3>
-              <div className="grid grid-cols-1 gap-2">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Select Voice (for all slides)</h3>
+              <select 
+                value={selectedVoice} 
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"
+              >
                 {VOICES.map(voice => (
-                  <button 
-                    key={voice.id} 
-                    onClick={() => setSelectedVoice(voice.id)}
-                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between ${selectedVoice === voice.id ? 'border-violet-500 bg-violet-500/10' : 'border-slate-700 hover:border-slate-600'}`}
-                    data-testid={`voice-${voice.id}`}
-                  >
-                    <div>
-                      <p className="text-xs font-semibold text-white">{voice.name}</p>
-                      <p className="text-[9px] text-slate-500">{voice.accent} · {voice.gender} · {voice.type}</p>
-                    </div>
-                    {selectedVoice === voice.id && <Check className="w-4 h-4 text-violet-400" />}
-                  </button>
+                  <option key={voice.id} value={voice.id}>
+                    {voice.name} - {voice.accent} ({voice.gender})
+                  </option>
                 ))}
+              </select>
+              <p className="text-[9px] text-slate-500 mt-1">This voice will be used for all slide narrations</p>
+            </div>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* Generate All Button */}
+            <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-500/5">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-sm font-semibold text-white">Generate All Voices</p>
+                  <p className="text-[10px] text-slate-400">{voicesGenerated}/{totalSlides} slides have voice</p>
+                </div>
+                <Button 
+                  onClick={generateAllVoices}
+                  disabled={generating.allVoices}
+                  size="sm"
+                  style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }}
+                  data-testid="gen-all-voices"
+                >
+                  {generating.allVoices ? (
+                    <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Generating...</>
+                  ) : (
+                    <><Wand2 className="w-4 h-4 mr-1" /> Generate All</>
+                  )}
+                </Button>
+              </div>
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-violet-500 to-emerald-500 rounded-full" style={{ width: `${(voicesGenerated / totalSlides) * 100}%` }} />
               </div>
             </div>
 
             <div className="h-px bg-slate-800" />
 
-            {/* Per-Slide Voice Generation */}
+            {/* Slide Voice Status */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Slide Voices</h3>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={generateAllVoices}
-                  className="text-[10px] h-7"
-                  data-testid="gen-all-voices"
-                >
-                  <Sparkles className="w-3 h-3 mr-1" /> Generate All
-                </Button>
-              </div>
-              
-              <div className="space-y-2">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Slide Narrations</h3>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-hide">
                 {project?.slides?.map((slide, idx) => (
-                  <div key={slide.id} className="p-3 rounded-xl bg-slate-800/50 border border-slate-700">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-semibold text-slate-400">Slide {idx + 1}: {slide.title}</p>
-                        <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5 italic">"{slide.narration}"</p>
-                      </div>
+                  <div key={slide.id} className={`p-2.5 rounded-xl border ${slide.voiceUrl ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/30'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-semibold text-slate-300">Slide {idx + 1}</span>
+                      {slide.voiceUrl ? (
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => playAudio(slide.voiceUrl)} className="p-1 rounded bg-emerald-500/20 text-emerald-400">
+                            {playingAudio === slide.voiceUrl ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                          </button>
+                          <span className="text-[9px] text-emerald-400"><Check className="w-3 h-3 inline" /> Done</span>
+                        </div>
+                      ) : (
+                        <span className="text-[9px] text-slate-500">Pending</span>
+                      )}
                     </div>
-                    
-                    {slide.voiceUrl ? (
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => playAudio(slide.voiceUrl)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold"
-                        >
-                          {playingAudio === slide.voiceUrl ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                          {playingAudio === slide.voiceUrl ? 'Pause' : 'Play'}
-                        </button>
-                        <button 
-                          onClick={() => generateVoice(slide)}
-                          disabled={generating[`voice_${slide.id}`]}
-                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-[10px]"
-                        >
-                          <RefreshCcw className="w-3 h-3" /> Regen
-                        </button>
-                        <span className="text-[9px] text-emerald-400 flex items-center gap-1"><Check className="w-3 h-3" /> Done</span>
-                      </div>
-                    ) : (
-                      <Button 
-                        size="sm" 
-                        onClick={() => generateVoice(slide)}
-                        disabled={generating[`voice_${slide.id}`] || !slide.narration}
-                        className="w-full h-8 text-[10px]"
-                        style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }}
-                        data-testid={`gen-voice-${slide.id}`}
-                      >
-                        {generating[`voice_${slide.id}`] ? (
-                          <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Generating...</>
-                        ) : (
-                          <><Wand2 className="w-3 h-3 mr-1" /> Generate Voice</>
-                        )}
-                      </Button>
-                    )}
+                    <p className="text-[9px] text-slate-500 line-clamp-2 italic">"{slide.narration}"</p>
                   </div>
                 ))}
               </div>
