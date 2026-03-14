@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowLeft, Save, Download, Play, Pause, Square, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload, Type } from 'lucide-react';
+import { Sparkles, ArrowLeft, Save, Download, Play, Pause, Square, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload, Type, MessageCircle } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { Slider } from '../components/ui/slider';
+import EditorChatBox from '../components/Editor/EditorChatBox';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -86,6 +87,31 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
   React.useEffect(() => {
     loadUserLibrary();
   }, [loadUserLibrary]);
+
+  // AI Asset Suggestions - keyword match from slide prompt against library
+  const suggestedAssets = React.useMemo(() => {
+    const slide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
+    if (!slide || userLibrary.length === 0) return [];
+    
+    const slideText = `${slide.narration || ''} ${slide.imagePrompt || ''} ${slide.title || ''}`.toLowerCase();
+    const slideWords = slideText.split(/\s+/).filter(w => w.length > 3);
+    
+    if (slideWords.length === 0) return [];
+    
+    const scored = userLibrary
+      .filter(a => a.type === 'image' || a.type === 'video')
+      .map(asset => {
+        const assetText = (asset.prompt || '').toLowerCase();
+        const matchCount = slideWords.filter(w => assetText.includes(w)).length;
+        return { ...asset, score: matchCount };
+      })
+      .filter(a => a.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6);
+    
+    return scored;
+  }, [selectedSlideId, userLibrary, project?.slides]);
+
   const activeSlide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
 
   const generateImage = async (slide) => {
@@ -326,6 +352,40 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
             </div>
 
             <div className="h-px bg-slate-800" />
+
+            {/* AI Suggested Assets */}
+            {suggestedAssets.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-amber-400" /> Suggested for this slide
+                </h3>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {suggestedAssets.map(asset => (
+                    <button
+                      key={asset.id}
+                      onClick={() => {
+                        if (selectedSlideId) updateSlide(selectedSlideId, { assetType: asset.type, assetUrl: asset.url });
+                      }}
+                      className="group relative rounded-lg overflow-hidden bg-slate-800 aspect-square ring-2 ring-amber-500/30 hover:ring-amber-400 transition"
+                      title={`${asset.prompt} (${asset.score} keyword matches)`}
+                      data-testid={`suggested-asset-${asset.id}`}
+                    >
+                      <img
+                        src={asset.url?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${asset.url}` : asset.url}
+                        alt="" className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                        <span className="text-[8px] text-white font-bold">Use</span>
+                      </div>
+                      <div className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-amber-500/80 flex items-center justify-center">
+                        <Sparkles className="w-2 h-2 text-white" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="h-px bg-slate-800 mt-3" />
+              </div>
+            )}
 
             {/* My Library */}
             <div>
@@ -1358,6 +1418,69 @@ export default function EditorPage() {
     }
   };
 
+  // Chat action handler
+  const handleChatAction = (action) => {
+    if (!action || !project) return;
+    const slides = project.slides || [];
+    
+    switch (action.type) {
+      case 'update_slide': {
+        const slide = slides.find(s => s.id === action.slideId);
+        if (slide && action.updates) updateSlide(slide.id, action.updates);
+        break;
+      }
+      case 'delete_slide': {
+        const newSlides = slides.filter(s => s.id !== action.slideId);
+        if (newSlides.length > 0) setProject({ ...project, slides: newSlides });
+        break;
+      }
+      case 'add_graphic': {
+        const slide = slides.find(s => s.id === action.slideId);
+        if (slide && action.graphic) {
+          updateSlide(slide.id, { graphics: [...(slide.graphics || []), action.graphic] });
+        }
+        break;
+      }
+      case 'remove_graphics': {
+        const slide = slides.find(s => s.id === action.slideId);
+        if (slide) updateSlide(slide.id, { graphics: [] });
+        break;
+      }
+      case 'set_caption_style':
+        if (action.styleId) setActiveCaptionStyleId(action.styleId);
+        break;
+      case 'set_caption_mode':
+        if (action.mode) setCaptionMode(action.mode);
+        break;
+      case 'generate_image': {
+        const slide = slides.find(s => s.id === action.slideId);
+        if (slide) generateImage(slide);
+        break;
+      }
+      case 'generate_all_images':
+        slides.forEach(s => { if (!s.assetUrl) generateImage(s); });
+        break;
+      case 'generate_voice': {
+        const slide = slides.find(s => s.id === action.slideId);
+        if (slide) generateVoice(slide);
+        break;
+      }
+      case 'generate_all_voices':
+        slides.forEach(s => { if (!s.voiceUrl) generateVoice(s); });
+        break;
+      case 'open_tab':
+        if (action.tabId) setActiveTab(action.tabId);
+        break;
+      case 'batch_update':
+        if (action.updates) slides.forEach(s => updateSlide(s.id, action.updates));
+        break;
+      case 'info':
+        break;
+      default:
+        break;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#030712] flex items-center justify-center">
@@ -1464,6 +1587,9 @@ export default function EditorPage() {
         <CanvasPreview project={project} videoCategory={videoCategory} selectedSlideId={selectedSlideId} setSelectedSlideId={setSelectedSlideId} />
         <RightSidebar project={project} primaryColor={primaryColor} setPrimaryColor={setPrimaryColor} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedSlideId={selectedSlideId} updateSlide={updateSlide} />
       </div>
+
+      {/* AI Chat Box */}
+      <EditorChatBox project={project} updateSlide={updateSlide} onAction={handleChatAction} />
     </div>
   );
 }

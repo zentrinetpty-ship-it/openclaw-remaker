@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -442,6 +442,94 @@ async def get_status_checks():
         if isinstance(check['timestamp'], str):
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     return status_checks
+
+@api_router.post("/editor/chat")
+async def editor_chat(request: dict = Body(...)):
+    """AI-powered editor chat. Parses natural language into structured actions."""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        api_key = os.getenv("EMERGENT_LLM_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
+        
+        message = request.get("message", "")
+        ctx = request.get("projectContext", {})
+        
+        slides_desc = ""
+        for s in ctx.get("slides", []):
+            slides_desc += f"\n  Slide {s['index']} (id=\"{s['id']}\"): title=\"{s['title']}\", duration={s['duration']}s, transition={s['transition']}, hasImage={s['hasImage']}, hasVoice={s['hasVoice']}, vfx={s['vfx']}, graphics={s['graphicsCount']}"
+        
+        system_prompt = f"""You are an AI video editor assistant for ExplainaPro. The user is editing a video project.
+
+Current project: "{ctx.get('title', 'Untitled')}"
+Slides ({ctx.get('slideCount', 0)} total):{slides_desc}
+BGM: {ctx.get('bgmUrl', 'none')}
+Caption style: {ctx.get('captionStyle', 'none')}
+
+The user will give you natural language commands. Parse each command into one or more actions. Return ONLY valid JSON:
+{{
+  "reply": "Friendly confirmation of what you did (1-2 sentences)",
+  "actions": [
+    {{
+      "type": "update_slide",
+      "slideId": "the slide id",
+      "updates": {{"field": "value"}}
+    }}
+  ]
+}}
+
+Available action types:
+1. "update_slide" - Update slide properties. updates can include: duration (number), transition ("fade"|"slide"|"zoom"|"none"), vfx ("none"|"cinematic"|"vhs"|"glitch"|"grayscale"|"blur"), narration (text), title (text), onScreenText (text), imagePrompt (text)
+2. "delete_slide" - Remove a slide. Fields: slideId
+3. "add_graphic" - Add motion graphic to slide. Fields: slideId, graphic: {{type: "title-card"|"lower-third"|"kinetic-text"|"stat-counter", title/name/text/value/label/subtitle, startTime: 0, duration: 3}}
+4. "remove_graphics" - Remove all graphics from slide. Fields: slideId
+5. "set_caption_style" - Change caption style. Fields: styleId ("bold-pop"|"netflix"|"minimal"|"tiktok"|"neon"|"glass")
+6. "set_caption_mode" - Change caption mode. Fields: mode ("words"|"lines"|"sentence")
+7. "generate_image" - Trigger image generation for a slide. Fields: slideId
+8. "generate_all_images" - Generate images for all slides. No extra fields.
+9. "generate_voice" - Generate voice for a slide. Fields: slideId
+10. "generate_all_voices" - Generate voices for all slides. No extra fields.
+11. "open_tab" - Switch editor tab. Fields: tabId ("script"|"assets"|"graphics"|"music"|"voice"|"captions"|"effects")
+12. "batch_update" - Update all slides at once. Fields: updates: {{field: value}}
+13. "info" - Just respond with information, no action needed. No extra fields.
+
+IMPORTANT:
+- When user says "slide 1", "slide 2" etc, match to the correct slide id from the context.
+- For batch operations like "set all transitions to zoom", use "batch_update" action type.
+- If the user asks a question or you can't determine an action, use type "info" with just a reply.
+- Always include a friendly reply."""
+
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"editor-chat-{uuid.uuid4()}",
+            system_message=system_prompt
+        )
+        chat.with_model("gemini", "gemini-2.5-flash")
+        
+        user_message = UserMessage(text=message)
+        response = await chat.send_message(user_message)
+        
+        # Parse response
+        cleaned = response.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+        
+        import json
+        parsed = json.loads(cleaned)
+        
+        return {"success": True, "reply": parsed.get("reply", "Done!"), "actions": parsed.get("actions", [])}
+        
+    except json.JSONDecodeError:
+        return {"success": True, "reply": response.strip()[:200] if response else "I understood your request.", "actions": []}
+    except Exception as e:
+        logger.error(f"Editor chat error: {e}")
+        return {"success": False, "reply": "Sorry, I couldn't process that request.", "actions": []}
 
 @api_router.post("/restructure-script")
 async def restructure_script(request: ScriptRequest):
