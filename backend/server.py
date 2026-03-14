@@ -22,6 +22,24 @@ from google import genai
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# Ensure render dependencies are available (chromium, ffmpeg for Remotion)
+def ensure_render_deps():
+    """Install chromium and ffmpeg if missing. These are required for video rendering."""
+    missing = []
+    for cmd in ['chromium', 'ffmpeg', 'ffprobe']:
+        if not shutil.which(cmd):
+            missing.append(cmd)
+    if missing:
+        logging.info(f"Installing missing render dependencies: {missing}")
+        try:
+            subprocess.run(['apt-get', 'update', '-qq'], capture_output=True, timeout=60)
+            subprocess.run(['apt-get', 'install', '-y', '-qq', 'chromium', 'ffmpeg'], capture_output=True, timeout=120)
+            logging.info("Render dependencies installed successfully")
+        except Exception as e:
+            logging.warning(f"Could not install render dependencies: {e}")
+
+ensure_render_deps()
+
 # Gemini client
 _gemini_client = None
 def get_gemini_client():
@@ -1104,7 +1122,7 @@ async def analyze_video(file: UploadFile = File(...), slideCount: int = 5, durat
         frames_dir.mkdir(exist_ok=True)
         
         # Get video duration
-        probe_cmd = ['/usr/bin/ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(video_path)]
+        probe_cmd = [shutil.which('ffprobe') or 'ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', str(video_path)]
         probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=30)
         video_duration = float(probe_result.stdout.strip()) if probe_result.stdout.strip() else 30.0
         
@@ -1116,7 +1134,7 @@ async def analyze_video(file: UploadFile = File(...), slideCount: int = 5, durat
             seek_time = i * interval
             frame_path = frames_dir / f"frame_{i:03d}.jpg"
             extract_cmd = [
-                '/usr/bin/ffmpeg', '-y', '-ss', str(seek_time), '-i', str(video_path),
+                shutil.which('ffmpeg') or 'ffmpeg', '-y', '-ss', str(seek_time), '-i', str(video_path),
                 '-frames:v', '1', '-q:v', '2', str(frame_path)
             ]
             subprocess.run(extract_cmd, capture_output=True, timeout=15)
@@ -1383,7 +1401,7 @@ def get_audio_duration(filepath: str) -> float:
     """Get audio duration in seconds using ffprobe."""
     try:
         result = subprocess.run(
-            ['/usr/bin/ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', filepath],
+            [shutil.which('ffprobe') or 'ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', filepath],
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0 and result.stdout.strip():
@@ -1569,13 +1587,15 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
                 elif asset_url.startswith('http'):
                     image_url = asset_url
             
-            # Handle voice audio
+            # Handle voice audio - always regenerate with consistent voice
             voice_http_url = None
             if voice_url and voice_url.startswith('/api/uploads/'):
                 src_audio = UPLOADS_DIR / voice_url.split('/')[-1]
                 if src_audio.exists():
                     voice_http_url = f"{base_url}{voice_url}"
-            elif generate_voice and narration and tts_api_key:
+            
+            # If no existing voice but has narration, generate with the selected voice
+            if not voice_http_url and generate_voice and narration and tts_api_key:
                 render_jobs[job_id]["step"] = f"Generating voice for slide {idx + 1}"
                 audio_bytes = await generate_voice_for_slide(narration, voice_id, tts_api_key)
                 if audio_bytes:
@@ -1640,8 +1660,9 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
         
         # Run Remotion render
         remotion_dir = ROOT_DIR.parent / "remotion"
+        node_path = shutil.which('node') or '/usr/bin/node'
         render_cmd = [
-            '/usr/bin/node', '--max-old-space-size=4096',
+            node_path, '--max-old-space-size=4096',
             str(remotion_dir / 'render.mjs'),
             str(data_file),
             str(output_path),

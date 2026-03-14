@@ -45,12 +45,11 @@ const VOICES = [
   { id: 'en-AU-Neural2-C', name: 'Neural2 C', accent: 'Australian', gender: 'Female', type: 'Pro' },
 ];
 
-function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCategory, primaryColor, selectedSlideId, setSelectedSlideId }) {
+function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCategory, primaryColor, selectedSlideId, setSelectedSlideId, selectedVoice, setSelectedVoice }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   const { setProject } = useProjectStore();
   const { activeCaptionStyleId, setActiveCaptionStyleId, captionMode, setCaptionMode } = useCaptionStore();
   const [generating, setGenerating] = useState({});
-  const [selectedVoice, setSelectedVoice] = useState('en-US-Journey-D');
   const [playingAudio, setPlayingAudio] = useState(null);
   const [editingPrompts, setEditingPrompts] = useState({});
   const [uploadedAssets, setUploadedAssets] = useState([]);
@@ -952,6 +951,7 @@ export default function EditorPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState('en-US-Journey-D');
   const cat = CATEGORIES.find(c => c.id === videoCategory);
 
   useEffect(() => {
@@ -997,7 +997,7 @@ export default function EditorPage() {
   const generateVoice = async (slide) => {
     if (!slide.narration) return;
     try {
-      const res = await axios.post(`${API}/generate-voice`, { text: slide.narration, voiceId: 'en-US-Journey-D' });
+      const res = await axios.post(`${API}/generate-voice`, { text: slide.narration, voiceId: selectedVoice });
       if (res.data.success) updateSlide(slide.id, { voiceUrl: res.data.url });
     } catch (e) { console.error(e); }
   };
@@ -1016,7 +1016,7 @@ export default function EditorPage() {
     }
     setRendering(true); setRenderProgress(0); setRenderStatus('starting'); setRenderStep('Initializing...'); setShowExportModal(true);
     try {
-      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: project.voiceId || 'en-US-Journey-D', captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4 });
+      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: selectedVoice, captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4 });
       if (res.data.success) {
         const jobId = res.data.jobId;
         setRenderStatus('processing');
@@ -1177,7 +1177,7 @@ export default function EditorPage() {
 
       {/* Main Editor */}
       <div className="flex-1 flex overflow-hidden">
-        <LeftSidebar activeTab={activeTab} setActiveTab={setActiveTab} project={project} updateSlide={updateSlide} videoCategory={videoCategory} primaryColor={primaryColor} selectedSlideId={selectedSlideId} setSelectedSlideId={setSelectedSlideId} />
+        <LeftSidebar activeTab={activeTab} setActiveTab={setActiveTab} project={project} updateSlide={updateSlide} videoCategory={videoCategory} primaryColor={primaryColor} selectedSlideId={selectedSlideId} setSelectedSlideId={setSelectedSlideId} selectedVoice={selectedVoice} setSelectedVoice={setSelectedVoice} />
         <CanvasPreview project={project} videoCategory={videoCategory} selectedSlideId={selectedSlideId} setSelectedSlideId={setSelectedSlideId} />
         <RightSidebar project={project} primaryColor={primaryColor} setPrimaryColor={setPrimaryColor} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedSlideId={selectedSlideId} updateSlide={updateSlide} />
       </div>
