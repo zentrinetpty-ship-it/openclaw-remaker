@@ -1006,26 +1006,52 @@ export default function EditorPage() {
     if (!project || rendering) return;
     const slidesWithImages = project.slides?.filter(s => s.assetUrl) || [];
     const totalSlides = project.slides?.length || 0;
-    if (slidesWithImages.length === 0) { alert(`None of your ${totalSlides} slides have images. Please generate or upload images in the Assets tab first.`); return; }
-    if (slidesWithImages.length < totalSlides) { const proceed = window.confirm(`Only ${slidesWithImages.length}/${totalSlides} slides have images. Slides without images will use a dark placeholder. Continue rendering?`); if (!proceed) return; }
+    if (totalSlides === 0) { alert('No slides to render.'); return; }
+    if (slidesWithImages.length < totalSlides) { 
+      const msg = slidesWithImages.length === 0 
+        ? `None of your ${totalSlides} slides have images. They will use gradient placeholders. Continue rendering?`
+        : `Only ${slidesWithImages.length}/${totalSlides} slides have images. Slides without images will use gradient placeholders. Continue rendering?`;
+      const proceed = window.confirm(msg); 
+      if (!proceed) return; 
+    }
     setRendering(true); setRenderProgress(0); setRenderStatus('starting'); setRenderStep('Initializing...'); setShowExportModal(true);
     try {
-      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration, generateVoice: true, voiceId: project.voiceId || 'en-US-Journey-D', captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4 });
+      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: project.voiceId || 'en-US-Journey-D', captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4 });
       if (res.data.success) {
         const jobId = res.data.jobId;
         setRenderStatus('processing');
+        let pollCount = 0;
+        const maxPolls = 150; // 5 minutes at 2s intervals
         const pollInterval = setInterval(async () => {
+          pollCount++;
+          if (pollCount > maxPolls) {
+            clearInterval(pollInterval);
+            setRenderStatus('timeout');
+            setRendering(false);
+            return;
+          }
           try {
             const statusRes = await axios.get(`${API}/render/${jobId}`);
             setRenderProgress(statusRes.data.progress || 0);
             if (statusRes.data.step) setRenderStep(statusRes.data.step);
             if (statusRes.data.status === 'completed') { clearInterval(pollInterval); setRenderStatus('completed'); setRenderUrl(statusRes.data.videoUrl); setRendering(false); }
-            else if (statusRes.data.status === 'failed') { clearInterval(pollInterval); setRenderStatus('failed'); setRendering(false); }
-          } catch (e) { console.error('Poll error:', e); }
+            else if (statusRes.data.status === 'failed') { clearInterval(pollInterval); setRenderStatus('failed'); setRenderStep(statusRes.data.error || 'Render failed'); setRendering(false); }
+          } catch (e) { 
+            console.error('Poll error:', e); 
+            // Don't fail on transient network errors
+          }
         }, 2000);
-        setTimeout(() => { clearInterval(pollInterval); if (rendering) { setRenderStatus('timeout'); setRendering(false); } }, 300000);
+      } else {
+        setRenderStatus('failed');
+        setRenderStep('Server returned an error');
+        setRendering(false);
       }
-    } catch (e) { console.error('Render error:', e); setRenderStatus('failed'); setRendering(false); }
+    } catch (e) { 
+      console.error('Render error:', e); 
+      setRenderStatus('failed'); 
+      setRenderStep(e.response?.data?.detail || e.message || 'Failed to start render');
+      setRendering(false); 
+    }
   };
 
   const handleChatAction = (action) => {
@@ -1099,9 +1125,13 @@ export default function EditorPage() {
                     <div className="w-16 h-16 rounded-sm bg-red-50 border-2 border-red-200 flex items-center justify-center mx-auto mb-4">
                       <X className="w-8 h-8 text-red-500" />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Render Failed</h3>
-                    <p className="text-sm text-slate-500 mb-6">Something went wrong. Please try again.</p>
-                    <button onClick={() => setShowExportModal(false)} className="px-4 py-2 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm">Close</button>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{renderStatus === 'timeout' ? 'Render Timed Out' : 'Render Failed'}</h3>
+                    <p className="text-sm text-slate-500 mb-2">{renderStatus === 'timeout' ? 'The render took too long. Please try with fewer slides.' : 'Something went wrong during rendering.'}</p>
+                    {renderStep && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded p-2 mb-4 break-words max-h-20 overflow-y-auto">{renderStep}</p>}
+                    <div className="flex gap-3 justify-center">
+                      <button onClick={() => setShowExportModal(false)} className="px-4 py-2 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm">Close</button>
+                      <button onClick={() => { setShowExportModal(false); startRender(); }} className="px-4 py-2 rounded-none bg-indigo-600 text-white font-bold text-sm btn-sharp">Retry</button>
+                    </div>
                   </>
                 ) : (
                   <>
