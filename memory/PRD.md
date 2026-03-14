@@ -85,6 +85,13 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] **Auto-save on upload**: POST /api/upload automatically saves to user library when authenticated
 - [x] **Dashboard My Library tab**: Category filters, search, delete, preview
 - [x] **Editor My Library**: Browse and one-click assign library assets to slides
+
+### Phase 11 - AI Chat Box & Asset Suggestions (March 14)
+- [x] **POST /api/editor/chat**: AI-powered natural language command parser using Gemini 2.5 Flash
+- [x] **13 action types**: update_slide, delete_slide, add_graphic, remove_graphics, set_caption_style/mode, generate_image/voice, open_tab, batch_update, info
+- [x] **Floating chat panel**: Toggle, input, quick suggestions, message history
+- [x] **Real-time actions**: AI responses execute structured actions on project state
+- [x] **AI Asset Suggestions**: Keyword matching between slide text and library assets, shown in Assets tab
 - [x] Testing: 100% backend (13/13), 100% frontend
 
 ## API Endpoints
@@ -99,6 +106,7 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - POST /api/generate-video - AI video background
 - POST /api/generate-voice - Google TTS voice generation
 - POST /api/analyze-video - Video Remaker (upload + Gemini analysis)
+- POST /api/editor/chat - AI chat command parser (natural language → structured actions)
 
 **Video Rendering:**
 - POST /api/render - Start MP4 render (captionStyleId, captionMode, bgmUrl, bgmVolume, graphics)
