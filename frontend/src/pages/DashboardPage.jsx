@@ -107,7 +107,7 @@ export default function DashboardPage() {
   const totalAssets = Object.values(libraryCounts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="min-h-screen bg-[#030712]" data-testid="dashboard-page">
+    <div className="min-h-screen bg-[#030712]" data-testid="dashboard-page" style={{ fontFamily: "'Poppins', sans-serif" }}>
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       
       {/* Navbar */}
