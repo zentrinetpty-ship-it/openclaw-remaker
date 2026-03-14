@@ -589,7 +589,7 @@ async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get
         
         client = get_gemini_client()
         response = client.models.generate_images(
-            model='imagen-3.0-generate-002',
+            model='imagen-4.0-generate-001',
             prompt=style_prompt,
             config=genai.types.GenerateImagesConfig(
                 number_of_images=1,
@@ -644,7 +644,7 @@ async def generate_video(request: VideoGenerateRequest, user: dict = Depends(get
         
         client = get_gemini_client()
         response = client.models.generate_images(
-            model='imagen-3.0-generate-002',
+            model='imagen-4.0-generate-001',
             prompt=prompt,
             config=genai.types.GenerateImagesConfig(
                 number_of_images=1,

@@ -162,7 +162,8 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] **AuthModal Light Theme**: White background with proper contrast
 - [x] **CreatePage Light Theme**: Consistent with landing page design language
 - [x] **Video Render Fix**: Installed missing chromium and ffmpeg system dependencies required by Remotion
-- [x] **Render Verified**: Successfully renders single-slide and multi-slide MP4 videos with captions
+- [x] **Render Verified**: Successfully renders single-slide and multi-slide MP4 videos with captions and voice audio from both API and UI
+- [x] **Image Generation Fix**: Updated from deprecated `imagen-3.0-generate-002` to `imagen-4.0-generate-001`
 
 ## Backlog (P1/P2)
 - P1: Real stock asset search integration (Pixabay/Pexels)
