@@ -17,9 +17,34 @@ import subprocess
 import shutil
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from google import genai
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Gemini client
+_gemini_client = None
+def get_gemini_client():
+    global _gemini_client
+    if _gemini_client is None:
+        api_key = os.environ.get("GOOGLE_GENERATIVE_AI_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_GENERATIVE_AI_API_KEY not configured")
+        _gemini_client = genai.Client(api_key=api_key)
+    return _gemini_client
+
+async def gemini_generate(system_message: str, user_message: str) -> str:
+    """Generate text using Gemini 2.5 Flash."""
+    client = get_gemini_client()
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=user_message,
+        config=genai.types.GenerateContentConfig(
+            system_instruction=system_message,
+            temperature=0.7,
+        ),
+    )
+    return response.text
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -447,12 +472,6 @@ async def get_status_checks():
 async def editor_chat(request: dict = Body(...)):
     """AI-powered editor chat. Parses natural language into structured actions."""
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        
-        api_key = os.getenv("EMERGENT_LLM_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-        
         message = request.get("message", "")
         ctx = request.get("projectContext", {})
         
@@ -500,15 +519,7 @@ IMPORTANT:
 - If the user asks a question or you can't determine an action, use type "info" with just a reply.
 - Always include a friendly reply."""
 
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"editor-chat-{uuid.uuid4()}",
-            system_message=system_prompt
-        )
-        chat.with_model("gemini", "gemini-2.5-flash")
-        
-        user_message = UserMessage(text=message)
-        response = await chat.send_message(user_message)
+        response = await gemini_generate(system_prompt, message)
         
         # Parse response
         cleaned = response.strip()
@@ -535,23 +546,12 @@ IMPORTANT:
 async def restructure_script(request: ScriptRequest):
     """Main AI script generation endpoint using Gemini 2.5 Flash."""
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        
-        api_key = os.getenv("EMERGENT_LLM_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-        
         prompt = build_master_prompt(request)
         
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"script-{uuid.uuid4()}",
-            system_message="You are an expert video content producer. Always respond with valid JSON only."
+        response = await gemini_generate(
+            "You are an expert video content producer. Always respond with valid JSON only.",
+            prompt
         )
-        chat.with_model("gemini", "gemini-2.5-flash")
-        
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
         
         # Clean and parse response
         cleaned = response.strip()
@@ -578,14 +578,8 @@ async def restructure_script(request: ScriptRequest):
 
 @api_router.post("/generate-image")
 async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get_current_user)):
-    """Generate image using Gemini Nano Banana."""
+    """Generate image using Gemini."""
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        
-        api_key = os.getenv("EMERGENT_LLM_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-        
         # Build enhanced prompt
         style_prompt = f"Generate a high-quality, professional image for a video background: {request.description}. Style: {request.style}. 16:9 aspect ratio, cinematic lighting, no text."
         
@@ -593,24 +587,25 @@ async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get
             char_desc = ", ".join([f"{c['name']}: {c['description']}" for c in request.characters])
             style_prompt += f" CONSISTENT CHARACTERS: {char_desc}"
         
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"image-{uuid.uuid4()}",
-            system_message="You are an AI image generator."
+        client = get_gemini_client()
+        response = client.models.generate_images(
+            model='imagen-3.0-generate-002',
+            prompt=style_prompt,
+            config=genai.types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="16:9",
+                output_mime_type="image/png",
+            )
         )
-        chat.with_model("gemini", "gemini-3-pro-image-preview").with_params(modalities=["image", "text"])
         
-        user_message = UserMessage(text=style_prompt)
-        text_response, images = await chat.send_message_multimodal_response(user_message)
-        
-        if images and len(images) > 0:
+        if response.generated_images and len(response.generated_images) > 0:
             # Save image to uploads
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
             random_suffix = str(uuid.uuid4())[:7]
             filename = f"image-{timestamp}-{random_suffix}.png"
             filepath = UPLOADS_DIR / filename
             
-            image_bytes = base64.b64decode(images[0]['data'])
+            image_bytes = response.generated_images[0].image.image_bytes
             async with aiofiles.open(filepath, 'wb') as f:
                 await f.write(image_bytes)
             
@@ -632,7 +627,7 @@ async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get
                 "success": True,
                 "image": f"/api/uploads/{filename}",
                 "assetId": asset_doc["id"],
-                "mimeType": images[0].get('mime_type', 'image/png')
+                "mimeType": "image/png"
             }
         else:
             raise HTTPException(status_code=500, detail="No image generated")
@@ -645,31 +640,26 @@ async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get
 async def generate_video(request: VideoGenerateRequest, user: dict = Depends(get_current_user)):
     """Generate video background image using Gemini."""
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        
-        api_key = os.getenv("EMERGENT_LLM_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-        
         prompt = f"Generate a cinematic, high-quality video background image for the following scene: {request.description}. Wide 16:9 format, photorealistic, 4k quality, dynamic composition."
         
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"video-{uuid.uuid4()}",
-            system_message="You are an AI image generator for video backgrounds."
+        client = get_gemini_client()
+        response = client.models.generate_images(
+            model='imagen-3.0-generate-002',
+            prompt=prompt,
+            config=genai.types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="16:9",
+                output_mime_type="image/png",
+            )
         )
-        chat.with_model("gemini", "gemini-3-pro-image-preview").with_params(modalities=["image", "text"])
         
-        user_message = UserMessage(text=prompt)
-        text_response, images = await chat.send_message_multimodal_response(user_message)
-        
-        if images and len(images) > 0:
+        if response.generated_images and len(response.generated_images) > 0:
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
             random_suffix = str(uuid.uuid4())[:7]
             filename = f"video-bg-{timestamp}-{random_suffix}.png"
             filepath = UPLOADS_DIR / filename
             
-            image_bytes = base64.b64decode(images[0]['data'])
+            image_bytes = response.generated_images[0].image.image_bytes
             async with aiofiles.open(filepath, 'wb') as f:
                 await f.write(image_bytes)
             
@@ -1096,12 +1086,6 @@ async def get_render(filename: str):
 async def analyze_video(file: UploadFile = File(...), slideCount: int = 5, duration: int = 30, tone: str = "professional", visualStyle: str = "Cinematic"):
     """Upload a video, extract key frames, and analyze with Gemini to generate a remake storyboard."""
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        
-        api_key = os.getenv("EMERGENT_LLM_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY not configured")
-        
         # Save uploaded video
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         random_suffix = str(uuid.uuid4())[:7]
@@ -1190,15 +1174,10 @@ Output ONLY valid JSON matching this schema:
   "originalVideoAnalysis": "Brief 2-sentence summary of what the original video was about"
 }}"""
 
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"remaker-{uuid.uuid4()}",
-            system_message="You are an expert video content strategist. Analyze video content and create compelling remake storyboards. Always respond with valid JSON only."
+        response = await gemini_generate(
+            "You are an expert video content strategist. Analyze video content and create compelling remake storyboards. Always respond with valid JSON only.",
+            analysis_prompt
         )
-        chat.with_model("gemini", "gemini-2.5-flash")
-        
-        user_message = UserMessage(text=analysis_prompt)
-        response = await chat.send_message(user_message)
         
         # Clean and parse
         import json
