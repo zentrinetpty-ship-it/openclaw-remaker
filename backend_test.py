@@ -12,6 +12,12 @@ class ExplainaProAPITester:
         self.tests_run = 0
         self.tests_passed = 0
         self.test_results = []
+        self.auth_token = None
+        self.test_user = {
+            "email": "test@example.com",
+            "password": "password123",
+            "name": "Test User"
+        }
 
     def log_test(self, name, success, details="", status_code=None):
         """Log test result"""
@@ -213,8 +219,172 @@ class ExplainaProAPITester:
             self.log_test("Search Endpoints", False, str(e))
             return False
 
+    def test_auth_endpoints(self):
+        """Test JWT authentication system"""
+        try:
+            # Test user registration
+            timestamp = int(time.time())
+            register_data = {
+                "email": f"testuser{timestamp}@example.com",
+                "password": "testpassword123",
+                "name": "Test User"
+            }
+            
+            response = requests.post(f"{self.base_url}/auth/register", json=register_data, timeout=10)
+            register_success = response.status_code == 200
+            
+            if register_success:
+                result = response.json()
+                if result.get('success') and 'token' in result and 'user' in result:
+                    self.auth_token = result['token']
+                    user_id = result['user'].get('id')
+                    details = f"Registered user: {result['user'].get('email')} (ID: {user_id})"
+                else:
+                    register_success = False
+                    details = "Response missing token or user data"
+            else:
+                details = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            self.log_test("User Registration", register_success, details, response.status_code)
+            
+            # Test user login with same credentials
+            login_data = {
+                "email": register_data["email"],
+                "password": register_data["password"]
+            }
+            
+            response = requests.post(f"{self.base_url}/auth/login", json=login_data, timeout=10)
+            login_success = response.status_code == 200
+            
+            if login_success:
+                result = response.json()
+                if result.get('success') and 'token' in result:
+                    login_token = result['token']
+                    details = f"Login successful, token received"
+                else:
+                    login_success = False
+                    details = "Response missing token"
+            else:
+                details = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            self.log_test("User Login", login_success, details, response.status_code)
+            
+            # Test protected /auth/me endpoint
+            if self.auth_token:
+                headers = {"Authorization": f"Bearer {self.auth_token}"}
+                response = requests.get(f"{self.base_url}/auth/me", headers=headers, timeout=10)
+                me_success = response.status_code == 200
+                
+                if me_success:
+                    result = response.json()
+                    if result.get('success') and 'user' in result:
+                        user_email = result['user'].get('email')
+                        details = f"Retrieved user data: {user_email}"
+                    else:
+                        me_success = False
+                        details = "Response missing user data"
+                else:
+                    details = f"HTTP {response.status_code}: {response.text[:200]}"
+            else:
+                me_success = False
+                details = "No auth token available from registration"
+            
+            self.log_test("Get Current User", me_success, details, response.status_code if 'response' in locals() else None)
+            
+            # Test invalid login
+            invalid_login_data = {
+                "email": "nonexistent@example.com", 
+                "password": "wrongpassword"
+            }
+            response = requests.post(f"{self.base_url}/auth/login", json=invalid_login_data, timeout=10)
+            invalid_login_expected = response.status_code == 401
+            details = f"Correctly rejected invalid credentials" if invalid_login_expected else f"Unexpected status: {response.status_code}"
+            self.log_test("Invalid Login Rejection", invalid_login_expected, details, response.status_code)
+            
+            return register_success and login_success and me_success and invalid_login_expected
+            
+        except Exception as e:
+            self.log_test("Auth Endpoints", False, str(e))
+            return False
+
+    def test_render_endpoints(self):
+        """Test video rendering functionality"""
+        try:
+            # Test render initiation
+            render_data = {
+                "projectId": f"test_project_{int(time.time())}",
+                "title": "Test Render Video",
+                "duration": 15,
+                "slides": [
+                    {
+                        "id": "1",
+                        "duration": 5,
+                        "assetUrl": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800",
+                        "title": "Test Slide 1"
+                    },
+                    {
+                        "id": "2", 
+                        "duration": 10,
+                        "assetUrl": "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800",
+                        "title": "Test Slide 2"
+                    }
+                ]
+            }
+            
+            print("🔄 Testing render initiation...")
+            response = requests.post(f"{self.base_url}/render", json=render_data, timeout=15)
+            render_start_success = response.status_code == 200
+            
+            job_id = None
+            if render_start_success:
+                result = response.json()
+                if result.get('success') and 'jobId' in result:
+                    job_id = result['jobId']
+                    details = f"Render started with job ID: {job_id}"
+                else:
+                    render_start_success = False
+                    details = "Response missing job ID"
+            else:
+                details = f"HTTP {response.status_code}: {response.text[:200]}"
+            
+            self.log_test("Render Start", render_start_success, details, response.status_code)
+            
+            # Test render status check
+            status_success = False
+            if job_id:
+                time.sleep(2)  # Wait a bit for processing to start
+                response = requests.get(f"{self.base_url}/render/{job_id}", timeout=10)
+                status_success = response.status_code == 200
+                
+                if status_success:
+                    result = response.json()
+                    if result.get('success'):
+                        status = result.get('status', 'unknown')
+                        progress = result.get('progress', 0)
+                        details = f"Render status: {status}, progress: {progress}%"
+                    else:
+                        status_success = False
+                        details = "Invalid status response format"
+                else:
+                    details = f"HTTP {response.status_code}: {response.text[:200]}"
+            else:
+                details = "No job ID available from render start"
+            
+            self.log_test("Render Status Check", status_success, details, response.status_code if 'response' in locals() else None)
+            
+            # Test invalid job ID
+            response = requests.get(f"{self.base_url}/render/invalid-job-id", timeout=10)
+            invalid_job_expected = response.status_code == 404
+            details = f"Correctly rejected invalid job ID" if invalid_job_expected else f"Unexpected status: {response.status_code}"
+            self.log_test("Invalid Job ID Rejection", invalid_job_expected, details, response.status_code)
+            
+            return render_start_success and status_success and invalid_job_expected
+            
+        except Exception as e:
+            self.log_test("Render Endpoints", False, str(e))
+            return False
+
     def test_project_management(self):
-        """Test project creation and management"""
         try:
             # Create a test project
             project_data = {
@@ -308,12 +478,14 @@ class ExplainaProAPITester:
         
         # Run all test suites
         self.test_status_endpoints()
+        self.test_auth_endpoints()  # New authentication tests
         self.test_script_generation()
         self.test_image_generation() 
         self.test_video_generation()
         self.test_mocked_endpoints()
         self.test_search_endpoints()
         self.test_project_management()
+        self.test_render_endpoints()  # New render tests
         
         # Print summary
         print("=" * 60)

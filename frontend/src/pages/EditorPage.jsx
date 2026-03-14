@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Sparkles, ArrowLeft, Save, Download, Play, Pause, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, ArrowLeft, Save, Download, Play, Pause, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../store/useProjectStore';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { Slider } from '../components/ui/slider';
@@ -307,10 +308,16 @@ function RightSidebar({ project, primaryColor, setPrimaryColor, selectedFont, se
 export default function EditorPage() {
   const navigate = useNavigate();
   const { projectId } = useParams();
+  const { user } = useAuth();
   const { project, setProject, updateSlide, videoCategory } = useProjectStore();
   const { primaryColor, setPrimaryColor, selectedFont, setSelectedFont } = useBrandKitStore();
   const [activeTab, setActiveTab] = useState('script');
   const [loading, setLoading] = useState(true);
+  const [rendering, setRendering] = useState(false);
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderStatus, setRenderStatus] = useState(null);
+  const [renderUrl, setRenderUrl] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const cat = CATEGORIES.find(c => c.id === videoCategory);
 
   useEffect(() => {
@@ -329,6 +336,62 @@ export default function EditorPage() {
     };
     loadProject();
   }, [projectId, project, setProject]);
+
+  const startRender = async () => {
+    if (!project || rendering) return;
+    setRendering(true);
+    setRenderProgress(0);
+    setRenderStatus('starting');
+    setShowExportModal(true);
+    
+    try {
+      const res = await axios.post(`${API}/render`, {
+        projectId: projectId || 'new',
+        slides: project.slides,
+        title: project.title,
+        duration: project.duration
+      });
+      
+      if (res.data.success) {
+        const jobId = res.data.jobId;
+        setRenderStatus('processing');
+        
+        // Poll for status
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await axios.get(`${API}/render/${jobId}`);
+            setRenderProgress(statusRes.data.progress || 0);
+            
+            if (statusRes.data.status === 'completed') {
+              clearInterval(pollInterval);
+              setRenderStatus('completed');
+              setRenderUrl(statusRes.data.videoUrl);
+              setRendering(false);
+            } else if (statusRes.data.status === 'failed') {
+              clearInterval(pollInterval);
+              setRenderStatus('failed');
+              setRendering(false);
+            }
+          } catch (e) {
+            console.error('Poll error:', e);
+          }
+        }, 2000);
+        
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          if (rendering) {
+            setRenderStatus('timeout');
+            setRendering(false);
+          }
+        }, 300000);
+      }
+    } catch (e) {
+      console.error('Render error:', e);
+      setRenderStatus('failed');
+      setRendering(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -354,6 +417,55 @@ export default function EditorPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#030712] overflow-hidden" data-testid="editor-page">
+      {/* Export Modal */}
+      <AnimatePresence>
+        {showExportModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !rendering && setShowExportModal(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-md bg-[#0a0f1a] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl p-6">
+              <div className="text-center">
+                {renderStatus === 'completed' ? (
+                  <>
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                      <Check className="w-8 h-8 text-emerald-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Video Ready!</h3>
+                    <p className="text-sm text-slate-400 mb-6">Your video has been rendered successfully.</p>
+                    <div className="flex gap-3 justify-center">
+                      <Button variant="outline" onClick={() => setShowExportModal(false)}>Close</Button>
+                      <a href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} download className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700" data-testid="download-video-btn">
+                        <Download className="w-4 h-4" /> Download MP4
+                      </a>
+                    </div>
+                  </>
+                ) : renderStatus === 'failed' || renderStatus === 'timeout' ? (
+                  <>
+                    <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                      <X className="w-8 h-8 text-red-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Render Failed</h3>
+                    <p className="text-sm text-slate-400 mb-6">Something went wrong. Please try again.</p>
+                    <Button onClick={() => setShowExportModal(false)}>Close</Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 rounded-full bg-violet-500/20 flex items-center justify-center mx-auto mb-4">
+                      <Film className="w-8 h-8 text-violet-400 animate-pulse" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Rendering Video...</h3>
+                    <p className="text-sm text-slate-400 mb-4">Creating your cinematic masterpiece</p>
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2">
+                      <motion.div className="h-full bg-gradient-to-r from-violet-500 to-pink-500" style={{ width: `${renderProgress}%` }} />
+                    </div>
+                    <p className="text-xs text-slate-500">{renderProgress}% complete</p>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Top Nav */}
       <nav className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-[#0a0f1a]">
         <div className="flex items-center gap-3">
@@ -365,7 +477,10 @@ export default function EditorPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" data-testid="save-btn"><Save className="w-4 h-4 mr-1" /> Save</Button>
-          <Button size="sm" style={{ background: `linear-gradient(135deg, ${cat?.color || primaryColor}, #10b981)` }} data-testid="export-btn"><Download className="w-4 h-4 mr-1" /> Export</Button>
+          <Button onClick={startRender} disabled={rendering} size="sm" style={{ background: `linear-gradient(135deg, ${cat?.color || primaryColor}, #10b981)` }} data-testid="export-btn">
+            {rendering ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
+            {rendering ? 'Rendering...' : 'Export MP4'}
+          </Button>
         </div>
       </nav>
 

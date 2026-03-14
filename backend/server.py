@@ -1,17 +1,22 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import asyncio
 import base64
 import aiofiles
+import subprocess
+import shutil
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -34,9 +39,50 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create uploads directory
+# Create directories
 UPLOADS_DIR = ROOT_DIR / 'uploads'
 UPLOADS_DIR.mkdir(exist_ok=True)
+RENDERS_DIR = ROOT_DIR / 'renders'
+RENDERS_DIR.mkdir(exist_ok=True)
+
+# ─── Auth Configuration ─────────────────────────────────────────────────────
+SECRET_KEY = os.getenv("JWT_SECRET", "explainapro-secret-key-change-in-production-2026")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_DAYS = 7
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer(auto_error=False)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        return None
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+        return user
+    except JWTError:
+        return None
+
+async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    user = await get_current_user(credentials)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
 
 # ─── Models ─────────────────────────────────────────────────────────────────
 
@@ -48,6 +94,16 @@ class StatusCheck(BaseModel):
 
 class StatusCheckCreate(BaseModel):
     client_name: str
+
+# ─── Auth Models ────────────────────────────────────────────────────────────
+class UserRegister(BaseModel):
+    email: str
+    password: str
+    name: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
 
 class ScriptRequest(BaseModel):
     input: str
@@ -203,6 +259,52 @@ Your job:
 @api_router.get("/")
 async def root():
     return {"message": "ExplainaPro API v1.0"}
+
+# ─── Auth Routes ────────────────────────────────────────────────────────────
+
+@api_router.post("/auth/register")
+async def register(data: UserRegister):
+    """Register a new user."""
+    existing = await db.users.find_one({"email": data.email.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "id": user_id,
+        "email": data.email.lower(),
+        "password": get_password_hash(data.password),
+        "name": data.name or data.email.split("@")[0],
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "subscriptionTier": "free"
+    }
+    await db.users.insert_one(user_doc)
+    
+    token = create_access_token({"sub": user_id})
+    return {
+        "success": True,
+        "token": token,
+        "user": {"id": user_id, "email": user_doc["email"], "name": user_doc["name"]}
+    }
+
+@api_router.post("/auth/login")
+async def login(data: UserLogin):
+    """Login user."""
+    user = await db.users.find_one({"email": data.email.lower()})
+    if not user or not verify_password(data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    token = create_access_token({"sub": user["id"]})
+    return {
+        "success": True,
+        "token": token,
+        "user": {"id": user["id"], "email": user["email"], "name": user.get("name", "")}
+    }
+
+@api_router.get("/auth/me")
+async def get_me(user: dict = Depends(require_auth)):
+    """Get current user."""
+    return {"success": True, "user": user}
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
@@ -559,6 +661,160 @@ async def get_upload(filename: str):
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(filepath)
+
+@api_router.get("/renders/{filename}")
+async def get_render(filename: str):
+    """Serve rendered videos."""
+    filepath = RENDERS_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Render not found")
+    return FileResponse(filepath, media_type="video/mp4")
+
+# ─── Video Render Routes ────────────────────────────────────────────────────
+
+class RenderRequest(BaseModel):
+    projectId: str
+    slides: List[Dict[str, Any]]
+    title: str
+    duration: int = 30
+
+render_jobs = {}
+
+async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str):
+    """Background task to render video using FFmpeg."""
+    try:
+        render_jobs[job_id] = {"status": "processing", "progress": 0}
+        
+        # Create temp directory for this render
+        temp_dir = RENDERS_DIR / f"temp_{job_id}"
+        temp_dir.mkdir(exist_ok=True)
+        
+        total_slides = len(slides)
+        image_files = []
+        
+        # Download/copy images for each slide
+        for idx, slide in enumerate(slides):
+            render_jobs[job_id]["progress"] = int((idx / total_slides) * 50)
+            
+            asset_url = slide.get('assetUrl')
+            duration = slide.get('duration', 6)
+            
+            if asset_url:
+                # If it's a local file
+                if asset_url.startswith('/api/uploads/'):
+                    src_file = UPLOADS_DIR / asset_url.split('/')[-1]
+                    if src_file.exists():
+                        img_path = temp_dir / f"slide_{idx:03d}.png"
+                        shutil.copy(src_file, img_path)
+                        image_files.append((str(img_path), duration))
+                elif asset_url.startswith('http'):
+                    # Download external image
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        resp = await client.get(asset_url)
+                        if resp.status_code == 200:
+                            img_path = temp_dir / f"slide_{idx:03d}.png"
+                            async with aiofiles.open(img_path, 'wb') as f:
+                                await f.write(resp.content)
+                            image_files.append((str(img_path), duration))
+            else:
+                # Create placeholder image
+                img_path = temp_dir / f"slide_{idx:03d}.png"
+                # Use FFmpeg to create a solid color placeholder
+                subprocess.run([
+                    'ffmpeg', '-y', '-f', 'lavfi', '-i', 
+                    f'color=c=#1a1a2e:s=1920x1080:d=1', 
+                    '-frames:v', '1', str(img_path)
+                ], capture_output=True)
+                image_files.append((str(img_path), duration))
+        
+        if not image_files:
+            render_jobs[job_id] = {"status": "failed", "error": "No images to render"}
+            return
+        
+        render_jobs[job_id]["progress"] = 60
+        
+        # Create concat file for FFmpeg
+        concat_file = temp_dir / "concat.txt"
+        with open(concat_file, 'w') as f:
+            for img_path, duration in image_files:
+                f.write(f"file '{img_path}'\n")
+                f.write(f"duration {duration}\n")
+            # Add last image again (FFmpeg concat demuxer quirk)
+            f.write(f"file '{image_files[-1][0]}'\n")
+        
+        render_jobs[job_id]["progress"] = 70
+        
+        # Output filename
+        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        output_filename = f"{safe_title}-{timestamp}.mp4"
+        output_path = RENDERS_DIR / output_filename
+        
+        # Render video with FFmpeg
+        ffmpeg_cmd = [
+            'ffmpeg', '-y',
+            '-f', 'concat', '-safe', '0', '-i', str(concat_file),
+            '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
+            '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+            '-movflags', '+faststart',
+            str(output_path)
+        ]
+        
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            logger.error(f"FFmpeg error: {result.stderr}")
+            render_jobs[job_id] = {"status": "failed", "error": "FFmpeg rendering failed"}
+            return
+        
+        render_jobs[job_id]["progress"] = 95
+        
+        # Clean up temp directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        
+        # Update job and database
+        video_url = f"/api/renders/{output_filename}"
+        render_jobs[job_id] = {
+            "status": "completed",
+            "progress": 100,
+            "videoUrl": video_url
+        }
+        
+        # Update project in database
+        await db.projects.update_one(
+            {"id": project_id},
+            {"$set": {"renderUrl": video_url, "status": "rendered"}}
+        )
+        
+        logger.info(f"Render completed: {output_path}")
+        
+    except Exception as e:
+        logger.error(f"Render error: {e}")
+        render_jobs[job_id] = {"status": "failed", "error": str(e)}
+
+@api_router.post("/render")
+async def start_render(request: RenderRequest, background_tasks: BackgroundTasks):
+    """Start video rendering process."""
+    job_id = str(uuid.uuid4())
+    render_jobs[job_id] = {"status": "pending", "progress": 0}
+    
+    background_tasks.add_task(
+        render_video_task, 
+        job_id, 
+        request.projectId, 
+        request.slides, 
+        request.title
+    )
+    
+    return {"success": True, "jobId": job_id, "status": "started"}
+
+@api_router.get("/render/{job_id}")
+async def get_render_status(job_id: str):
+    """Get render job status."""
+    if job_id not in render_jobs:
+        raise HTTPException(status_code=404, detail="Render job not found")
+    return {"success": True, **render_jobs[job_id]}
 
 # Include the router in the main app
 app.include_router(api_router)

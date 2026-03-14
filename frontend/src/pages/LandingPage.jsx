@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, Play, Clock, Layers, Image, Palette, Mic2, ChevronDown, ChevronUp, Wand2, Globe, Flame } from 'lucide-react';
+import { Sparkles, ArrowRight, Play, Clock, Layers, Image, Palette, Mic2, ChevronDown, ChevronUp, Wand2, Globe, Flame, User, LogOut } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { useProjectStore, CATEGORIES } from '../store/useProjectStore';
+import { useAuth } from '../context/AuthContext';
+import AuthModal from '../components/AuthModal';
 
 const DURATIONS = [
   { label: '15s', value: 15 }, { label: '30s', value: 30 }, { label: '60s', value: 60 },
@@ -44,6 +46,7 @@ function HeroBackground({ color }) {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { user, logout, isAuthenticated } = useAuth();
   const { setRawInput, setInputType, setVideoDuration, setVideoTone, setVideoCategory, setSlideCount, setAssetType, setPreferredVisualStyle, setStep } = useProjectStore();
   
   const [selectedCategory, setSelectedCategory] = useState('explainer');
@@ -56,6 +59,7 @@ export default function LandingPage() {
   const [visualStyle, setVisualStyle] = useState('Cinematic');
   const [showTone, setShowTone] = useState(false);
   const [prayerStyle, setPrayerStyle] = useState('Nigerian Style');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const cat = useMemo(() => CATEGORIES.find(c => c.id === selectedCategory), [selectedCategory]);
 
@@ -81,6 +85,9 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#030712]" data-testid="landing-page">
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      
       {/* Navbar */}
       <motion.nav initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="relative z-20 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
         <div className="flex items-center gap-2.5">
@@ -91,8 +98,23 @@ export default function LandingPage() {
             Explaina<span className="gradient-text">Pro</span>
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" className="text-slate-400 hover:text-white" onClick={() => navigate('/dashboard')} data-testid="dashboard-link">Dashboard</Button>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700">
+                <User className="w-4 h-4 text-violet-400" />
+                <span className="text-sm text-slate-300">{user?.name || user?.email?.split('@')[0]}</span>
+              </div>
+              <button onClick={logout} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800" data-testid="logout-btn">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <Button onClick={() => setShowAuthModal(true)} className="bg-violet-600 hover:bg-violet-700" data-testid="login-btn">
+              Sign In
+            </Button>
+          )}
         </div>
       </motion.nav>
 

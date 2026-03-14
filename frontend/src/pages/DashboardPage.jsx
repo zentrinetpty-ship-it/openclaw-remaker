@@ -1,21 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink } from 'lucide-react';
+import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink, User, LogOut } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { useAuth } from '../context/AuthContext';
+import AuthModal from '../components/AuthModal';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { user, logout, isAuthenticated } = useAuth();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const res = await axios.get(`${API}/projects`);
+        // If user is logged in, filter by their userId
+        const url = user?.id ? `${API}/projects?userId=${user.id}` : `${API}/projects`;
+        const res = await axios.get(url);
         if (res.data.success) setProjects(res.data.projects || []);
       } catch (e) {
         console.error('Failed to load projects:', e);
@@ -23,10 +29,12 @@ export default function DashboardPage() {
       setLoading(false);
     };
     loadProjects();
-  }, []);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-[#030712]" data-testid="dashboard-page">
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      
       {/* Navbar */}
       <nav className="border-b border-slate-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -38,9 +46,24 @@ export default function DashboardPage() {
               Explaina<span className="gradient-text">Pro</span>
             </span>
           </button>
-          <Button onClick={() => navigate('/')} data-testid="new-project-btn">
-            <Plus className="w-4 h-4 mr-2" /> New Project
-          </Button>
+          <div className="flex items-center gap-3">
+            {isAuthenticated ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700">
+                  <User className="w-4 h-4 text-violet-400" />
+                  <span className="text-sm text-slate-300">{user?.name || user?.email?.split('@')[0]}</span>
+                </div>
+                <button onClick={logout} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800" data-testid="logout-btn">
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={() => setShowAuthModal(true)} data-testid="login-btn">Sign In</Button>
+            )}
+            <Button onClick={() => navigate('/')} data-testid="new-project-btn">
+              <Plus className="w-4 h-4 mr-2" /> New Project
+            </Button>
+          </div>
         </div>
       </nav>
 

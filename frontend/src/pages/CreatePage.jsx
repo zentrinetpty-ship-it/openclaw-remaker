@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, ArrowLeft, Check, Loader2, Wand2, Image, Film, Upload, RefreshCcw, Play } from 'lucide-react';
 import { useProjectStore, CATEGORIES } from '../store/useProjectStore';
+import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -281,6 +282,7 @@ function AssetStep({ onNext, onBack }) {
 
 function ReadyStep({ onOpenEditor, onBack }) {
   const { project, videoCategory } = useProjectStore();
+  const { user } = useAuth();
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   const [saving, setSaving] = useState(false);
   if (!project) return null;
@@ -288,7 +290,7 @@ function ReadyStep({ onOpenEditor, onBack }) {
   const saveAndOpen = async () => {
     setSaving(true);
     try {
-      const userId = 'user_' + Math.random().toString(36).slice(2, 10);
+      const userId = user?.id || 'guest_' + Math.random().toString(36).slice(2, 10);
       const res = await axios.post(`${API}/projects`, { title: project.title, project, userId });
       if (res.data.success) {
         onOpenEditor(res.data.project.id);

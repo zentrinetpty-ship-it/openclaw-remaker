@@ -1,9 +1,9 @@
 {
   "summary": {
-    "total_tests": 13,
-    "passed_tests": 12,
-    "failed_tests": 1,
-    "success_rate": 92.3076923076923
+    "total_tests": 21,
+    "passed_tests": 21,
+    "failed_tests": 0,
+    "success_rate": 100.0
   },
   "test_results": [
     {
@@ -11,92 +11,148 @@
       "success": true,
       "status_code": 200,
       "details": "ExplainaPro API v1.0",
-      "timestamp": "2026-03-13T21:51:05.619486"
+      "timestamp": "2026-03-14T03:00:16.533401"
     },
     {
       "test": "POST Status Check",
       "success": true,
       "status_code": 200,
-      "details": "test_client_1773438665",
-      "timestamp": "2026-03-13T21:51:05.737605"
+      "details": "test_client_1773457216",
+      "timestamp": "2026-03-14T03:00:16.689687"
     },
     {
       "test": "GET Status Checks",
       "success": true,
       "status_code": 200,
-      "details": "Retrieved 2 status checks",
-      "timestamp": "2026-03-13T21:51:05.851977"
+      "details": "Retrieved 3 status checks",
+      "timestamp": "2026-03-14T03:00:16.854757"
+    },
+    {
+      "test": "User Registration",
+      "success": true,
+      "status_code": 200,
+      "details": "Registered user: testuser1773457216@example.com (ID: e5d9794c-5888-4617-a158-2b6765b8cf17)",
+      "timestamp": "2026-03-14T03:00:17.203999"
+    },
+    {
+      "test": "User Login",
+      "success": true,
+      "status_code": 200,
+      "details": "Login successful, token received",
+      "timestamp": "2026-03-14T03:00:17.599631"
+    },
+    {
+      "test": "Get Current User",
+      "success": true,
+      "status_code": 200,
+      "details": "Retrieved user data: testuser1773457216@example.com",
+      "timestamp": "2026-03-14T03:00:17.757213"
+    },
+    {
+      "test": "Invalid Login Rejection",
+      "success": true,
+      "status_code": 401,
+      "details": "Correctly rejected invalid credentials",
+      "timestamp": "2026-03-14T03:00:17.900817"
     },
     {
       "test": "AI Script Generation",
       "success": true,
       "status_code": 200,
-      "details": "Generated 5 slides, title: 'Mastering Chocolate Chip Cookies: A Professional Tutorial'",
-      "timestamp": "2026-03-13T21:51:24.332298"
+      "details": "Generated 5 slides, title: 'Mastering Chocolate Chip Cookies'",
+      "timestamp": "2026-03-14T03:00:36.336460"
     },
     {
       "test": "AI Image Generation",
       "success": true,
       "status_code": 200,
-      "details": "Generated image: /api/uploads/image-20260313215140-e69ddee.png",
-      "timestamp": "2026-03-13T21:51:40.828414"
+      "details": "Generated image: /api/uploads/image-20260314030053-f3d5407.png",
+      "timestamp": "2026-03-14T03:00:53.308496"
     },
     {
       "test": "AI Video Generation",
       "success": true,
       "status_code": 200,
-      "details": "Generated video: /api/uploads/video-bg-20260313215157-64bdcc0.png",
-      "timestamp": "2026-03-13T21:51:57.879871"
+      "details": "Generated video: /api/uploads/video-bg-20260314030113-ec4b11a.png",
+      "timestamp": "2026-03-14T03:01:13.564892"
     },
     {
       "test": "Mocked Generate Voice",
       "success": true,
       "status_code": 200,
       "details": "Voice generation mocked for MVP",
-      "timestamp": "2026-03-13T21:51:58.092841"
+      "timestamp": "2026-03-14T03:01:13.693950"
     },
     {
       "test": "Mocked Generate Music",
       "success": true,
       "status_code": 200,
       "details": "Music generation mocked for MVP",
-      "timestamp": "2026-03-13T21:51:58.274134"
+      "timestamp": "2026-03-14T03:01:13.869611"
     },
     {
       "test": "Mocked Generate Sfx",
       "success": true,
       "status_code": 200,
       "details": "SFX generation mocked for MVP",
-      "timestamp": "2026-03-13T21:51:58.391601"
+      "timestamp": "2026-03-14T03:01:13.982092"
     },
     {
       "test": "Search Assets",
       "success": true,
       "status_code": 200,
       "details": "Found 4 assets",
-      "timestamp": "2026-03-13T21:51:58.506108"
+      "timestamp": "2026-03-14T03:01:14.152284"
     },
     {
       "test": "Search Audio",
       "success": true,
       "status_code": 200,
       "details": "Found 2 tracks",
-      "timestamp": "2026-03-13T21:51:58.609984"
+      "timestamp": "2026-03-14T03:01:14.272393"
     },
     {
       "test": "Create Project",
-      "success": false,
-      "status_code": 500,
-      "details": "HTTP 500: Internal Server Error",
-      "timestamp": "2026-03-13T21:51:58.718918"
+      "success": true,
+      "status_code": 200,
+      "details": "Created project with ID: e960e51c-c056-4f74-a9b2-1797ebe56c79",
+      "timestamp": "2026-03-14T03:01:14.384338"
     },
     {
       "test": "Get All Projects",
       "success": true,
       "status_code": 200,
-      "details": "Retrieved 2 projects",
-      "timestamp": "2026-03-13T21:51:58.852536"
+      "details": "Retrieved 4 projects",
+      "timestamp": "2026-03-14T03:01:14.484701"
+    },
+    {
+      "test": "Get Specific Project",
+      "success": true,
+      "status_code": 200,
+      "details": "Retrieved project: Test Project 1773457274",
+      "timestamp": "2026-03-14T03:01:14.589050"
+    },
+    {
+      "test": "Render Start",
+      "success": true,
+      "status_code": 200,
+      "details": "Render started with job ID: 8f7d5140-fb8b-4b71-b1de-bd8675e1f220",
+      "timestamp": "2026-03-14T03:01:14.735729"
+    },
+    {
+      "test": "Render Status Check",
+      "success": true,
+      "status_code": 200,
+      "details": "Render status: completed, progress: 100%",
+      "timestamp": "2026-03-14T03:01:24.425881"
+    },
+    {
+      "test": "Invalid Job ID Rejection",
+      "success": true,
+      "status_code": 404,
+      "details": "Correctly rejected invalid job ID",
+      "timestamp": "2026-03-14T03:01:24.599430"
     }
   ],
-  "timestamp": "2026-03-13T21:51:58.853321"
+  "timestamp": "2026-03-14T03:01:24.600983"
 }
