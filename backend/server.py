@@ -752,16 +752,21 @@ async def get_user_stats(user: dict = Depends(require_auth)):
 
 @api_router.post("/projects")
 async def create_project(request: ProjectCreateRequest):
-    """Create and save a project to database."""
+    """Create or update a project in database."""
     try:
-        project_id = str(uuid.uuid4())
+        # Check if project already exists for this user with same title
+        existing = await db.projects.find_one({
+            "userId": request.userId,
+            "title": request.title
+        })
         
-        # Prepare slides data
+        project_id = existing["id"] if existing else str(uuid.uuid4())
+        
         slides_data = []
         for slide in request.project.get('slides', []):
             slides_data.append({
                 "id": slide.get('id'),
-                "order": int(slide.get('id', 0)),
+                "order": int(slide.get('id', 0)) if str(slide.get('id', '')).isdigit() else 0,
                 "script": slide.get('narration', ''),
                 "imageUrl": slide.get('assetUrl') if slide.get('assetType') == 'image' else None,
                 "videoUrl": slide.get('assetUrl') if slide.get('assetType') == 'video' else None,
@@ -781,7 +786,6 @@ async def create_project(request: ProjectCreateRequest):
             "category": request.project.get('category', 'explainer'),
             "status": "draft",
             "userId": request.userId,
-            "createdAt": datetime.now(timezone.utc).isoformat(),
             "updatedAt": datetime.now(timezone.utc).isoformat(),
             "slides": slides_data,
             "settings": {
@@ -796,22 +800,14 @@ async def create_project(request: ProjectCreateRequest):
             "projectData": request.project
         }
         
-        # Insert and get clean copy for response
-        await db.projects.insert_one(project_doc)
+        if existing:
+            await db.projects.update_one({"id": project_id}, {"$set": project_doc})
+        else:
+            project_doc["createdAt"] = datetime.now(timezone.utc).isoformat()
+            await db.projects.insert_one(project_doc)
         
-        # Also ensure user exists
-        user_exists = await db.users.find_one({"id": request.userId})
-        if not user_exists:
-            await db.users.insert_one({
-                "id": request.userId,
-                "email": f"user_{request.userId[:8]}@explainapro.app",
-                "createdAt": datetime.now(timezone.utc).isoformat(),
-                "subscriptionTier": "free"
-            })
-        
-        # Return clean response without MongoDB _id
         response_project = await db.projects.find_one({"id": project_id}, {"_id": 0})
-        return {"success": True, "project": response_project}
+        return {"success": True, "project": response_project, "isNew": not existing}
         
     except Exception as e:
         logger.error(f"Project creation error: {e}")
@@ -1070,22 +1066,19 @@ async def generate_voice_for_slide(text: str, voice_id: str, api_key: str) -> Op
         return None
 
 async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None, bgm_url: str = None, bgm_volume: float = 0.4):
-    """Background task to render video using FFmpeg with voice audio."""
+    """Background task to render video using Remotion with animated slides, transitions, and captions."""
     try:
-        render_jobs[job_id] = {"status": "processing", "progress": 0, "step": "Preparing..."}
+        render_jobs[job_id] = {"status": "processing", "progress": 0, "step": "Preparing assets..."}
         
-        # Create temp directory for this render
         temp_dir = RENDERS_DIR / f"temp_{job_id}"
         temp_dir.mkdir(exist_ok=True)
         
         total_slides = len(slides)
-        image_files = []
-        audio_files = []
-        
-        # Get TTS API key
         tts_api_key = os.getenv("GOOGLE_TTS_API_KEY")
+        base_url = "http://localhost:8001"
         
-        # Process each slide - images and voice
+        remotion_slides = []
+        
         for idx, slide in enumerate(slides):
             progress = int((idx / total_slides) * 40)
             render_jobs[job_id]["progress"] = progress
@@ -1095,319 +1088,152 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
             duration = slide.get('duration', 6)
             narration = slide.get('narration', '')
             voice_url = slide.get('voiceUrl')
+            transition = slide.get('transition', 'fade')
             
-            logger.info(f"Slide {idx+1}: assetUrl={asset_url}, duration={duration}, voiceUrl={voice_url}")
-            
-            # Handle image
-            img_path = temp_dir / f"slide_{idx:03d}.png"
+            # Resolve image URL for Remotion (needs absolute HTTP URL)
+            image_url = None
             if asset_url:
-                # Normalize URL - extract /api/uploads/ path from full URLs
-                normalized_url = asset_url
-                if '/api/uploads/' in asset_url and not asset_url.startswith('/api/'):
-                    normalized_url = '/api/uploads/' + asset_url.split('/api/uploads/')[-1]
-                
-                if normalized_url.startswith('/api/uploads/'):
-                    src_file = UPLOADS_DIR / normalized_url.split('/')[-1]
-                    logger.info(f"Slide {idx+1}: Looking for local file {src_file}, exists={src_file.exists()}")
-                    if src_file.exists():
-                        shutil.copy(src_file, img_path)
-                        logger.info(f"Slide {idx+1}: Copied image from {src_file}")
+                if '/api/uploads/' in asset_url:
+                    filename = asset_url.split('/')[-1]
+                    if (UPLOADS_DIR / filename).exists():
+                        image_url = f"{base_url}/api/uploads/{filename}"
                 elif asset_url.startswith('http'):
-                    import httpx
-                    logger.info(f"Slide {idx+1}: Downloading image from {asset_url}")
-                    async with httpx.AsyncClient() as http_client:
-                        resp = await http_client.get(asset_url, timeout=30)
-                        if resp.status_code == 200:
-                            async with aiofiles.open(img_path, 'wb') as f:
-                                await f.write(resp.content)
-                            logger.info(f"Slide {idx+1}: Downloaded image successfully")
-                        else:
-                            logger.warning(f"Slide {idx+1}: Failed to download image, status={resp.status_code}")
-                elif asset_url.startswith('blob:'):
-                    logger.warning(f"Slide {idx+1}: blob: URL cannot be used server-side, using placeholder")
-                else:
-                    logger.warning(f"Slide {idx+1}: Unknown assetUrl format: {asset_url[:100]}")
-            else:
-                logger.warning(f"Slide {idx+1}: No assetUrl provided")
-            
-            if not img_path.exists():
-                # Create placeholder
-                logger.warning(f"Slide {idx+1}: Using placeholder image")
-                subprocess.run([
-                    'ffmpeg', '-y', '-f', 'lavfi', '-i', 
-                    'color=c=#1a1a2e:s=1920x1080:d=1', 
-                    '-frames:v', '1', str(img_path)
-                ], capture_output=True)
-            
-            image_files.append((str(img_path), duration))
+                    image_url = asset_url
             
             # Handle voice audio
-            audio_path = temp_dir / f"audio_{idx:03d}.mp3"
+            voice_http_url = None
             if voice_url and voice_url.startswith('/api/uploads/'):
-                # Use existing voice file
                 src_audio = UPLOADS_DIR / voice_url.split('/')[-1]
                 if src_audio.exists():
-                    shutil.copy(src_audio, audio_path)
-                    audio_files.append((str(audio_path), duration))
+                    voice_http_url = f"{base_url}{voice_url}"
             elif generate_voice and narration and tts_api_key:
-                # Generate voice on the fly
                 render_jobs[job_id]["step"] = f"Generating voice for slide {idx + 1}"
                 audio_bytes = await generate_voice_for_slide(narration, voice_id, tts_api_key)
                 if audio_bytes:
+                    audio_filename = f"voice_{job_id}_{idx}.mp3"
+                    audio_path = UPLOADS_DIR / audio_filename
                     async with aiofiles.open(audio_path, 'wb') as f:
                         await f.write(audio_bytes)
-                    audio_files.append((str(audio_path), duration))
-                else:
-                    audio_files.append((None, duration))
-            else:
-                audio_files.append((None, duration))
+                    voice_http_url = f"{base_url}/api/uploads/{audio_filename}"
+            
+            remotion_slides.append({
+                "imageUrl": image_url,
+                "narration": narration,
+                "duration": duration,
+                "transition": transition,
+                "voiceUrl": voice_http_url,
+            })
         
-        if not image_files:
-            render_jobs[job_id] = {"status": "failed", "error": "No images to render"}
+        if not remotion_slides:
+            render_jobs[job_id] = {"status": "failed", "error": "No slides to render"}
             return
         
-        render_jobs[job_id]["progress"] = 50
-        render_jobs[job_id]["step"] = "Creating video..."
+        # Resolve BGM URL
+        bgm_http_url = None
+        if bgm_url:
+            if '/api/library/' in bgm_url:
+                lib_filename = bgm_url.split('/')[-1]
+                lib_type = 'music' if '/music/' in bgm_url else 'sfx'
+                lib_dir = MUSIC_LIB_DIR if lib_type == 'music' else SFX_LIB_DIR
+                if (lib_dir / lib_filename).exists():
+                    bgm_http_url = f"{base_url}{bgm_url}"
+            elif '/api/uploads/' in bgm_url:
+                filename = bgm_url.split('/')[-1]
+                if (UPLOADS_DIR / filename).exists():
+                    bgm_http_url = f"{base_url}/api/uploads/{filename}"
+            elif bgm_url.startswith('http'):
+                bgm_http_url = bgm_url
         
-        logger.info(f"Total slides to render: {len(image_files)}")
+        # Build Remotion input props
+        remotion_data = {
+            "slides": remotion_slides,
+            "captionStyleId": caption_style_id,
+            "bgmUrl": bgm_http_url,
+            "bgmVolume": bgm_volume,
+        }
         
-        # Create concat file for images
-        concat_file = temp_dir / "concat.txt"
-        with open(concat_file, 'w') as f:
-            for img_path, duration in image_files:
-                f.write(f"file '{img_path}'\n")
-                f.write(f"duration {duration}\n")
-            f.write(f"file '{image_files[-1][0]}'\n")
+        data_file = temp_dir / "render_data.json"
+        import json
+        with open(data_file, 'w') as f:
+            json.dump(remotion_data, f)
         
-        # Log concat file content
-        with open(concat_file, 'r') as f:
-            logger.info(f"Concat file:\n{f.read()}")
-        
-        render_jobs[job_id]["progress"] = 55
-        
-        # Output filenames
         safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         output_filename = f"{safe_title}-{timestamp}.mp4"
         output_path = RENDERS_DIR / output_filename
-        video_only_path = temp_dir / "video_only.mp4"
         
-        # Build video filter with optional caption burn-in
-        vf_chain = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
+        render_jobs[job_id]["progress"] = 50
+        render_jobs[job_id]["step"] = "Rendering with Remotion..."
         
-        if caption_style_id:
-            render_jobs[job_id]["step"] = "Creating captions..."
-            ass_path = create_ass_subtitle(slides, caption_style_id, temp_dir)
-            ass_path_escaped = str(ass_path).replace('\\', '/').replace(':', '\\:')
-            vf_chain += f",ass={ass_path_escaped}"
+        logger.info(f"Starting Remotion render: {len(remotion_slides)} slides, caption={caption_style_id}, bgm={bgm_http_url is not None}")
         
-        vf_chain += ',format=yuv420p'
-        
-        # First render video only
-        render_jobs[job_id]["step"] = "Rendering video..."
-        ffmpeg_video_cmd = [
-            'ffmpeg', '-y',
-            '-f', 'concat', '-safe', '0', '-i', str(concat_file),
-            '-vf', vf_chain,
-            '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
-            '-movflags', '+faststart',
-            str(video_only_path)
+        # Run Remotion render
+        remotion_dir = ROOT_DIR.parent / "remotion"
+        render_cmd = [
+            'node', '--max-old-space-size=4096',
+            str(remotion_dir / 'render.mjs'),
+            str(data_file),
+            str(output_path),
         ]
         
-        result = subprocess.run(ffmpeg_video_cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            logger.error(f"FFmpeg video error: {result.stderr}")
-            render_jobs[job_id] = {"status": "failed", "error": "Video rendering failed"}
-            return
+        proc = await asyncio.create_subprocess_exec(
+            *render_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(remotion_dir),
+        )
         
-        render_jobs[job_id]["progress"] = 70
+        # Read stderr for progress updates
+        async def read_progress():
+            while True:
+                line = await proc.stderr.readline()
+                if not line:
+                    break
+                msg = line.decode().strip()
+                if msg:
+                    logger.info(f"Remotion: {msg}")
+                    if "Progress:" in msg:
+                        try:
+                            pct = int(msg.split("Progress:")[1].strip().replace("%", ""))
+                            render_jobs[job_id]["progress"] = 50 + int(pct * 0.45)
+                            render_jobs[job_id]["step"] = f"Rendering... {pct}%"
+                        except (ValueError, IndexError):
+                            pass
         
-        # Combine audio files if we have any
-        has_audio = any(af[0] is not None for af in audio_files)
+        await read_progress()
+        stdout_data = await proc.stdout.read()
+        await proc.wait()
         
-        if has_audio:
-            render_jobs[job_id]["step"] = "Merging audio..."
+        if proc.returncode == 0 and output_path.exists():
+            render_jobs[job_id]["progress"] = 95
             
-            # Create a combined audio file with proper timing
-            combined_audio_path = temp_dir / "combined_audio.mp3"
+            # Parse Remotion output
+            try:
+                result_json = json.loads(stdout_data.decode().strip().split('\n')[-1])
+                logger.info(f"Remotion result: {result_json}")
+            except Exception:
+                pass
             
-            # Build ffmpeg filter for audio concatenation with silence padding
-            audio_inputs = []
-            filter_parts = []
+            video_url = f"/api/renders/{output_filename}"
+            render_jobs[job_id] = {
+                "status": "completed",
+                "progress": 100,
+                "videoUrl": video_url,
+                "hasAudio": any(s.get('voiceUrl') for s in remotion_slides) or bgm_http_url is not None
+            }
             
-            for idx, (audio_path, duration) in enumerate(audio_files):
-                if audio_path and Path(audio_path).exists():
-                    audio_inputs.extend(['-i', audio_path])
-                    # Pad audio to match slide duration
-                    filter_parts.append(f"[{idx}:a]apad=whole_dur={duration}[a{idx}]")
-                else:
-                    # Create silence for this duration
-                    audio_inputs.extend(['-f', 'lavfi', '-i', f'anullsrc=r=44100:cl=stereo:d={duration}'])
-                    filter_parts.append(f"[{idx}:a]acopy[a{idx}]")
-            
-            # Concatenate all audio streams
-            concat_labels = ''.join([f'[a{i}]' for i in range(len(audio_files))])
-            filter_complex = ';'.join(filter_parts) + f';{concat_labels}concat=n={len(audio_files)}:v=0:a=1[outa]'
-            
-            audio_cmd = ['ffmpeg', '-y'] + audio_inputs + [
-                '-filter_complex', filter_complex,
-                '-map', '[outa]',
-                '-c:a', 'libmp3lame', '-q:a', '2',
-                str(combined_audio_path)
-            ]
-            
-            audio_result = subprocess.run(audio_cmd, capture_output=True, text=True)
-            
-            render_jobs[job_id]["progress"] = 85
-            
-            if audio_result.returncode == 0 and combined_audio_path.exists():
-                # Handle BGM mixing if provided
-                final_audio_path = combined_audio_path
-                
-                if bgm_url:
-                    render_jobs[job_id]["step"] = "Mixing background music..."
-                    bgm_local = temp_dir / "bgm_source.mp3"
-                    bgm_found = False
-                    
-                    # Download/copy BGM file
-                    if '/api/uploads/' in bgm_url:
-                        bgm_filename = bgm_url.split('/')[-1]
-                        bgm_src = UPLOADS_DIR / bgm_filename
-                        if bgm_src.exists():
-                            shutil.copy(bgm_src, bgm_local)
-                            bgm_found = True
-                            logger.info(f"BGM copied from {bgm_src}")
-                    elif bgm_url.startswith('http'):
-                        import httpx
-                        async with httpx.AsyncClient() as http_client:
-                            resp = await http_client.get(bgm_url, timeout=30)
-                            if resp.status_code == 200:
-                                async with aiofiles.open(bgm_local, 'wb') as f:
-                                    await f.write(resp.content)
-                                bgm_found = True
-                    
-                    if bgm_found and bgm_local.exists():
-                        mixed_audio_path = temp_dir / "mixed_audio.mp3"
-                        vol = max(0.0, min(1.0, bgm_volume))
-                        mix_cmd = [
-                            'ffmpeg', '-y',
-                            '-i', str(combined_audio_path),
-                            '-stream_loop', '-1', '-i', str(bgm_local),
-                            '-filter_complex',
-                            f'[1:a]volume={vol}[bgm];[0:a][bgm]amix=inputs=2:duration=first[out]',
-                            '-map', '[out]',
-                            '-c:a', 'libmp3lame', '-q:a', '2',
-                            str(mixed_audio_path)
-                        ]
-                        mix_result = subprocess.run(mix_cmd, capture_output=True, text=True)
-                        if mix_result.returncode == 0 and mixed_audio_path.exists():
-                            final_audio_path = mixed_audio_path
-                            logger.info(f"BGM mixed at volume {vol}")
-                        else:
-                            logger.warning(f"BGM mix failed: {mix_result.stderr[:200]}")
-                
-                # Merge video and final audio
-                render_jobs[job_id]["step"] = "Finalizing..."
-                merge_cmd = [
-                    'ffmpeg', '-y',
-                    '-i', str(video_only_path),
-                    '-i', str(final_audio_path),
-                    '-c:v', 'copy',
-                    '-c:a', 'aac', '-b:a', '192k',
-                    '-shortest',
-                    '-movflags', '+faststart',
-                    str(output_path)
-                ]
-                
-                merge_result = subprocess.run(merge_cmd, capture_output=True, text=True)
-                
-                if merge_result.returncode != 0:
-                    logger.warning(f"Audio merge failed, using video only: {merge_result.stderr}")
-                    shutil.copy(video_only_path, output_path)
-            else:
-                logger.warning("Audio combination failed, using video only")
-                shutil.copy(video_only_path, output_path)
+            await db.projects.update_one(
+                {"id": project_id},
+                {"$set": {"renderUrl": video_url, "status": "rendered"}}
+            )
+            logger.info(f"Remotion render completed: {output_path}")
         else:
-            # No voice audio - check if we have BGM only
-            if bgm_url:
-                render_jobs[job_id]["step"] = "Adding background music..."
-                bgm_local = temp_dir / "bgm_source.mp3"
-                bgm_found = False
-                
-                if '/api/uploads/' in bgm_url:
-                    bgm_filename = bgm_url.split('/')[-1]
-                    bgm_src = UPLOADS_DIR / bgm_filename
-                    if bgm_src.exists():
-                        shutil.copy(bgm_src, bgm_local)
-                        bgm_found = True
-                elif bgm_url.startswith('http'):
-                    import httpx
-                    async with httpx.AsyncClient() as http_client:
-                        resp = await http_client.get(bgm_url, timeout=30)
-                        if resp.status_code == 200:
-                            async with aiofiles.open(bgm_local, 'wb') as f:
-                                await f.write(resp.content)
-                            bgm_found = True
-                
-                if bgm_found and bgm_local.exists():
-                    total_dur = sum(s.get('duration', 6) for s in slides)
-                    vol = max(0.0, min(1.0, bgm_volume))
-                    bgm_trimmed = temp_dir / "bgm_trimmed.mp3"
-                    trim_cmd = [
-                        'ffmpeg', '-y',
-                        '-stream_loop', '-1', '-i', str(bgm_local),
-                        '-af', f'volume={vol}',
-                        '-t', str(total_dur),
-                        '-c:a', 'libmp3lame', '-q:a', '2',
-                        str(bgm_trimmed)
-                    ]
-                    trim_result = subprocess.run(trim_cmd, capture_output=True, text=True)
-                    if trim_result.returncode == 0 and bgm_trimmed.exists():
-                        merge_cmd = [
-                            'ffmpeg', '-y',
-                            '-i', str(video_only_path),
-                            '-i', str(bgm_trimmed),
-                            '-c:v', 'copy',
-                            '-c:a', 'aac', '-b:a', '192k',
-                            '-shortest',
-                            '-movflags', '+faststart',
-                            str(output_path)
-                        ]
-                        merge_result = subprocess.run(merge_cmd, capture_output=True, text=True)
-                        if merge_result.returncode == 0:
-                            has_audio = True
-                            logger.info("BGM-only audio added to video")
-                        else:
-                            shutil.copy(video_only_path, output_path)
-                    else:
-                        shutil.copy(video_only_path, output_path)
-                else:
-                    shutil.copy(video_only_path, output_path)
-            else:
-                # No audio at all
-                shutil.copy(video_only_path, output_path)
-        
-        render_jobs[job_id]["progress"] = 95
+            error_msg = stdout_data.decode().strip() if stdout_data else "Unknown error"
+            logger.error(f"Remotion render failed (exit={proc.returncode}): {error_msg}")
+            render_jobs[job_id] = {"status": "failed", "error": f"Remotion render failed: {error_msg[:200]}"}
         
         # Clean up temp directory
         shutil.rmtree(temp_dir, ignore_errors=True)
-        
-        # Update job status
-        video_url = f"/api/renders/{output_filename}"
-        render_jobs[job_id] = {
-            "status": "completed",
-            "progress": 100,
-            "videoUrl": video_url,
-            "hasAudio": has_audio
-        }
-        
-        # Update project in database
-        await db.projects.update_one(
-            {"id": project_id},
-            {"$set": {"renderUrl": video_url, "status": "rendered"}}
-        )
-        
-        logger.info(f"Render completed with audio: {output_path}")
         
     except Exception as e:
         logger.error(f"Render error: {e}")

@@ -8,8 +8,8 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - **Backend**: FastAPI + MongoDB + emergentintegrations
 - **AI Services**: Gemini 2.5 Flash (text), Gemini Nano Banana (images)
 - **Auth**: JWT with bcrypt password hashing
-- **Video Rendering**: FFmpeg (H264 MP4) with ASS subtitle burn-in
-- **Voice**: Google Cloud Text-to-Speech (TTS)
+- **Video Rendering**: Remotion 4.x (@remotion/renderer, @remotion/bundler) with system Chromium
+- **Audio**: Google Cloud Text-to-Speech (TTS), FFmpeg for audio mixing
 
 ## What's Been Implemented
 
@@ -68,6 +68,17 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] Frontend: Browsable library with category filters, preview playback, and one-click selection
 - [x] SFX preview with play/stop buttons per sound
 
+### Phase 7 - Remotion Video Engine (March 14)
+- [x] Replaced FFmpeg rendering with Remotion programmatic video engine
+- [x] Ken Burns effect (slow zoom/pan) on all slide images
+- [x] Smooth slide transitions (fade, slide, zoom, wipe, blur)
+- [x] Word-by-word animated captions with 6 caption styles
+- [x] Audio integration (per-slide voice + background music)
+- [x] Server-side rendering via @remotion/renderer with Chromium
+- [x] Bundle caching for faster subsequent renders
+- [x] Optimized for memory (concurrency=2, 24fps)
+- [x] Save button fixed with upsert (update existing, create new) + loading state
+
 ## API Endpoints
 **Auth:**
 - POST /api/auth/register
@@ -104,7 +115,12 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - `render_jobs`: In-memory dict (render_jobs)
 
 ## Key Files
-- `/app/backend/server.py` - All API endpoints, FFmpeg rendering, ASS subtitle generation
+- `/app/backend/server.py` - All API endpoints, Remotion render orchestration
+- `/app/remotion/` - Remotion video engine (compositions, render script)
+- `/app/remotion/src/ExplainerVideo.jsx` - Main video composition
+- `/app/remotion/src/components/Slide.jsx` - Slide with Ken Burns + transitions
+- `/app/remotion/src/components/AnimatedCaption.jsx` - Word-by-word animated captions
+- `/app/remotion/render.mjs` - Server-side render script with bundle caching
 - `/app/frontend/src/pages/EditorPage.jsx` - Video editor with preview, sidebars
 - `/app/frontend/src/store/useProjectStore.js` - Zustand stores with persist
 - `/app/frontend/src/pages/LandingPage.jsx` - Landing page with categories
@@ -119,6 +135,6 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 
 ## Backlog (P1/P2)
 - P1: Real stock asset search integration
-- P2: Advanced category features (Video Remaker, Motion Graphics icons)
-- P2: Remotion/@twick rendering integration for motion graphics
+- P1: Advanced category features (Video Remaker, Motion Graphics icons)
 - P2: Multiple caption modes (words, lines, sentence) in render
+- P2: Render queue with progress notifications

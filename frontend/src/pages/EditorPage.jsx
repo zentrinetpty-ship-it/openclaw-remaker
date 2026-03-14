@@ -952,19 +952,25 @@ export default function EditorPage() {
     }
   }, [project, selectedSlideId]);
 
+  const [saving, setSaving] = useState(false);
+
   const saveProject = async () => {
-    if (!project || !user) return;
+    if (!project) return;
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.post(`${API}/projects`, {
-        title: project.title,
+        title: project.title || 'Untitled Project',
         project: project,
-        userId: user.id
-      }, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      return true;
+        userId: user?.id || 'anonymous'
+      }, { headers });
+      alert('Project saved!');
     } catch (e) {
       console.error('Save error:', e);
-      return false;
+      alert('Failed to save project: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1136,7 +1142,9 @@ export default function EditorPage() {
           <span className="text-sm font-semibold text-white">{project.title}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={saveProject} data-testid="save-btn"><Save className="w-4 h-4 mr-1" /> Save</Button>
+          <Button variant="outline" size="sm" onClick={saveProject} disabled={saving} data-testid="save-btn">
+            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} {saving ? 'Saving...' : 'Save'}
+          </Button>
           <Button onClick={startRender} disabled={rendering} size="sm" style={{ background: `linear-gradient(135deg, ${cat?.color || primaryColor}, #10b981)` }} data-testid="export-btn">
             {rendering ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
             {rendering ? 'Rendering...' : 'Export MP4'}

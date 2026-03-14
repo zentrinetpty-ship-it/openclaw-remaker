@@ -1,0 +1,16 @@
+{
+  "name": "explainapro-remotion",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node --max-old-space-size=4096 render.mjs"
+  },
+  "dependencies": {
+    "remotion": "4.0.242",
+    "@remotion/renderer": "4.0.242",
+    "@remotion/bundler": "4.0.242",
+    "@remotion/cli": "4.0.242",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}
