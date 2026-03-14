@@ -757,6 +757,58 @@ async def get_user_assets(user: dict = Depends(require_auth), type: Optional[str
         logger.error(f"Get user assets error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/user/library")
+async def get_user_library(user: dict = Depends(require_auth), category: Optional[str] = None, limit: int = 100):
+    """Get user's asset library grouped by category."""
+    try:
+        user_id = user["id"]
+        query = {"userId": user_id}
+        if category and category != "all":
+            query["type"] = category
+        
+        assets = await db.generated_assets.find(query, {"_id": 0}).sort("createdAt", -1).to_list(limit)
+        
+        # Group by type for summary
+        counts = {}
+        for a in assets:
+            t = a.get("type", "other")
+            counts[t] = counts.get(t, 0) + 1
+        
+        return {
+            "success": True,
+            "assets": assets,
+            "counts": counts,
+            "total": len(assets)
+        }
+    except Exception as e:
+        logger.error(f"Get user library error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/user/assets/{asset_id}")
+async def delete_user_asset(asset_id: str, user: dict = Depends(require_auth)):
+    """Delete an asset from the user's library."""
+    try:
+        asset = await db.generated_assets.find_one({"id": asset_id, "userId": user["id"]}, {"_id": 0})
+        if not asset:
+            raise HTTPException(status_code=404, detail="Asset not found")
+        
+        # Delete file from disk if it exists
+        url = asset.get("url", "")
+        if url.startswith("/api/uploads/"):
+            filename = url.replace("/api/uploads/", "")
+            filepath = UPLOADS_DIR / filename
+            if filepath.exists():
+                filepath.unlink()
+        
+        await db.generated_assets.delete_one({"id": asset_id, "userId": user["id"]})
+        
+        return {"success": True, "message": "Asset deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete user asset error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/user/stats")
 async def get_user_stats(user: dict = Depends(require_auth)):
     """Get statistics for the current user."""
@@ -876,8 +928,8 @@ async def get_project(project_id: str):
 from fastapi.responses import FileResponse
 
 @api_router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    """Upload a file (image, video, audio) to the server."""
+async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Upload a file (image, video, audio) to the server and save to user library."""
     try:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         random_suffix = str(uuid.uuid4())[:7]
@@ -889,11 +941,41 @@ async def upload_file(file: UploadFile = File(...)):
         async with aiofiles.open(filepath, 'wb') as f:
             await f.write(content)
         
+        # Determine asset type from extension
+        ext_lower = ext.lower()
+        if ext_lower in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']:
+            asset_type = "image"
+        elif ext_lower in ['.mp4', '.mov', '.avi', '.webm', '.mkv']:
+            asset_type = "video"
+        elif ext_lower in ['.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac']:
+            asset_type = "audio"
+        else:
+            asset_type = "other"
+        
+        url = f"/api/uploads/{filename}"
+        
+        # Save to user's library if authenticated
+        user_id = user.get("id") if user else None
+        asset_id = str(uuid.uuid4())
+        if user_id:
+            asset_doc = {
+                "id": asset_id,
+                "type": asset_type,
+                "url": url,
+                "prompt": file.filename,
+                "metadata": {"originalName": file.filename, "size": len(content), "source": "upload"},
+                "userId": user_id,
+                "createdAt": datetime.now(timezone.utc).isoformat()
+            }
+            await db.generated_assets.insert_one(asset_doc)
+        
         return {
             "success": True,
-            "url": f"/api/uploads/{filename}",
+            "url": url,
             "filename": filename,
-            "size": len(content)
+            "size": len(content),
+            "assetId": asset_id,
+            "type": asset_type
         }
     except Exception as e:
         logger.error(f"File upload error: {e}")

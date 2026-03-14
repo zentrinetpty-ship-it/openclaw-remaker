@@ -57,6 +57,9 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
   const [musicFilter, setMusicFilter] = useState('all');
   const [sfxFilter, setSfxFilter] = useState('all');
   const [previewingTrack, setPreviewingTrack] = useState(null);
+  const [userLibrary, setUserLibrary] = useState([]);
+  const [libraryFilter, setLibraryFilter] = useState('all');
+  const [libraryLoading, setLibraryLoading] = useState(false);
   const audioRef = React.useRef(null);
   const previewAudioRef = React.useRef(null);
   
@@ -64,6 +67,25 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
     axios.get(`${API}/library/music`).then(r => setMusicLibrary(r.data)).catch(() => {});
     axios.get(`${API}/library/sfx`).then(r => setSfxLibrary(r.data)).catch(() => {});
   }, []);
+
+  // Load user's asset library
+  const loadUserLibrary = React.useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setLibraryLoading(true);
+    try {
+      const catParam = libraryFilter !== 'all' ? `?category=${libraryFilter}` : '';
+      const res = await axios.get(`${API}/user/library${catParam}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) setUserLibrary(res.data.assets || []);
+    } catch (e) { console.log('Library load failed'); }
+    setLibraryLoading(false);
+  }, [libraryFilter]);
+
+  React.useEffect(() => {
+    loadUserLibrary();
+  }, [loadUserLibrary]);
   const activeSlide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
 
   const generateImage = async (slide) => {
@@ -301,6 +323,81 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* My Library */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">My Library</h3>
+                <button onClick={loadUserLibrary} className="text-[9px] text-violet-400 hover:text-violet-300" data-testid="refresh-library">
+                  <RefreshCcw className="w-3 h-3" />
+                </button>
+              </div>
+              
+              {/* Category filters */}
+              <div className="flex gap-1 mb-2 flex-wrap">
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'image', label: 'Images' },
+                  { id: 'voice', label: 'Voices' },
+                  { id: 'video', label: 'Videos' },
+                  { id: 'audio', label: 'Audio' },
+                ].map(lc => (
+                  <button
+                    key={lc.id}
+                    onClick={() => setLibraryFilter(lc.id)}
+                    className={`px-2 py-0.5 rounded text-[9px] font-semibold transition ${
+                      libraryFilter === lc.id ? 'bg-violet-500/20 text-violet-300' : 'bg-slate-800 text-slate-500 hover:text-slate-300'
+                    }`}
+                    data-testid={`editor-library-filter-${lc.id}`}
+                  >
+                    {lc.label}
+                  </button>
+                ))}
+              </div>
+
+              {libraryLoading ? (
+                <div className="py-4 text-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-violet-400 mx-auto" />
+                </div>
+              ) : userLibrary.length === 0 ? (
+                <p className="text-[10px] text-slate-600 text-center py-4">No assets in library yet</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5 max-h-[200px] overflow-y-auto scrollbar-hide">
+                  {userLibrary.map(asset => (
+                    <button
+                      key={asset.id}
+                      onClick={() => {
+                        if (selectedSlideId && (asset.type === 'image' || asset.type === 'video')) {
+                          updateSlide(selectedSlideId, { assetType: asset.type, assetUrl: asset.url });
+                        }
+                      }}
+                      className="group relative rounded-lg overflow-hidden bg-slate-800 aspect-square hover:ring-2 hover:ring-violet-500 transition"
+                      title={asset.prompt || 'No description'}
+                      data-testid={`library-item-${asset.id}`}
+                    >
+                      {asset.type === 'image' || asset.type === 'video' ? (
+                        <img
+                          src={asset.url?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${asset.url}` : asset.url}
+                          alt="" className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Mic className="w-4 h-4 text-emerald-400" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                        <span className="text-[8px] text-white font-bold">Use</span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/60 text-[7px] text-slate-400 truncate">
+                        {asset.type}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
