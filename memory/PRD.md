@@ -51,6 +51,15 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] Preview shows styled captions matching selected caption style
 - [x] Global timeline progress (current time / total time) during playback
 
+### Phase 5 - Music Upload & BGM in Render (March 14)
+- [x] Music upload endpoint (POST /api/upload) for audio files
+- [x] Music tab with upload UI, audio player, volume slider, remove button
+- [x] BGM mixed into rendered video using FFmpeg amix filter
+- [x] BGM-only render (no voice) with volume control and looping
+- [x] Voice + BGM mixing with adjustable volume
+- [x] File upload handler sends to server (no more blob: URLs)
+- [x] Pre-render validation warns about missing slide images
+
 ## API Endpoints
 **Auth:**
 - POST /api/auth/register
@@ -64,9 +73,12 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - POST /api/generate-voice - Google TTS voice generation
 
 **Video Rendering:**
-- POST /api/render - Start MP4 render (accepts captionStyleId)
+- POST /api/render - Start MP4 render (accepts captionStyleId, bgmUrl, bgmVolume)
 - GET /api/render/:jobId - Get render status
 - GET /api/renders/:filename - Download rendered video
+
+**File Upload:**
+- POST /api/upload - Upload files (images, audio, video) to server
 
 **Projects:**
 - POST /api/projects - Save project
@@ -93,13 +105,12 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - `/app/frontend/src/context/AuthContext.js` - JWT auth context
 
 ## Mocked Features
-- Music Generation (/api/generate-music) - User will upload music
+- Music Generation (/api/generate-music) - User uploads own music instead
 - SFX Generation (/api/generate-sfx)
 - Stock Asset Search (/api/search/assets)
 
 ## Backlog (P1/P2)
-- P1: Make music upload functional (user uploads own music)
 - P1: Real stock asset search integration
 - P2: Advanced category features (Video Remaker, Motion Graphics icons)
-- P2: Remotion/@twick rendering integration
+- P2: Remotion/@twick rendering integration for motion graphics
 - P2: Multiple caption modes (words, lines, sentence) in render
