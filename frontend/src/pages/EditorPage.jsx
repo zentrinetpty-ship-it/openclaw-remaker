@@ -472,8 +472,13 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSlideId }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = React.useRef(null);
+  const playIntervalRef = React.useRef(null);
+  
   const currentSlideIdx = project?.slides?.findIndex(s => s.id === selectedSlideId) ?? 0;
   const currentSlide = project?.slides?.[currentSlideIdx];
+  const totalDuration = project?.slides?.reduce((sum, s) => sum + (s.duration || 6), 0) || 0;
 
   const goToSlide = (idx) => {
     if (project?.slides?.[idx]) {
@@ -481,48 +486,209 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
     }
   };
 
+  // Calculate time offset for current slide
+  const getSlideTimeOffset = (idx) => {
+    let offset = 0;
+    for (let i = 0; i < idx; i++) {
+      offset += project?.slides?.[i]?.duration || 6;
+    }
+    return offset;
+  };
+
+  // Auto-play through slides
+  React.useEffect(() => {
+    if (playing && project?.slides?.length) {
+      const slideDuration = currentSlide?.duration || 6;
+      let elapsed = 0;
+      
+      // Play voice if available
+      if (currentSlide?.voiceUrl && audioRef.current) {
+        audioRef.current.src = `${process.env.REACT_APP_BACKEND_URL}${currentSlide.voiceUrl}`;
+        audioRef.current.play().catch(() => {});
+      }
+      
+      playIntervalRef.current = setInterval(() => {
+        elapsed += 0.1;
+        const slideProgress = (elapsed / slideDuration) * 100;
+        setProgress(slideProgress);
+        
+        if (elapsed >= slideDuration) {
+          // Move to next slide
+          const nextIdx = currentSlideIdx + 1;
+          if (nextIdx < project.slides.length) {
+            goToSlide(nextIdx);
+            elapsed = 0;
+          } else {
+            // End of video
+            setPlaying(false);
+            goToSlide(0);
+            setProgress(0);
+          }
+        }
+      }, 100);
+      
+      return () => {
+        if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+        if (audioRef.current) audioRef.current.pause();
+      };
+    } else {
+      if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+      if (audioRef.current) audioRef.current.pause();
+    }
+  }, [playing, currentSlideIdx, currentSlide]);
+
+  // Stop playing when slide manually changes
+  React.useEffect(() => {
+    setProgress(0);
+  }, [selectedSlideId]);
+
+  const togglePlay = () => {
+    if (!playing) {
+      setProgress(0);
+    }
+    setPlaying(!playing);
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[#050a14]">
+      <audio ref={audioRef} className="hidden" />
+      
+      {/* Preview Area */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden bg-black shadow-2xl" style={{ boxShadow: `0 0 80px ${cat?.color}20` }}>
           {currentSlide?.assetUrl ? (
-            <img src={currentSlide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${currentSlide.assetUrl}` : currentSlide.assetUrl} className="w-full h-full object-cover" alt="" />
+            <img 
+              src={currentSlide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${currentSlide.assetUrl}` : currentSlide.assetUrl} 
+              className="w-full h-full object-cover" 
+              alt={currentSlide.title} 
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${cat?.color}30, #0f172a)` }}>
-              <div className="text-center">
-                <Sparkles className="w-12 h-12 mx-auto mb-2 text-slate-600" />
-                <p className="text-sm text-slate-500">No asset for this slide</p>
+              <div className="text-center px-8">
+                <Sparkles className="w-12 h-12 mx-auto mb-3 text-slate-600" />
+                <p className="text-base font-semibold text-slate-400 mb-1">{currentSlide?.title || 'No slide selected'}</p>
+                <p className="text-sm text-slate-500">Generate or upload an asset for this slide</p>
               </div>
             </div>
           )}
+          
+          {/* Slide title overlay */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur">
+              <span className="text-xs font-semibold text-white">Slide {currentSlideIdx + 1}/{project?.slides?.length || 0}</span>
+              {currentSlide?.voiceUrl && <Mic className="w-3 h-3 text-emerald-400" />}
+            </div>
+            <div className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur">
+              <span className="text-xs text-slate-300">{currentSlide?.duration || 6}s</span>
+            </div>
+          </div>
+          
+          {/* Narration text overlay (shown during playback) */}
+          {playing && currentSlide?.narration && (
+            <div className="absolute bottom-16 left-4 right-4">
+              <div className="px-4 py-3 rounded-xl bg-black/70 backdrop-blur-sm">
+                <p className="text-sm text-white text-center leading-relaxed">{currentSlide.narration}</p>
+              </div>
+            </div>
+          )}
+          
           {/* On-screen text overlay */}
           {currentSlide?.onScreenText && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-2 rounded-xl bg-black/80 backdrop-blur">
               <p className="text-lg font-bold text-white text-center">{currentSlide.onScreenText}</p>
             </div>
           )}
-          {/* Slide indicator */}
-          <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur">
-            <span className="text-xs font-semibold text-white">Slide {currentSlideIdx + 1}/{project?.slides?.length || 0}</span>
-          </div>
+          
+          {/* Progress bar during playback */}
+          {playing && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+              <div 
+                className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-100" 
+                style={{ width: `${progress}%` }} 
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Playback controls */}
+      {/* Playback Controls */}
       <div className="p-4 border-t border-slate-800 bg-[#0a0f1a]">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-center gap-4 mb-3">
-            <button onClick={() => goToSlide(Math.max(0, currentSlideIdx - 1))} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><SkipBack className="w-5 h-5" /></button>
-            <button onClick={() => setPlaying(!playing)} className="w-12 h-12 rounded-full flex items-center justify-center text-white" style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }} data-testid="play-btn">
-              {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 translate-x-0.5" />}
-            </button>
-            <button onClick={() => goToSlide(Math.min((project?.slides?.length || 1) - 1, currentSlideIdx + 1))} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><SkipForward className="w-5 h-5" /></button>
+          {/* Current slide info */}
+          <div className="text-center mb-3">
+            <p className="text-xs text-slate-500 truncate max-w-md mx-auto">
+              {currentSlide?.title}: {currentSlide?.narration?.slice(0, 60)}...
+            </p>
           </div>
-          {/* Timeline */}
-          <div className="flex gap-1">
+          
+          {/* Controls */}
+          <div className="flex items-center justify-center gap-4 mb-3">
+            <button 
+              onClick={() => { setPlaying(false); goToSlide(0); }} 
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              title="Go to start"
+            >
+              <SkipBack className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => goToSlide(Math.max(0, currentSlideIdx - 1))} 
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              title="Previous slide"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={togglePlay} 
+              className="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg" 
+              style={{ background: `linear-gradient(135deg, ${cat?.color}, #EC4899)` }} 
+              data-testid="play-btn"
+              title={playing ? 'Pause' : 'Play preview'}
+            >
+              {playing ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 translate-x-0.5" />}
+            </button>
+            <button 
+              onClick={() => goToSlide(Math.min((project?.slides?.length || 1) - 1, currentSlideIdx + 1))} 
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              title="Next slide"
+            >
+              <ArrowLeft className="w-5 h-5 rotate-180" />
+            </button>
+            <button 
+              onClick={() => { setPlaying(false); goToSlide((project?.slides?.length || 1) - 1); }} 
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              title="Go to end"
+            >
+              <SkipForward className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* Timeline with slide thumbnails */}
+          <div className="flex gap-1.5">
             {project?.slides?.map((s, i) => (
-              <button key={s.id} onClick={() => goToSlide(i)} className="flex-1 h-2 rounded-full transition-all" style={{ background: i === currentSlideIdx ? `linear-gradient(90deg, ${cat?.color}, #EC4899)` : i < currentSlideIdx ? '#10b981' : '#1e293b' }} />
+              <button 
+                key={s.id} 
+                onClick={() => { setPlaying(false); goToSlide(i); }} 
+                className={`flex-1 h-12 rounded-lg overflow-hidden border-2 transition-all ${i === currentSlideIdx ? 'border-violet-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                title={`Slide ${i + 1}: ${s.title}`}
+              >
+                {s.assetUrl ? (
+                  <img 
+                    src={s.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${s.assetUrl}` : s.assetUrl} 
+                    className="w-full h-full object-cover" 
+                    alt="" 
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                    <span className="text-[10px] text-slate-500">{i + 1}</span>
+                  </div>
+                )}
+              </button>
             ))}
+          </div>
+          
+          {/* Total duration */}
+          <div className="text-center mt-2">
+            <span className="text-[10px] text-slate-600">Total duration: {totalDuration}s</span>
           </div>
         </div>
       </div>
