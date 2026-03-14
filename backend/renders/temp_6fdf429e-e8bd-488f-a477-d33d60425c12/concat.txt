@@ -1,0 +1,5 @@
+file '/app/backend/renders/temp_6fdf429e-e8bd-488f-a477-d33d60425c12/slide_000.png'
+duration 6
+file '/app/backend/renders/temp_6fdf429e-e8bd-488f-a477-d33d60425c12/slide_001.png'
+duration 6
+file '/app/backend/renders/temp_6fdf429e-e8bd-488f-a477-d33d60425c12/slide_001.png'

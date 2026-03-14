@@ -299,15 +299,63 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
             <div>
               <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Background Music</h3>
               {project?.bgmUrl ? (
-                <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700">
-                  <audio controls src={project.bgmUrl} className="w-full h-8" />
-                  <div className="mt-2 flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700 space-y-3">
+                  <audio controls src={project.bgmUrl.startsWith('/api/') ? `${API.replace('/api', '')}${project.bgmUrl}` : project.bgmUrl} className="w-full h-8" data-testid="bgm-audio-player" />
+                  <div className="flex items-center gap-2">
                     <Volume2 className="w-3 h-3 text-slate-500" />
-                    <Slider defaultValue={[project.bgmVolume || 0.4]} max={1} step={0.1} className="flex-1" />
+                    <Slider 
+                      defaultValue={[project.bgmVolume || 0.4]} 
+                      max={1} 
+                      step={0.1} 
+                      className="flex-1"
+                      data-testid="bgm-volume-slider"
+                      onValueChange={(v) => {
+                        const { setBgmVolume } = useProjectStore.getState();
+                        setBgmVolume(v[0]);
+                      }}
+                    />
+                    <span className="text-[10px] text-slate-400 w-8 text-right">{Math.round((project.bgmVolume || 0.4) * 100)}%</span>
                   </div>
+                  <button 
+                    onClick={() => {
+                      const { setBgmUrl } = useProjectStore.getState();
+                      setBgmUrl(null);
+                    }}
+                    className="w-full px-2 py-1.5 rounded-lg text-[10px] bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition"
+                    data-testid="remove-bgm-btn"
+                  >
+                    <X className="w-3 h-3 inline mr-1" /> Remove Music
+                  </button>
                 </div>
               ) : (
-                <div className="text-xs text-slate-500 text-center p-4 border border-dashed border-slate-700 rounded-xl">No BGM assigned</div>
+                <div className="space-y-3">
+                  <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-violet-500/50 hover:bg-violet-500/5 transition" data-testid="upload-bgm-label">
+                    <Upload className="w-6 h-6 text-slate-500" />
+                    <span className="text-xs text-slate-400">Upload Background Music</span>
+                    <span className="text-[10px] text-slate-600">MP3, WAV, AAC</span>
+                    <input 
+                      type="file" 
+                      accept="audio/*" 
+                      className="hidden" 
+                      data-testid="upload-bgm-input"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        try {
+                          const res = await axios.post(`${API}/upload`, formData);
+                          if (res.data.success) {
+                            const { setBgmUrl } = useProjectStore.getState();
+                            setBgmUrl(res.data.url);
+                          }
+                        } catch (err) {
+                          console.error('Music upload failed:', err);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               )}
             </div>
             {project?.suggestedMusic?.length > 0 && (
@@ -896,7 +944,9 @@ export default function EditorPage() {
         duration: project.duration,
         generateVoice: true,
         voiceId: project.voiceId || 'en-US-Journey-D',
-        captionStyleId: activeCaptionStyleId || null
+        captionStyleId: activeCaptionStyleId || null,
+        bgmUrl: project.bgmUrl || null,
+        bgmVolume: project.bgmVolume || 0.4
       });
       
       if (res.data.success) {

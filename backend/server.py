@@ -814,6 +814,8 @@ class RenderRequest(BaseModel):
     generateVoice: bool = True
     voiceId: str = "en-US-Journey-D"
     captionStyleId: Optional[str] = None
+    bgmUrl: Optional[str] = None
+    bgmVolume: float = 0.4
 
 render_jobs = {}
 
@@ -938,7 +940,7 @@ async def generate_voice_for_slide(text: str, voice_id: str, api_key: str) -> Op
         logger.error(f"Voice generation error: {e}")
         return None
 
-async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None):
+async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None, bgm_url: str = None, bgm_volume: float = 0.4):
     """Background task to render video using FFmpeg with voice audio."""
     try:
         render_jobs[job_id] = {"status": "processing", "progress": 0, "step": "Preparing..."}
@@ -1130,12 +1132,57 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
             render_jobs[job_id]["progress"] = 85
             
             if audio_result.returncode == 0 and combined_audio_path.exists():
-                # Merge video and audio
+                # Handle BGM mixing if provided
+                final_audio_path = combined_audio_path
+                
+                if bgm_url:
+                    render_jobs[job_id]["step"] = "Mixing background music..."
+                    bgm_local = temp_dir / "bgm_source.mp3"
+                    bgm_found = False
+                    
+                    # Download/copy BGM file
+                    if '/api/uploads/' in bgm_url:
+                        bgm_filename = bgm_url.split('/')[-1]
+                        bgm_src = UPLOADS_DIR / bgm_filename
+                        if bgm_src.exists():
+                            shutil.copy(bgm_src, bgm_local)
+                            bgm_found = True
+                            logger.info(f"BGM copied from {bgm_src}")
+                    elif bgm_url.startswith('http'):
+                        import httpx
+                        async with httpx.AsyncClient() as http_client:
+                            resp = await http_client.get(bgm_url, timeout=30)
+                            if resp.status_code == 200:
+                                async with aiofiles.open(bgm_local, 'wb') as f:
+                                    await f.write(resp.content)
+                                bgm_found = True
+                    
+                    if bgm_found and bgm_local.exists():
+                        mixed_audio_path = temp_dir / "mixed_audio.mp3"
+                        vol = max(0.0, min(1.0, bgm_volume))
+                        mix_cmd = [
+                            'ffmpeg', '-y',
+                            '-i', str(combined_audio_path),
+                            '-stream_loop', '-1', '-i', str(bgm_local),
+                            '-filter_complex',
+                            f'[1:a]volume={vol}[bgm];[0:a][bgm]amix=inputs=2:duration=first[out]',
+                            '-map', '[out]',
+                            '-c:a', 'libmp3lame', '-q:a', '2',
+                            str(mixed_audio_path)
+                        ]
+                        mix_result = subprocess.run(mix_cmd, capture_output=True, text=True)
+                        if mix_result.returncode == 0 and mixed_audio_path.exists():
+                            final_audio_path = mixed_audio_path
+                            logger.info(f"BGM mixed at volume {vol}")
+                        else:
+                            logger.warning(f"BGM mix failed: {mix_result.stderr[:200]}")
+                
+                # Merge video and final audio
                 render_jobs[job_id]["step"] = "Finalizing..."
                 merge_cmd = [
                     'ffmpeg', '-y',
                     '-i', str(video_only_path),
-                    '-i', str(combined_audio_path),
+                    '-i', str(final_audio_path),
                     '-c:v', 'copy',
                     '-c:a', 'aac', '-b:a', '192k',
                     '-shortest',
@@ -1152,8 +1199,64 @@ async def render_video_task(job_id: str, project_id: str, slides: List[Dict], ti
                 logger.warning("Audio combination failed, using video only")
                 shutil.copy(video_only_path, output_path)
         else:
-            # No audio, just use video
-            shutil.copy(video_only_path, output_path)
+            # No voice audio - check if we have BGM only
+            if bgm_url:
+                render_jobs[job_id]["step"] = "Adding background music..."
+                bgm_local = temp_dir / "bgm_source.mp3"
+                bgm_found = False
+                
+                if '/api/uploads/' in bgm_url:
+                    bgm_filename = bgm_url.split('/')[-1]
+                    bgm_src = UPLOADS_DIR / bgm_filename
+                    if bgm_src.exists():
+                        shutil.copy(bgm_src, bgm_local)
+                        bgm_found = True
+                elif bgm_url.startswith('http'):
+                    import httpx
+                    async with httpx.AsyncClient() as http_client:
+                        resp = await http_client.get(bgm_url, timeout=30)
+                        if resp.status_code == 200:
+                            async with aiofiles.open(bgm_local, 'wb') as f:
+                                await f.write(resp.content)
+                            bgm_found = True
+                
+                if bgm_found and bgm_local.exists():
+                    total_dur = sum(s.get('duration', 6) for s in slides)
+                    vol = max(0.0, min(1.0, bgm_volume))
+                    bgm_trimmed = temp_dir / "bgm_trimmed.mp3"
+                    trim_cmd = [
+                        'ffmpeg', '-y',
+                        '-stream_loop', '-1', '-i', str(bgm_local),
+                        '-af', f'volume={vol}',
+                        '-t', str(total_dur),
+                        '-c:a', 'libmp3lame', '-q:a', '2',
+                        str(bgm_trimmed)
+                    ]
+                    trim_result = subprocess.run(trim_cmd, capture_output=True, text=True)
+                    if trim_result.returncode == 0 and bgm_trimmed.exists():
+                        merge_cmd = [
+                            'ffmpeg', '-y',
+                            '-i', str(video_only_path),
+                            '-i', str(bgm_trimmed),
+                            '-c:v', 'copy',
+                            '-c:a', 'aac', '-b:a', '192k',
+                            '-shortest',
+                            '-movflags', '+faststart',
+                            str(output_path)
+                        ]
+                        merge_result = subprocess.run(merge_cmd, capture_output=True, text=True)
+                        if merge_result.returncode == 0:
+                            has_audio = True
+                            logger.info("BGM-only audio added to video")
+                        else:
+                            shutil.copy(video_only_path, output_path)
+                    else:
+                        shutil.copy(video_only_path, output_path)
+                else:
+                    shutil.copy(video_only_path, output_path)
+            else:
+                # No audio at all
+                shutil.copy(video_only_path, output_path)
         
         render_jobs[job_id]["progress"] = 95
         
@@ -1195,7 +1298,9 @@ async def start_render(request: RenderRequest, background_tasks: BackgroundTasks
         request.title,
         request.generateVoice,
         request.voiceId,
-        request.captionStyleId
+        request.captionStyleId,
+        request.bgmUrl,
+        request.bgmVolume
     )
     
     return {"success": True, "jobId": job_id, "status": "started"}
