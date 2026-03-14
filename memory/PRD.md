@@ -20,7 +20,7 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] Storyboard display with characters and slides
 - [x] AI image generation via Gemini Nano Banana
 - [x] Asset assignment step with Generate All option
-- [x] Full video editor with 6 tabs (Script, Assets, Music, Voice, Captions, Effects)
+- [x] Full video editor with 7 tabs (Script, Assets, Graphics, Music, Voice, Captions, Effects)
 - [x] Canvas preview with playback controls
 - [x] Dashboard with project list
 
@@ -44,48 +44,48 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] Batch apply for transitions and VFX
 
 ### Phase 4 - Caption Burn-in & Persistence (March 14)
-- [x] **Caption burn-in in rendered MP4** using FFmpeg ASS subtitle filter
+- [x] Caption burn-in in rendered MP4 using FFmpeg ASS subtitle filter
 - [x] 6 caption styles mapped to ASS format with proper colors/fonts
 - [x] Frontend passes captionStyleId to render endpoint
-- [x] **State persistence** using Zustand persist middleware (localStorage)
+- [x] State persistence using Zustand persist middleware (localStorage)
 - [x] Preview shows styled captions matching selected caption style
-- [x] Global timeline progress (current time / total time) during playback
 
 ### Phase 5 - Music Upload & BGM in Render (March 14)
-- [x] Music upload endpoint (POST /api/upload) for audio files
+- [x] Music upload endpoint for audio files
 - [x] Music tab with upload UI, audio player, volume slider, remove button
-- [x] BGM mixed into rendered video using FFmpeg amix filter
-- [x] BGM-only render (no voice) with volume control and looping
+- [x] BGM mixed into rendered video
 - [x] Voice + BGM mixing with adjustable volume
-- [x] File upload handler sends to server (no more blob: URLs)
-- [x] Pre-render validation warns about missing slide images
 
 ### Phase 6 - Music & SFX Library (March 14)
-- [x] Generated 78 audio files using FFmpeg synthesis (34 music + 44 SFX)
-- [x] Music Library: 34 tracks across 8 categories (cinematic, corporate, ambient, upbeat, lofi, electronic, inspirational, acoustic)
-- [x] SFX Library: 44 sounds across 6 categories (transitions, ui, impact, tech, nature, comic)
-- [x] Backend endpoints: GET /api/library/music, GET /api/library/sfx with category filtering
-- [x] Frontend: Browsable library with category filters, preview playback, and one-click selection
-- [x] SFX preview with play/stop buttons per sound
+- [x] 78 audio files: 34 music + 44 SFX across multiple categories
+- [x] Backend endpoints: GET /api/library/music, GET /api/library/sfx
+- [x] Frontend: Browsable library with category filters, preview, one-click selection
 
 ### Phase 7 - Remotion Video Engine (March 14)
-- [x] Replaced FFmpeg rendering with Remotion programmatic video engine
-- [x] Ken Burns effect (slow zoom/pan) on all slide images
-- [x] Smooth slide transitions (fade, slide, zoom, wipe, blur)
-- [x] Word-by-word animated captions with 6 caption styles
+- [x] Replaced FFmpeg with Remotion programmatic video engine
+- [x] Ken Burns effect, smooth transitions (fade, slide, zoom)
+- [x] Word-by-word animated captions with 6 styles
 - [x] Audio integration (per-slide voice + background music)
-- [x] Server-side rendering via @remotion/renderer with Chromium
-- [x] Bundle caching for faster subsequent renders
-- [x] Optimized for memory (concurrency=2, 24fps)
-- [x] Save button fixed with upsert (update existing, create new) + loading state
-- [x] Transition frames synced (Root.jsx + ExplainerVideo.jsx both use 15 frames)
+- [x] Optimized render (concurrency=1, 24fps, bundle caching)
+- [x] Save button fixed with upsert
 
 ### Phase 8 - P0 Verification (March 14)
-- [x] Verified Remotion render stability: 3+ slide videos render successfully (~60-90s)
-- [x] Verified Save button: upsert logic prevents duplicates (same title+userId updates existing)
-- [x] Verified render speed: acceptable at 60-90s for 3-slide video
-- [x] Fixed transition frames mismatch: Root.jsx calculateMetadata aligned to 15 frames
-- [x] Comprehensive testing via testing_agent (93% backend, 100% frontend)
+- [x] Verified Remotion render stability, save button, render speed
+- [x] Fixed transition frames mismatch (Root.jsx aligned to 15 frames)
+
+### Phase 9 - Advanced Features (March 14)
+- [x] **Multiple Caption Modes**: Words, Lines, Sentence — AnimatedCaption.jsx supports all 3 modes, passed through render pipeline
+- [x] **Motion Graphics**: 4 Remotion components (TitleCard, LowerThird, KineticText, StatCounter), GraphicsOverlay in ExplainerVideo.jsx, Graphics tab in Editor for adding/editing/removing overlays per slide
+- [x] **Video Remaker**: /api/analyze-video endpoint extracts frames with FFmpeg, analyzes with Gemini, returns storyboard. Landing page shows upload UI for remaker category
+- [x] **AI Motion Graphics Prompt**: AI generates slides with graphics arrays when motiongraphic category selected
+
+### Phase 10 - User Asset Library (March 14)
+- [x] **GET /api/user/library**: Returns all user assets with category filtering and counts
+- [x] **DELETE /api/user/assets/{id}**: Removes asset from library and deletes file from disk
+- [x] **Auto-save on upload**: POST /api/upload automatically saves to user library when authenticated
+- [x] **Dashboard My Library tab**: Category filters, search, delete, preview
+- [x] **Editor My Library**: Browse and one-click assign library assets to slides
+- [x] Testing: 100% backend (13/13), 100% frontend
 
 ## API Endpoints
 **Auth:**
@@ -98,51 +98,56 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - POST /api/generate-image - AI image generation
 - POST /api/generate-video - AI video background
 - POST /api/generate-voice - Google TTS voice generation
+- POST /api/analyze-video - Video Remaker (upload + Gemini analysis)
 
 **Video Rendering:**
-- POST /api/render - Start MP4 render (accepts captionStyleId, bgmUrl, bgmVolume)
+- POST /api/render - Start MP4 render (captionStyleId, captionMode, bgmUrl, bgmVolume, graphics)
 - GET /api/render/:jobId - Get render status
 - GET /api/renders/:filename - Download rendered video
 
 **File Upload:**
-- POST /api/upload - Upload files (images, audio, video) to server
+- POST /api/upload - Upload files (auto-saves to library when authenticated)
 
 **Projects:**
-- POST /api/projects - Save project
+- POST /api/projects - Save project (upsert by title+userId)
 - GET /api/projects - List projects
 - GET /api/projects/:id - Get project
 
-**User:**
+**User Library:**
+- GET /api/user/library - Get user's asset library with category filter
 - GET /api/user/assets - Get user's generated assets
+- DELETE /api/user/assets/:id - Delete asset from library
 - GET /api/user/stats - Get user statistics
+
+**Library:**
+- GET /api/library/music - Music library catalog
+- GET /api/library/sfx - SFX library catalog
 
 ## Database Schema (MongoDB)
 - `users`: { id, email, name, password, createdAt, subscriptionTier }
 - `projects`: { id, userId, title, status, slides, settings, projectData }
-- `generated_assets`: { id, userId, type, url, prompt, projectId, createdAt }
-- `render_jobs`: In-memory dict (render_jobs)
+- `generated_assets`: { id, userId, type, url, prompt, metadata, projectId, createdAt }
+- `render_jobs`: In-memory dict
 
 ## Key Files
 - `/app/backend/server.py` - All API endpoints, Remotion render orchestration
-- `/app/remotion/` - Remotion video engine (compositions, render script)
-- `/app/remotion/src/ExplainerVideo.jsx` - Main video composition
+- `/app/remotion/` - Remotion video engine
+- `/app/remotion/src/ExplainerVideo.jsx` - Main video composition with GraphicsOverlay
 - `/app/remotion/src/components/Slide.jsx` - Slide with Ken Burns + transitions
-- `/app/remotion/src/components/AnimatedCaption.jsx` - Word-by-word animated captions
-- `/app/remotion/render.mjs` - Server-side render script with bundle caching
-- `/app/frontend/src/pages/EditorPage.jsx` - Video editor with preview, sidebars
-- `/app/frontend/src/store/useProjectStore.js` - Zustand stores with persist
-- `/app/frontend/src/pages/LandingPage.jsx` - Landing page with categories
-- `/app/frontend/src/pages/CreatePage.jsx` - Project creation flow
-- `/app/frontend/src/pages/DashboardPage.jsx` - User dashboard
-- `/app/frontend/src/context/AuthContext.js` - JWT auth context
+- `/app/remotion/src/components/AnimatedCaption.jsx` - 3 caption modes (words/lines/sentence)
+- `/app/remotion/src/components/MotionGraphics.jsx` - TitleCard, LowerThird, KineticText, StatCounter
+- `/app/remotion/render.mjs` - Server-side render script
+- `/app/frontend/src/pages/EditorPage.jsx` - Video editor with 7 tabs + My Library
+- `/app/frontend/src/pages/DashboardPage.jsx` - Dashboard with Projects + My Library tabs
+- `/app/frontend/src/pages/LandingPage.jsx` - Landing page with Video Remaker upload
 
 ## Mocked Features
-- Music Generation (/api/generate-music) - User uploads own music instead
+- Music Generation (/api/generate-music)
 - SFX Generation (/api/generate-sfx)
 - Stock Asset Search (/api/search/assets)
 
 ## Backlog (P1/P2)
-- P1: Real stock asset search integration
-- P1: Advanced category features (Video Remaker, Motion Graphics icons)
-- P2: Multiple caption modes (words, lines, sentence) in render
+- P1: Real stock asset search integration (Pixabay/Pexels)
+- P1: Real SFX generation (ElevenLabs)
+- P2: Backend refactoring (break server.py into routers)
 - P2: Render queue with progress notifications
