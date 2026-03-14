@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { Slider } from '../components/ui/slider';
 import EditorChatBox from '../components/Editor/EditorChatBox';
+import TimelinePanel from '../components/Editor/TimelinePanel';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
@@ -950,6 +951,7 @@ export default function EditorPage() {
   const [renderUrl, setRenderUrl] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedSlideId, setSelectedSlideId] = useState(null);
+  const [showTimeline, setShowTimeline] = useState(false);
   const cat = CATEGORIES.find(c => c.id === videoCategory);
 
   useEffect(() => {
@@ -1130,6 +1132,9 @@ export default function EditorPage() {
           <span className="text-sm font-bold text-slate-900">{project.title}</span>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowTimeline(t => !t)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 text-sm font-bold transition ${showTimeline ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'}`} data-testid="timeline-toggle-btn">
+            <Layers className="w-4 h-4" /> Timeline
+          </button>
           <button onClick={saveProject} disabled={saving} className="flex items-center gap-1.5 px-4 py-1.5 rounded-none border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 transition disabled:opacity-50" data-testid="save-btn">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {saving ? 'Saving...' : 'Save'}
           </button>
@@ -1146,6 +1151,21 @@ export default function EditorPage() {
         <CanvasPreview project={project} videoCategory={videoCategory} selectedSlideId={selectedSlideId} setSelectedSlideId={setSelectedSlideId} />
         <RightSidebar project={project} primaryColor={primaryColor} setPrimaryColor={setPrimaryColor} selectedFont={selectedFont} setSelectedFont={setSelectedFont} selectedSlideId={selectedSlideId} updateSlide={updateSlide} />
       </div>
+
+      {/* Timeline Panel */}
+      <AnimatePresence>
+        {showTimeline && (
+          <TimelinePanel
+            project={project}
+            updateSlide={updateSlide}
+            selectedSlideId={selectedSlideId}
+            setSelectedSlideId={setSelectedSlideId}
+            isOpen={showTimeline}
+            onToggle={() => setShowTimeline(false)}
+            onAutoSync={(result) => { console.log('Auto-sync complete:', result); }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* AI Chat Box */}
       <EditorChatBox project={project} updateSlide={updateSlide} onAction={handleChatAction} />

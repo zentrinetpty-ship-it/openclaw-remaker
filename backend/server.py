@@ -1379,6 +1379,161 @@ async def generate_voice_for_slide(text: str, voice_id: str, api_key: str) -> Op
         logger.error(f"Voice generation error: {e}")
         return None
 
+def get_audio_duration(filepath: str) -> float:
+    """Get audio duration in seconds using ffprobe."""
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', filepath],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return float(result.stdout.strip())
+    except Exception as e:
+        logger.error(f"ffprobe error: {e}")
+    return 0.0
+
+class AutoSyncRequest(BaseModel):
+    slides: List[Dict[str, Any]]
+    voiceId: str = "en-US-Journey-D"
+    bgmUrl: Optional[str] = None
+    bgmVolume: float = 0.4
+    captionStyleId: Optional[str] = None
+    generateMissingVoices: bool = True
+    bufferPerSlide: float = 0.5
+
+@api_router.post("/editor/auto-sync")
+async def auto_sync_project(request: AutoSyncRequest, user: dict = Depends(get_current_user)):
+    """Intelligently synchronize all layers: generate missing voices, analyze durations, and return optimized timing."""
+    try:
+        import httpx
+        api_key = os.getenv("GOOGLE_TTS_API_KEY")
+        slides = request.slides
+        synced_slides = []
+        total_voice_duration = 0.0
+        generated_count = 0
+        
+        for idx, slide in enumerate(slides):
+            slide_id = slide.get('id', str(idx))
+            narration = slide.get('narration', '')
+            voice_url = slide.get('voiceUrl')
+            
+            voice_duration = 0.0
+            new_voice_url = voice_url
+            
+            # Step 1: Generate missing voices
+            if not voice_url and narration and request.generateMissingVoices and api_key:
+                audio_bytes = await generate_voice_for_slide(narration, request.voiceId, api_key)
+                if audio_bytes:
+                    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                    random_suffix = str(uuid.uuid4())[:7]
+                    filename = f"voice-sync-{timestamp}-{random_suffix}.mp3"
+                    filepath = UPLOADS_DIR / filename
+                    async with aiofiles.open(filepath, 'wb') as f:
+                        await f.write(audio_bytes)
+                    new_voice_url = f"/api/uploads/{filename}"
+                    generated_count += 1
+                    
+                    # Save to user library
+                    user_id = user.get("id") if user else None
+                    if user_id:
+                        await db.generated_assets.insert_one({
+                            "id": str(uuid.uuid4()), "type": "voice",
+                            "url": new_voice_url, "prompt": narration[:100],
+                            "metadata": {"voiceId": request.voiceId, "source": "auto-sync"},
+                            "userId": user_id, "createdAt": datetime.now(timezone.utc).isoformat()
+                        })
+            
+            # Step 2: Analyze voice duration
+            if new_voice_url:
+                voice_file = new_voice_url.split('/')[-1] if new_voice_url else None
+                if voice_file:
+                    voice_path = UPLOADS_DIR / voice_file
+                    if voice_path.exists():
+                        voice_duration = get_audio_duration(str(voice_path))
+            
+            # Step 3: Calculate optimal slide duration
+            # Voice duration + buffer, minimum 3 seconds
+            if voice_duration > 0:
+                optimal_duration = max(3.0, voice_duration + request.bufferPerSlide)
+            else:
+                # Estimate from narration text: ~150 words per minute
+                word_count = len(narration.split()) if narration else 0
+                estimated_speech_time = (word_count / 150.0) * 60.0
+                optimal_duration = max(3.0, estimated_speech_time + request.bufferPerSlide) if word_count > 0 else slide.get('duration', 5.0)
+            
+            optimal_duration = round(optimal_duration, 1)
+            total_voice_duration += voice_duration if voice_duration > 0 else optimal_duration
+            
+            synced_slides.append({
+                "id": slide_id,
+                "voiceUrl": new_voice_url,
+                "voiceDuration": round(voice_duration, 2),
+                "optimalDuration": optimal_duration,
+                "originalDuration": slide.get('duration', 5),
+                "hasVoice": new_voice_url is not None,
+                "hasImage": bool(slide.get('assetUrl')),
+                "captionStart": 0,
+                "captionEnd": round(voice_duration, 2) if voice_duration > 0 else optimal_duration,
+            })
+        
+        # Step 4: Analyze BGM
+        bgm_info = None
+        if request.bgmUrl:
+            bgm_file = request.bgmUrl.split('/')[-1] if request.bgmUrl else None
+            bgm_path = None
+            if bgm_file:
+                # Check uploads dir and library dirs
+                for check_dir in [UPLOADS_DIR, MUSIC_LIB_DIR]:
+                    candidate = check_dir / bgm_file
+                    if candidate.exists():
+                        bgm_path = candidate
+                        break
+            if bgm_path:
+                bgm_duration = get_audio_duration(str(bgm_path))
+                total_video_duration = sum(s['optimalDuration'] for s in synced_slides)
+                bgm_info = {
+                    "url": request.bgmUrl,
+                    "duration": round(bgm_duration, 2),
+                    "videoDuration": round(total_video_duration, 2),
+                    "needsLoop": bgm_duration < total_video_duration,
+                    "needsTrim": bgm_duration > total_video_duration,
+                    "volume": request.bgmVolume,
+                }
+        
+        total_video_duration = sum(s['optimalDuration'] for s in synced_slides)
+        
+        return {
+            "success": True,
+            "syncedSlides": synced_slides,
+            "totalDuration": round(total_video_duration, 2),
+            "voicesGenerated": generated_count,
+            "bgmInfo": bgm_info,
+            "summary": {
+                "totalSlides": len(synced_slides),
+                "slidesWithVoice": sum(1 for s in synced_slides if s['hasVoice']),
+                "slidesWithImage": sum(1 for s in synced_slides if s['hasImage']),
+                "avgSlideDuration": round(total_video_duration / len(synced_slides), 1) if synced_slides else 0,
+            }
+        }
+    except Exception as e:
+        logger.error(f"Auto-sync error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Audio duration endpoint for frontend timeline
+@api_router.post("/audio/duration")
+async def get_audio_duration_endpoint(request: Dict[str, Any] = Body(...)):
+    """Get duration of an audio file."""
+    url = request.get("url", "")
+    if not url:
+        return {"duration": 0}
+    filename = url.split('/')[-1]
+    for check_dir in [UPLOADS_DIR, MUSIC_LIB_DIR, SFX_LIB_DIR]:
+        candidate = check_dir / filename
+        if candidate.exists():
+            dur = get_audio_duration(str(candidate))
+            return {"duration": round(dur, 2)}
+    return {"duration": 0}
+
 async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None, caption_mode: str = "words", bgm_url: str = None, bgm_volume: float = 0.4):
     """Background task to render video using Remotion with animated slides, transitions, and captions."""
     try:
