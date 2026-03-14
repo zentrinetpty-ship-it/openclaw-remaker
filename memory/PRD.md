@@ -5,8 +5,8 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 
 ## Architecture
 - **Frontend**: React + Tailwind CSS + Framer Motion + Zustand (with persist middleware)
-- **Backend**: FastAPI + MongoDB + emergentintegrations
-- **AI Services**: Gemini 2.5 Flash (text), Gemini Nano Banana (images)
+- **Backend**: FastAPI + MongoDB + google-generativeai SDK
+- **AI Services**: Google Gemini (via user-provided GOOGLE_GENERATIVE_AI_API_KEY)
 - **Auth**: JWT with bcrypt password hashing
 - **Video Rendering**: Remotion 4.x (@remotion/renderer, @remotion/bundler) with system Chromium
 - **Audio**: Google Cloud Text-to-Speech (TTS), FFmpeg for audio mixing
@@ -153,6 +153,16 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - Music Generation (/api/generate-music)
 - SFX Generation (/api/generate-sfx)
 - Stock Asset Search (/api/search/assets)
+
+### Phase 12 - Light Theme Refactor & Render Fix (March 14)
+- [x] **Landing Page Redesign**: Modern light theme with Poppins font, indigo-600 accents, sharp-edged components
+- [x] **Dashboard Light Theme**: White cards, slate-200 borders, indigo active states, stats banner
+- [x] **Editor Light Theme**: Light sidebars/nav/controls, dark canvas preview for video contrast
+- [x] **ChatBox Light Theme**: White panel with indigo accents, light message bubbles
+- [x] **AuthModal Light Theme**: White background with proper contrast
+- [x] **CreatePage Light Theme**: Consistent with landing page design language
+- [x] **Video Render Fix**: Installed missing chromium and ffmpeg system dependencies required by Remotion
+- [x] **Render Verified**: Successfully renders single-slide and multi-slide MP4 videos with captions
 
 ## Backlog (P1/P2)
 - P1: Real stock asset search integration (Pixabay/Pexels)
