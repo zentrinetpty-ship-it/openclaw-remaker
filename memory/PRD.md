@@ -78,6 +78,14 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] Bundle caching for faster subsequent renders
 - [x] Optimized for memory (concurrency=2, 24fps)
 - [x] Save button fixed with upsert (update existing, create new) + loading state
+- [x] Transition frames synced (Root.jsx + ExplainerVideo.jsx both use 15 frames)
+
+### Phase 8 - P0 Verification (March 14)
+- [x] Verified Remotion render stability: 3+ slide videos render successfully (~60-90s)
+- [x] Verified Save button: upsert logic prevents duplicates (same title+userId updates existing)
+- [x] Verified render speed: acceptable at 60-90s for 3-slide video
+- [x] Fixed transition frames mismatch: Root.jsx calculateMetadata aligned to 15 frames
+- [x] Comprehensive testing via testing_agent (93% backend, 100% frontend)
 
 ## API Endpoints
 **Auth:**
