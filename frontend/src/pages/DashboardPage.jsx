@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink, User, LogOut, Image, Mic, Film, BarChart3, Library, Search, Filter, Grid3X3, X } from 'lucide-react';
+import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink, User, LogOut, Image, Mic, Film, Library, Search, Grid3X3, X, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/AuthModal';
@@ -10,11 +10,11 @@ import axios from 'axios';
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const ASSET_CATEGORIES = [
-  { id: 'all', label: 'All', icon: Grid3X3, color: 'text-slate-400' },
-  { id: 'image', label: 'Images', icon: Image, color: 'text-blue-400' },
-  { id: 'voice', label: 'Voices', icon: Mic, color: 'text-emerald-400' },
-  { id: 'video', label: 'Videos', icon: Film, color: 'text-pink-400' },
-  { id: 'audio', label: 'Audio', icon: Mic, color: 'text-amber-400' },
+  { id: 'all', label: 'All', icon: Grid3X3 },
+  { id: 'image', label: 'Images', icon: Image },
+  { id: 'voice', label: 'Voices', icon: Mic },
+  { id: 'video', label: 'Videos', icon: Film },
+  { id: 'audio', label: 'Audio', icon: Mic },
 ];
 
 export default function DashboardPage() {
@@ -107,84 +107,72 @@ export default function DashboardPage() {
   const totalAssets = Object.values(libraryCounts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="min-h-screen bg-[#030712]" data-testid="dashboard-page" style={{ fontFamily: "'Poppins', sans-serif" }}>
+    <div className="min-h-screen bg-[#F8FAFC]" data-testid="dashboard-page" style={{ fontFamily: "'Poppins', sans-serif" }}>
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       
       {/* Navbar */}
-      <nav className="border-b border-slate-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-pink-500">
-              <Sparkles className="w-4 h-4 text-white" />
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+          <button onClick={() => navigate('/')} className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-sm flex items-center justify-center bg-indigo-600">
+              <Sparkles className="w-4.5 h-4.5 text-white" />
             </div>
-            <span className="text-lg font-black text-white font-['Outfit']">
+            <span className="text-xl font-black tracking-tight text-slate-900">
               Explaina<span className="gradient-text">Pro</span>
             </span>
           </button>
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
-              <>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700">
-                  <User className="w-4 h-4 text-violet-400" />
-                  <span className="text-sm text-slate-300">{user?.name || user?.email?.split('@')[0]}</span>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-sm bg-indigo-50 border border-indigo-100">
+                  <User className="w-4 h-4 text-indigo-600" />
+                  <span className="text-sm font-semibold text-indigo-900">{user?.name || user?.email?.split('@')[0]}</span>
                 </div>
-                <button onClick={logout} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800" data-testid="logout-btn">
+                <button onClick={logout} className="p-2 rounded-sm text-slate-400 hover:text-slate-600 hover:bg-slate-100" data-testid="logout-btn">
                   <LogOut className="w-4 h-4" />
                 </button>
-              </>
+              </div>
             ) : (
-              <Button variant="outline" onClick={() => setShowAuthModal(true)} data-testid="login-btn">Sign In</Button>
+              <motion.button onClick={() => setShowAuthModal(true)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="px-5 py-2 rounded-none bg-indigo-600 text-white text-sm font-bold btn-sharp" data-testid="login-btn">
+                Sign In
+              </motion.button>
             )}
-            <Button onClick={() => navigate('/')} data-testid="new-project-btn">
-              <Plus className="w-4 h-4 mr-2" /> New Project
-            </Button>
+            <motion.button onClick={() => navigate('/')} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-5 py-2 rounded-none bg-indigo-600 text-white text-sm font-bold btn-sharp" data-testid="new-project-btn">
+              <Plus className="w-4 h-4" /> New Project
+            </motion.button>
           </div>
         </div>
       </nav>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Banner */}
         {isAuthenticated && stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Folder className="w-4 h-4 text-violet-400" />
-                <span className="text-xs text-slate-400 uppercase">Projects</span>
+            {[
+              { icon: Folder, label: 'Projects', value: stats.projects, color: '#4F46E5', bg: 'bg-indigo-50', borderColor: 'border-indigo-200', iconColor: 'text-indigo-500' },
+              { icon: Image, label: 'Images', value: stats.images, color: '#3B82F6', bg: 'bg-blue-50', borderColor: 'border-blue-200', iconColor: 'text-blue-500' },
+              { icon: Mic, label: 'Voices', value: stats.voices, color: '#10B981', bg: 'bg-emerald-50', borderColor: 'border-emerald-200', iconColor: 'text-emerald-500' },
+              { icon: Film, label: 'Videos', value: stats.videos, color: '#EC4899', bg: 'bg-pink-50', borderColor: 'border-pink-200', iconColor: 'text-pink-500' },
+            ].map((s, i) => (
+              <div key={i} className={`p-4 rounded-md border-2 ${s.borderColor} ${s.bg}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <s.icon className={`w-4 h-4 ${s.iconColor}`} />
+                  <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">{s.label}</span>
+                </div>
+                <p className="text-2xl font-black text-slate-900">{s.value}</p>
               </div>
-              <p className="text-2xl font-bold text-white">{stats.projects}</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Image className="w-4 h-4 text-blue-400" />
-                <span className="text-xs text-slate-400 uppercase">Images</span>
-              </div>
-              <p className="text-2xl font-bold text-white">{stats.images}</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Mic className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs text-slate-400 uppercase">Voices</span>
-              </div>
-              <p className="text-2xl font-bold text-white">{stats.voices}</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-500/5 border border-pink-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Film className="w-4 h-4 text-pink-400" />
-                <span className="text-xs text-slate-400 uppercase">Videos</span>
-              </div>
-              <p className="text-2xl font-bold text-white">{stats.videos}</p>
-            </div>
+            ))}
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex items-center gap-4 border-b border-slate-800 mb-6">
-          <button onClick={() => setActiveTab('projects')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px ${activeTab === 'projects' ? 'border-violet-500 text-white' : 'border-transparent text-slate-500'}`} data-testid="tab-projects">
+        <div className="flex items-center gap-4 border-b border-slate-200 mb-6">
+          <button onClick={() => setActiveTab('projects')} className={`pb-3 text-sm font-bold border-b-2 -mb-px transition ${activeTab === 'projects' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} data-testid="tab-projects">
             Projects ({projects.length})
           </button>
           {isAuthenticated && (
-            <button onClick={() => setActiveTab('library')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px flex items-center gap-2 ${activeTab === 'library' ? 'border-violet-500 text-white' : 'border-transparent text-slate-500'}`} data-testid="tab-library">
+            <button onClick={() => setActiveTab('library')} className={`pb-3 text-sm font-bold border-b-2 -mb-px flex items-center gap-2 transition ${activeTab === 'library' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} data-testid="tab-library">
               <Library className="w-4 h-4" /> My Library ({totalAssets})
             </button>
           )}
@@ -193,33 +181,33 @@ export default function DashboardPage() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
-              <Sparkles className="w-8 h-8 text-violet-500 animate-pulse mx-auto mb-2" />
+              <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse mx-auto mb-2" />
               <p className="text-sm text-slate-400">Loading...</p>
             </div>
           </div>
         ) : activeTab === 'projects' ? (
           projects.length === 0 ? (
             <div className="text-center py-20">
-              <div className="w-20 h-20 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
-                <Folder className="w-10 h-10 text-slate-600" />
+              <div className="w-20 h-20 rounded-md bg-slate-100 border-2 border-slate-200 flex items-center justify-center mx-auto mb-4">
+                <Folder className="w-10 h-10 text-slate-300" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">No projects yet</h2>
+              <h2 className="text-xl font-bold text-slate-900 mb-2">No projects yet</h2>
               <p className="text-slate-500 mb-6">Create your first AI-powered video</p>
-              <Button onClick={() => navigate('/')} size="lg">
-                <Plus className="w-4 h-4 mr-2" /> Create New Project
-              </Button>
+              <motion.button whileHover={{ scale: 1.02 }} onClick={() => navigate('/')} className="px-6 py-2.5 rounded-none bg-indigo-600 text-white font-bold text-sm btn-sharp inline-flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Create New Project
+              </motion.button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {projects.map((project, idx) => (
                 <motion.div
                   key={project.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  className="group rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden hover:border-violet-500/50 transition-colors"
+                  className="group rounded-md border-2 border-slate-200 bg-white overflow-hidden hover:border-indigo-300 transition-all card-lift"
                 >
-                  <div className="aspect-video relative bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                  <div className="aspect-video relative bg-slate-100 flex items-center justify-center">
                     {project.projectData?.slides?.[0]?.assetUrl ? (
                       <img 
                         src={project.projectData.slides[0].assetUrl.startsWith('/api') 
@@ -230,31 +218,31 @@ export default function DashboardPage() {
                         alt={project.title} 
                       />
                     ) : (
-                      <Play className="w-12 h-12 text-slate-600" />
+                      <Play className="w-12 h-12 text-slate-300" />
                     )}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                    <Button size="sm" onClick={() => navigate(`/editor/${project.id}`)} data-testid={`open-project-${project.id}`}>
-                      <ExternalLink className="w-4 h-4 mr-1" /> Open
-                    </Button>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <motion.button whileHover={{ scale: 1.05 }} onClick={() => navigate(`/editor/${project.id}`)} className="flex items-center gap-1.5 px-4 py-2 rounded-none bg-indigo-600 text-white text-xs font-bold btn-sharp" data-testid={`open-project-${project.id}`}>
+                        <ExternalLink className="w-3.5 h-3.5" /> Open
+                      </motion.button>
+                    </div>
                   </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-white truncate">{project.title}</h3>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {project.settings?.duration || 30}s
-                    </span>
-                    <span>{project.slides?.length || project.projectData?.slides?.length || 0} slides</span>
-                    <span className="capitalize">{project.category || 'explainer'}</span>
+                  <div className="p-4">
+                    <h3 className="font-bold text-slate-900 truncate">{project.title}</h3>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {project.settings?.duration || 30}s
+                      </span>
+                      <span>{project.slides?.length || project.projectData?.slides?.length || 0} slides</span>
+                      <span className="capitalize">{project.category || 'explainer'}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-2 font-mono">
+                      {new Date(project.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  <p className="text-[10px] text-slate-600 mt-2">
-                    {new Date(project.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
           )
         ) : (
           /* Library Tab */
@@ -266,14 +254,14 @@ export default function DashboardPage() {
                   <button
                     key={cat.id}
                     onClick={() => setLibraryCategory(cat.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-bold border-2 transition ${
                       libraryCategory === cat.id
-                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40'
-                        : 'bg-slate-800/50 text-slate-500 border border-slate-800 hover:border-slate-600'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                     }`}
                     data-testid={`library-filter-${cat.id}`}
                   >
-                    <cat.icon className={`w-3.5 h-3.5 ${libraryCategory === cat.id ? 'text-violet-400' : cat.color}`} />
+                    <cat.icon className="w-3.5 h-3.5" />
                     {cat.label}
                     {cat.id !== 'all' && libraryCounts[cat.id] ? (
                       <span className="ml-1 text-[10px] opacity-60">({libraryCounts[cat.id]})</span>
@@ -284,13 +272,13 @@ export default function DashboardPage() {
                 ))}
               </div>
               <div className="relative flex-1 max-w-xs">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={librarySearch}
                   onChange={(e) => setLibrarySearch(e.target.value)}
                   placeholder="Search assets..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-violet-500"
+                  className="w-full pl-9 pr-3 py-1.5 rounded-sm bg-slate-50 border-2 border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   data-testid="library-search"
                 />
               </div>
@@ -298,10 +286,10 @@ export default function DashboardPage() {
 
             {filteredLibrary.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4">
-                  <Library className="w-8 h-8 text-slate-600" />
+                <div className="w-16 h-16 rounded-md bg-slate-100 border-2 border-slate-200 flex items-center justify-center mx-auto mb-4">
+                  <Library className="w-8 h-8 text-slate-300" />
                 </div>
-                <h2 className="text-lg font-bold text-white mb-2">
+                <h2 className="text-lg font-bold text-slate-900 mb-2">
                   {librarySearch ? 'No matching assets' : 'No assets yet'}
                 </h2>
                 <p className="text-slate-500 text-sm">
@@ -319,11 +307,11 @@ export default function DashboardPage() {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       transition={{ delay: idx * 0.02 }}
-                      className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden group relative"
+                      className="rounded-md border-2 border-slate-200 bg-white overflow-hidden group relative card-lift"
                       data-testid={`library-asset-${asset.id}`}
                     >
                       {asset.type === 'image' || asset.type === 'video' ? (
-                        <div className="aspect-video relative bg-slate-800">
+                        <div className="aspect-video relative bg-slate-100">
                           <img 
                             src={asset.url?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${asset.url}` : asset.url} 
                             alt={asset.prompt?.slice(0, 30)} 
@@ -331,13 +319,13 @@ export default function DashboardPage() {
                           />
                         </div>
                       ) : (
-                        <div className="aspect-video relative bg-gradient-to-br from-emerald-900/30 to-slate-900 flex items-center justify-center">
+                        <div className="aspect-video relative bg-emerald-50 flex items-center justify-center">
                           <Mic className="w-8 h-8 text-emerald-400" />
                         </div>
                       )}
 
                       {/* Type badge */}
-                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase bg-black/60 text-white backdrop-blur-sm">
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-none text-[9px] font-bold uppercase bg-indigo-600 text-white">
                         {asset.type}
                       </div>
 
@@ -345,7 +333,7 @@ export default function DashboardPage() {
                       <button
                         onClick={() => handleDeleteAsset(asset.id)}
                         disabled={deletingId === asset.id}
-                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-red-400 hover:text-red-300 hover:bg-red-500/30"
+                        className="absolute top-2 right-2 w-7 h-7 rounded-sm bg-white/80 backdrop-blur-sm border border-slate-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-red-500 hover:text-red-600 hover:bg-red-50"
                         data-testid={`delete-asset-${asset.id}`}
                       >
                         {deletingId === asset.id ? (
@@ -356,11 +344,11 @@ export default function DashboardPage() {
                       </button>
 
                       <div className="p-3">
-                        <p className="text-xs text-slate-400 line-clamp-2">{asset.prompt || 'No description'}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2">{asset.prompt || 'No description'}</p>
                         <div className="flex items-center justify-between mt-1.5">
-                          <p className="text-[9px] text-slate-600">{new Date(asset.createdAt).toLocaleDateString()}</p>
+                          <p className="text-[9px] text-slate-400 font-mono">{new Date(asset.createdAt).toLocaleDateString()}</p>
                           {asset.metadata?.source === 'upload' && (
-                            <span className="text-[8px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">Uploaded</span>
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-none bg-slate-100 text-slate-500 font-bold border border-slate-200">Uploaded</span>
                           )}
                         </div>
                       </div>
