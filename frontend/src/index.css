@@ -150,10 +150,20 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Hide Made with Emergent badge */
+#emergent-badge,
 [data-testid="made-with-emergent"],
 a[href*="emergentagent"],
+a[href*="emergent.sh"],
 div[class*="emergent-badge"],
 .emergent-badge,
-div[style*="z-index: 2147483647"] {
+div[style*="z-index: 2147483647"],
+a[id*="emergent"] {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: fixed !important;
+  top: -9999px !important;
 }

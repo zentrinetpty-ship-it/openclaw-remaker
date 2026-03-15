@@ -66,7 +66,7 @@ async function main() {
     concurrency: 2,
     onProgress: ({ progress }) => {
       const pct = Math.round(progress * 100);
-      if (pct >= lastProgress + 10) {
+      if (pct >= lastProgress + 5) {
         console.error(`[Remotion] Progress: ${pct}%`);
         lastProgress = pct;
       }
