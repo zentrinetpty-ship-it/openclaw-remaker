@@ -934,6 +934,89 @@ function RightSidebar({ project, primaryColor, setPrimaryColor, selectedFont, se
   );
 }
 
+const RENDER_PHASES = [
+  { key: 'prepare', label: 'Preparing', range: [0, 10], icon: Layers },
+  { key: 'voice', label: 'Generating Voices', range: [10, 40], icon: Mic },
+  { key: 'bundle', label: 'Bundling', range: [40, 50], icon: Settings },
+  { key: 'render', label: 'Rendering Frames', range: [50, 95], icon: Film },
+  { key: 'finalize', label: 'Finalizing', range: [95, 100], icon: Check },
+];
+
+function RenderProgressPanel({ progress, step }) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const currentPhase = RENDER_PHASES.find(p => progress >= p.range[0] && progress < p.range[1]) || RENDER_PHASES[RENDER_PHASES.length - 1];
+
+  return (
+    <div className="p-6" data-testid="render-progress-panel">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="relative w-14 h-14 flex items-center justify-center">
+          <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="24" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+            <circle cx="28" cy="28" r="24" fill="none" stroke="url(#prog-grad)" strokeWidth="4" strokeLinecap="round"
+              strokeDasharray={`${(progress / 100) * 150.8} 150.8`} className="transition-all duration-500" />
+            <defs><linearGradient id="prog-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#4f46e5" /><stop offset="100%" stopColor="#ec4899" /></linearGradient></defs>
+          </svg>
+          <span className="absolute text-sm font-black text-slate-900">{progress}%</span>
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-black text-slate-900">Rendering Video</h3>
+          <p className="text-xs text-slate-400 font-mono">{formatTime(elapsed)} elapsed</p>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200">
+          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+          <span className="text-[10px] font-bold text-indigo-600 uppercase">Active</span>
+        </div>
+      </div>
+
+      {/* Main progress bar */}
+      <div className="relative w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-6">
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: 'linear-gradient(90deg, #4f46e5, #8b5cf6, #ec4899)', width: `${progress}%` }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        />
+        {/* Shimmer */}
+        <div className="absolute inset-0 overflow-hidden rounded-full">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+        </div>
+      </div>
+
+      {/* Current step */}
+      <div className="flex items-center gap-2 mb-5 px-3 py-2 rounded-sm bg-slate-50 border border-slate-200">
+        <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin flex-shrink-0" />
+        <p className="text-xs text-slate-600 font-semibold truncate">{step || 'Processing...'}</p>
+      </div>
+
+      {/* Phase indicators */}
+      <div className="space-y-1">
+        {RENDER_PHASES.map((phase) => {
+          const isActive = progress >= phase.range[0] && progress < phase.range[1];
+          const isDone = progress >= phase.range[1];
+          const PhaseIcon = phase.icon;
+          return (
+            <div key={phase.key} className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-all ${isActive ? 'bg-indigo-50 border border-indigo-200' : isDone ? 'opacity-50' : 'opacity-30'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-emerald-500' : isActive ? 'bg-indigo-500' : 'bg-slate-300'}`}>
+                {isDone ? <Check className="w-3 h-3 text-white" /> : isActive ? <PhaseIcon className="w-3 h-3 text-white animate-pulse" /> : <PhaseIcon className="w-3 h-3 text-white" />}
+              </div>
+              <span className={`text-xs font-bold flex-1 ${isActive ? 'text-indigo-700' : isDone ? 'text-slate-500' : 'text-slate-400'}`}>{phase.label}</span>
+              {isDone && <span className="text-[9px] text-emerald-600 font-bold">DONE</span>}
+              {isActive && <span className="text-[9px] text-indigo-500 font-bold">IN PROGRESS</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function EditorPage() {
   const navigate = useNavigate();
   const { projectId } = useParams();
@@ -1104,49 +1187,37 @@ export default function EditorPage() {
         {showExportModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !rendering && setShowExportModal(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-md bg-white border-2 border-slate-200 rounded-md overflow-hidden shadow-[0_20px_60px_-12px_rgba(79,70,229,0.2)] p-6">
-              <div className="text-center">
-                {renderStatus === 'completed' ? (
-                  <>
-                    <div className="w-16 h-16 rounded-sm bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto mb-4">
-                      <Check className="w-8 h-8 text-emerald-500" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Video Ready!</h3>
-                    <p className="text-sm text-slate-500 mb-6">Your video has been rendered with voice narration.</p>
-                    <div className="flex gap-3 justify-center">
-                      <button onClick={() => setShowExportModal(false)} className="px-4 py-2 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm">Close</button>
-                      <a href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} download={`${project?.title || 'video'}.mp4`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-none bg-emerald-600 text-white font-bold text-sm btn-sharp" data-testid="download-video-btn">
-                        <Download className="w-4 h-4" /> Download MP4
-                      </a>
-                    </div>
-                  </>
-                ) : renderStatus === 'failed' || renderStatus === 'timeout' ? (
-                  <>
-                    <div className="w-16 h-16 rounded-sm bg-red-50 border-2 border-red-200 flex items-center justify-center mx-auto mb-4">
-                      <X className="w-8 h-8 text-red-500" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{renderStatus === 'timeout' ? 'Render Timed Out' : 'Render Failed'}</h3>
-                    <p className="text-sm text-slate-500 mb-2">{renderStatus === 'timeout' ? 'The render took too long. Please try with fewer slides.' : 'Something went wrong during rendering.'}</p>
-                    {renderStep && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded p-2 mb-4 break-words max-h-20 overflow-y-auto">{renderStep}</p>}
-                    <div className="flex gap-3 justify-center">
-                      <button onClick={() => setShowExportModal(false)} className="px-4 py-2 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm">Close</button>
-                      <button onClick={() => { setShowExportModal(false); startRender(); }} className="px-4 py-2 rounded-none bg-indigo-600 text-white font-bold text-sm btn-sharp">Retry</button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-16 h-16 rounded-sm bg-indigo-50 border-2 border-indigo-200 flex items-center justify-center mx-auto mb-4">
-                      <Film className="w-8 h-8 text-indigo-500 animate-pulse" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Rendering Video with Audio...</h3>
-                    <p className="text-sm text-slate-500 mb-4">{renderStep || 'Processing...'}</p>
-                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-2">
-                      <motion.div className="h-full bg-gradient-to-r from-indigo-500 to-pink-500" style={{ width: `${renderProgress}%` }} />
-                    </div>
-                    <p className="text-xs text-slate-400">{renderProgress}% complete</p>
-                  </>
-                )}
-              </div>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-lg bg-white border-2 border-slate-200 rounded-md overflow-hidden shadow-[0_20px_60px_-12px_rgba(79,70,229,0.2)]">
+              {renderStatus === 'completed' ? (
+                <div className="p-8 text-center">
+                  <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto mb-5">
+                    <Check className="w-10 h-10 text-emerald-500" />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2">Video Ready!</h3>
+                  <p className="text-sm text-slate-500 mb-6">Your video has been rendered successfully with voice narration.</p>
+                  <div className="flex gap-3 justify-center">
+                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2.5 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition">Close</button>
+                    <a href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} download={`${project?.title || 'video'}.mp4`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-none bg-emerald-600 text-white font-bold text-sm btn-sharp hover:bg-emerald-700 transition" data-testid="download-video-btn">
+                      <Download className="w-4 h-4" /> Download MP4
+                    </a>
+                  </div>
+                </div>
+              ) : renderStatus === 'failed' || renderStatus === 'timeout' ? (
+                <div className="p-8 text-center">
+                  <div className="w-20 h-20 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center mx-auto mb-5">
+                    <X className="w-10 h-10 text-red-500" />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 mb-2">{renderStatus === 'timeout' ? 'Render Timed Out' : 'Render Failed'}</h3>
+                  <p className="text-sm text-slate-500 mb-3">{renderStatus === 'timeout' ? 'The render took too long. Please try with fewer slides.' : 'Something went wrong during rendering.'}</p>
+                  {renderStep && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-sm p-3 mb-5 text-left break-words max-h-24 overflow-y-auto font-mono">{renderStep}</p>}
+                  <div className="flex gap-3 justify-center">
+                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2.5 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm">Close</button>
+                    <button onClick={() => { setShowExportModal(false); startRender(); }} className="px-5 py-2.5 rounded-none bg-indigo-600 text-white font-bold text-sm btn-sharp">Retry</button>
+                  </div>
+                </div>
+              ) : (
+                <RenderProgressPanel progress={renderProgress} step={renderStep} />
+              )}
             </motion.div>
           </motion.div>
         )}

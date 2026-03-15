@@ -149,6 +149,16 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 12px 40px -8px rgba(79, 70, 229, 0.15);
 }
 
+/* Shimmer animation for progress bar */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+
 /* Hide Made with Emergent badge */
 #emergent-badge,
 [data-testid="made-with-emergent"],
