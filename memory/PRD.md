@@ -176,6 +176,26 @@ Build ExplainaPro - an AI-powered cinematic video creation platform with 13 vide
 - [x] **POST /api/audio/duration**: Helper endpoint for frontend to query audio file durations
 - [x] Testing: 100% backend (11/11), 100% frontend
 
+### Phase 14 - Enhanced Editor Controls (March 15)
+- [x] **SFX "Use" Button**: Each SFX item now has a "Use" button to assign it to the currently selected slide, with "Active" state toggle
+- [x] **Per-slide SFX Assignment**: Slides store `sfxUrl` and `sfxName`, SFX icon shows on slide cards when assigned
+- [x] **SFX Removal**: Click "Active" SFX or the X button to remove SFX from a slide
+- [x] **SFX in Render**: SFX audio is passed through the render pipeline and played in Remotion output
+- [x] **Music Volume Fix**: Changed Slider from `defaultValue` to `value` prop for reactive volume control
+- [x] **Caption Font Selection**: Dropdown with 9 font options (Liberation Sans, Arial, Georgia, Courier New, Impact, Verdana, Trebuchet MS, Comic Sans MS, Times New Roman)
+- [x] **Caption Font Size**: Slider control (24px-72px) for caption text size
+- [x] **Caption Position**: Top/Center/Bottom selector for caption placement
+- [x] **Caption Custom Colors**: Text and Background color pickers with hex input and Reset buttons
+- [x] **Caption Live Preview**: Preview box at bottom of Captions tab showing current styling
+- [x] **Slide Title Text Edit**: Inline editable title input per slide
+- [x] **Slide Title Position**: 4-position grid (Top Left, Top Center, Bottom Left, Bottom Center) with amber highlighting
+- [x] **Slide Title Visibility**: Toggle to show/hide title overlay per slide
+- [x] **Per-Slide Narration Edit**: Textarea to edit narration directly in Script tab
+- [x] **Per-Slide Duration/Transition**: Inline controls for duration and transition type per slide
+- [x] **Render Pipeline Updated**: All new caption props (font, color, bgColor, position, size) and SFX pass through backend to Remotion
+- [x] **Render Worker Robustness**: Auto-installs node and remotion node_modules if missing
+- [x] Testing: 100% backend (6/6), 100% frontend
+
 ## Backlog (P1/P2)
 - P1: Real stock asset search integration (Pixabay/Pexels)
 - P1: Real SFX generation (ElevenLabs)
