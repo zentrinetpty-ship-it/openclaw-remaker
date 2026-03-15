@@ -18,7 +18,7 @@ import shutil
 import sys
 import json
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from google import genai
 
 ROOT_DIR = Path(__file__).parent
@@ -198,14 +198,13 @@ SECRET_KEY = os.getenv("JWT_SECRET", "explainapro-secret-key-change-in-productio
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer(auto_error=False)
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return _bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return _bcrypt.hashpw(password.encode('utf-8'), _bcrypt.gensalt()).decode('utf-8')
+
+security = HTTPBearer(auto_error=False)
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
@@ -444,41 +443,53 @@ async def root():
 @api_router.post("/auth/register")
 async def register(data: UserRegister):
     """Register a new user."""
-    existing = await db.users.find_one({"email": data.email.lower()})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    user_id = str(uuid.uuid4())
-    user_doc = {
-        "id": user_id,
-        "email": data.email.lower(),
-        "password": get_password_hash(data.password),
-        "name": data.name or data.email.split("@")[0],
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "subscriptionTier": "free"
-    }
-    await db.users.insert_one(user_doc)
-    
-    token = create_access_token({"sub": user_id})
-    return {
-        "success": True,
-        "token": token,
-        "user": {"id": user_id, "email": user_doc["email"], "name": user_doc["name"]}
-    }
+    try:
+        existing = await db.users.find_one({"email": data.email.lower()})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        user_id = str(uuid.uuid4())
+        user_doc = {
+            "id": user_id,
+            "email": data.email.lower(),
+            "password": get_password_hash(data.password),
+            "name": data.name or data.email.split("@")[0],
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "subscriptionTier": "free"
+        }
+        await db.users.insert_one(user_doc)
+        
+        token = create_access_token({"sub": user_id})
+        return {
+            "success": True,
+            "token": token,
+            "user": {"id": user_id, "email": user_doc["email"], "name": user_doc["name"]}
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @api_router.post("/auth/login")
 async def login(data: UserLogin):
     """Login user."""
-    user = await db.users.find_one({"email": data.email.lower()})
-    if not user or not verify_password(data.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    token = create_access_token({"sub": user["id"]})
-    return {
-        "success": True,
-        "token": token,
-        "user": {"id": user["id"], "email": user["email"], "name": user.get("name", "")}
-    }
+    try:
+        user = await db.users.find_one({"email": data.email.lower()})
+        if not user or not verify_password(data.password, user["password"]):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        token = create_access_token({"sub": user["id"]})
+        return {
+            "success": True,
+            "token": token,
+            "user": {"id": user["id"], "email": user["email"], "name": user.get("name", "")}
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @api_router.get("/auth/me")
 async def get_me(user: dict = Depends(require_auth)):
@@ -1647,8 +1658,7 @@ app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

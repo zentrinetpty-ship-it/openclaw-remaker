@@ -17,21 +17,17 @@ export default function AuthModal({ isOpen, onClose }) {
     e.preventDefault();
     setLoading(true);
     setError('');
-    try {
-      let result;
-      if (mode === 'login') {
-        result = await login(email, password);
-      } else {
-        result = await register(email, password, name);
-      }
-      if (result.success) {
-        onClose();
-        setEmail(''); setPassword(''); setName('');
-      } else {
-        setError(result.error || 'Something went wrong');
-      }
-    } catch (e) {
-      setError(e.response?.data?.detail || e.message || 'An error occurred');
+    let result;
+    if (mode === 'login') {
+      result = await login(email, password);
+    } else {
+      result = await register(email, password, name);
+    }
+    if (result.success) {
+      onClose();
+      setEmail(''); setPassword(''); setName('');
+    } else {
+      setError(result.error || 'Something went wrong');
     }
     setLoading(false);
   };

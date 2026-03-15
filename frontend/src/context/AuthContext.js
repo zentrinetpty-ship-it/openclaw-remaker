@@ -44,23 +44,37 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = useCallback(async (email, password) => {
-    const res = await axios.post(`${API}/auth/login`, { email, password });
-    if (res.data.success) {
-      setToken(res.data.token);
-      setUser(res.data.user);
-      return { success: true };
+    try {
+      const res = await axios.post(`${API}/auth/login`, { email, password }, { timeout: 15000 });
+      if (res.data.success) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        return { success: true };
+      }
+      return { success: false, error: 'Login failed' };
+    } catch (e) {
+      if (e.code === 'ERR_NETWORK' || !e.response) {
+        return { success: false, error: 'Unable to connect to server. Please check your internet connection and try again.' };
+      }
+      return { success: false, error: e.response?.data?.detail || e.message || 'Login failed' };
     }
-    return { success: false, error: 'Login failed' };
   }, []);
 
   const register = useCallback(async (email, password, name) => {
-    const res = await axios.post(`${API}/auth/register`, { email, password, name });
-    if (res.data.success) {
-      setToken(res.data.token);
-      setUser(res.data.user);
-      return { success: true };
+    try {
+      const res = await axios.post(`${API}/auth/register`, { email, password, name }, { timeout: 15000 });
+      if (res.data.success) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        return { success: true };
+      }
+      return { success: false, error: 'Registration failed' };
+    } catch (e) {
+      if (e.code === 'ERR_NETWORK' || !e.response) {
+        return { success: false, error: 'Unable to connect to server. Please check your internet connection and try again.' };
+      }
+      return { success: false, error: e.response?.data?.detail || e.message || 'Registration failed' };
     }
-    return { success: false, error: 'Registration failed' };
   }, []);
 
   const logout = useCallback(() => {
