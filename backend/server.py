@@ -17,6 +17,7 @@ import subprocess
 import shutil
 import sys
 import json
+import time
 from jose import JWTError, jwt
 import bcrypt as _bcrypt
 from google import genai
@@ -1585,13 +1586,32 @@ async def get_audio_duration_endpoint(request: Dict[str, Any] = Body(...)):
 RENDER_JOBS_DIR = RENDERS_DIR / "jobs"
 RENDER_JOBS_DIR.mkdir(exist_ok=True)
 
+# Clean up stuck render jobs from previous sessions
+for _sf in RENDER_JOBS_DIR.glob("*.status.json"):
+    try:
+        with open(_sf, 'r') as _f:
+            _st = json.load(_f)
+        if _st.get('status') in ('processing', 'pending'):
+            with open(_sf, 'w') as _f:
+                json.dump({"status": "failed", "error": "Render was interrupted by a server restart. Please try again."}, _f)
+    except Exception:
+        pass
+
 def read_render_status(job_id):
-    """Read render status from disk."""
+    """Read render status from disk. Detect stuck jobs."""
     status_file = RENDER_JOBS_DIR / f"{job_id}.status.json"
     if status_file.exists():
         try:
             with open(status_file, 'r') as f:
-                return json.load(f)
+                status = json.load(f)
+            # Detect stuck jobs: if processing for more than 10 minutes, mark as failed
+            if status.get('status') == 'processing':
+                file_age = time.time() - os.path.getmtime(str(status_file))
+                if file_age > 600:  # 10 minutes
+                    status = {"status": "failed", "error": "Render timed out. The process may have been interrupted. Please try again."}
+                    with open(status_file, 'w') as f:
+                        json.dump(status, f)
+            return status
         except Exception:
             pass
     return None

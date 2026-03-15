@@ -1,1 +1,1 @@
-{"status": "processing", "progress": 48, "step": "Preparing frames..."}
+{"status": "failed", "error": "Render was interrupted by a server restart. Please try again."}

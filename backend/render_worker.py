@@ -193,17 +193,32 @@ async def run_render(job_file):
         
         # Run Remotion
         remotion_dir = ROOT_DIR.parent / "remotion"
-        node_path = shutil.which('node')
+        
+        # Find node - check common paths directly
+        node_path = None
+        for p in ['/usr/bin/node', '/usr/local/bin/node']:
+            if os.path.isfile(p) and os.access(p, os.X_OK):
+                node_path = p
+                break
         if not node_path:
-            # Try installing node if missing
-            logger.warning("node not found, attempting install...")
-            import subprocess as sp
-            sp.run(['apt-get', 'update', '-qq'], capture_output=True, timeout=60)
-            sp.run(['apt-get', 'install', '-y', '-qq', 'nodejs'], capture_output=True, timeout=120)
             node_path = shutil.which('node')
         if not node_path:
-            write_status(status_file, {"status": "failed", "error": "Node.js is not installed. Please restart the server to auto-install dependencies."})
+            # Try installing node
+            logger.warning("node not found anywhere, attempting install...")
+            import subprocess as sp
+            sp.run(['apt-get', 'update', '-qq'], capture_output=True, timeout=60)
+            sp.run(['apt-get', 'install', '-y', '-qq', 'nodejs', 'npm'], capture_output=True, timeout=120)
+            for p in ['/usr/bin/node', '/usr/local/bin/node']:
+                if os.path.isfile(p) and os.access(p, os.X_OK):
+                    node_path = p
+                    break
+            if not node_path:
+                node_path = shutil.which('node')
+        if not node_path:
+            write_status(status_file, {"status": "failed", "error": "Node.js could not be found or installed. Please contact support."})
             return
+        
+        logger.info(f"Using node at: {node_path}")
         
         # Ensure remotion node_modules exist
         if not (remotion_dir / 'node_modules').exists():
