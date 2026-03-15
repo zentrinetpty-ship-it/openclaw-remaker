@@ -48,7 +48,7 @@ const VOICES = [
 function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCategory, primaryColor, selectedSlideId, setSelectedSlideId, selectedVoice, setSelectedVoice }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   const { setProject } = useProjectStore();
-  const { activeCaptionStyleId, setActiveCaptionStyleId, captionMode, setCaptionMode } = useCaptionStore();
+  const { activeCaptionStyleId, setActiveCaptionStyleId, captionMode, setCaptionMode, captionFont, setCaptionFont, captionColor, setCaptionColor, captionBgColor, setCaptionBgColor, captionPosition, setCaptionPosition, captionSize, setCaptionSize } = useCaptionStore();
   const [generating, setGenerating] = useState({});
   const [playingAudio, setPlayingAudio] = useState(null);
   const [editingPrompts, setEditingPrompts] = useState({});
@@ -214,6 +214,7 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                     <div className="flex items-center gap-2">
                       <p className="text-xs font-bold text-slate-900 truncate">{slide.title}</p>
                       {slide.voiceUrl && <Mic className="w-3 h-3 text-emerald-500" />}
+                      {slide.sfxUrl && <Volume1 className="w-3 h-3 text-pink-500" />}
                     </div>
                     <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5">{slide.narration}</p>
                     <div className="flex items-center gap-2 mt-1 text-[9px] text-slate-400 font-semibold">
@@ -221,9 +222,51 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                       <span>·</span>
                       <span className="capitalize">{slide.transition || 'fade'}</span>
                       {slide.vfx && slide.vfx !== 'none' && <span className="text-indigo-500">· {slide.vfx}</span>}
+                      {slide.titlePosition && slide.titlePosition !== 'hidden' && <span className="text-amber-500">· Title: {slide.titlePosition}</span>}
                     </div>
                   </div>
                 </div>
+                {selectedSlideId === slide.id && (
+                  <div className="mt-3 pt-3 border-t border-slate-200 space-y-2" onClick={(e) => e.stopPropagation()}>
+                    <div>
+                      <label className="text-[9px] text-slate-500 font-bold uppercase">Title Text</label>
+                      <input type="text" value={slide.title || ''} onChange={(e) => updateSlide(slide.id, { title: e.target.value })} className="w-full bg-white border-2 border-slate-200 rounded-sm px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 outline-none mt-0.5" data-testid={`slide-title-input-${idx}`} />
+                    </div>
+                    <div>
+                      <label className="text-[9px] text-slate-500 font-bold uppercase">Title Position</label>
+                      <div className="grid grid-cols-4 gap-1 mt-1">
+                        {[
+                          { id: 'top-left', label: 'Top L' },
+                          { id: 'top-center', label: 'Top C' },
+                          { id: 'bottom-left', label: 'Bot L' },
+                          { id: 'bottom-center', label: 'Bot C' },
+                        ].map(pos => (
+                          <button key={pos.id} onClick={() => updateSlide(slide.id, { titlePosition: pos.id })} className={`py-1 rounded-none text-[8px] font-bold border-2 transition ${(slide.titlePosition || 'bottom-center') === pos.id ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-400 border-slate-200'}`} data-testid={`title-pos-${pos.id}-${idx}`}>{pos.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase">Show Title</label>
+                      <button onClick={() => updateSlide(slide.id, { titlePosition: slide.titlePosition === 'hidden' ? 'bottom-center' : 'hidden' })} className={`px-2 py-0.5 rounded-none text-[9px] font-bold border-2 transition ${slide.titlePosition === 'hidden' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-emerald-50 text-emerald-600 border-emerald-300'}`} data-testid={`title-toggle-${idx}`}>{slide.titlePosition === 'hidden' ? 'Hidden' : 'Visible'}</button>
+                    </div>
+                    <div>
+                      <label className="text-[9px] text-slate-500 font-bold uppercase">Narration</label>
+                      <textarea value={slide.narration || ''} onChange={(e) => updateSlide(slide.id, { narration: e.target.value })} rows={2} className="w-full bg-white border-2 border-slate-200 rounded-sm px-2 py-1.5 text-[10px] text-slate-900 focus:border-indigo-500 outline-none mt-0.5 resize-none" />
+                    </div>
+                    <div className="flex gap-2">
+                      <label className="flex-1">
+                        <span className="text-[9px] text-slate-500 font-bold">Duration (s)</span>
+                        <input type="number" min={1} max={30} step={1} value={slide.duration || 6} onChange={(e) => updateSlide(slide.id, { duration: parseInt(e.target.value) || 6 })} className="w-full bg-white border-2 border-slate-200 rounded-sm px-2 py-1 text-xs text-slate-900 focus:border-indigo-500 outline-none" />
+                      </label>
+                      <label className="flex-1">
+                        <span className="text-[9px] text-slate-500 font-bold">Transition</span>
+                        <select value={slide.transition || 'fade'} onChange={(e) => updateSlide(slide.id, { transition: e.target.value })} className="w-full bg-white border-2 border-slate-200 rounded-sm px-2 py-1 text-xs text-slate-900 focus:border-indigo-500 outline-none">
+                          {TRANSITION_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -380,7 +423,7 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                   <audio controls src={project.bgmUrl.startsWith('/api/') ? `${API.replace('/api', '')}${project.bgmUrl}` : project.bgmUrl} className="w-full h-8" data-testid="bgm-audio-player" />
                   <div className="flex items-center gap-2">
                     <Volume2 className="w-3 h-3 text-slate-400" />
-                    <Slider defaultValue={[project.bgmVolume || 0.4]} max={1} step={0.1} className="flex-1" data-testid="bgm-volume-slider" onValueChange={(v) => { useProjectStore.getState().setBgmVolume(v[0]); }} />
+                    <Slider value={[project.bgmVolume || 0.4]} max={1} step={0.1} className="flex-1" data-testid="bgm-volume-slider" onValueChange={(v) => { useProjectStore.getState().setBgmVolume(v[0]); }} />
                     <span className="text-[10px] text-slate-500 w-8 text-right">{Math.round((project.bgmVolume || 0.4) * 100)}%</span>
                   </div>
                   <button onClick={() => { useProjectStore.getState().setBgmUrl(null); setProject({ ...project, bgmUrl: null, bgmName: null }); }} className="w-full px-2 py-1.5 rounded-none text-[10px] bg-red-50 text-red-500 hover:bg-red-100 border-2 border-red-200 transition font-bold" data-testid="remove-bgm-btn">
@@ -436,6 +479,14 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 
             <div>
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Sound Effects <span className="text-[9px] text-slate-400 font-normal ml-1">{sfxLibrary.total || 0} sounds</span></h3>
+              {selectedSlideId && project?.slides?.find(s => s.id === selectedSlideId)?.sfxUrl && (
+                <div className="flex items-center gap-2 p-2 mb-2 rounded-sm bg-pink-50 border-2 border-pink-200">
+                  <Volume1 className="w-3.5 h-3.5 text-pink-500" />
+                  <span className="text-[10px] text-pink-700 font-bold flex-1 truncate">Slide SFX: {project.slides.find(s => s.id === selectedSlideId)?.sfxName || 'Custom'}</span>
+                  <button onClick={() => updateSlide(selectedSlideId, { sfxUrl: null, sfxName: null })} className="text-[9px] text-red-500 font-bold hover:text-red-700"><X className="w-3 h-3" /></button>
+                </div>
+              )}
+              <p className="text-[9px] text-slate-400 mb-2">Select a slide first, then click "Use" to add SFX</p>
               <div className="flex flex-wrap gap-1 mb-3">
                 <button onClick={() => setSfxFilter('all')} className={`px-2 py-0.5 rounded-none text-[9px] font-bold border-2 transition ${sfxFilter === 'all' ? 'bg-pink-50 text-pink-600 border-pink-300' : 'bg-white text-slate-400 border-slate-200'}`} data-testid="sfx-filter-all">All</button>
                 {sfxLibrary.categories?.map(c => (
@@ -444,7 +495,7 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
               </div>
               <div className="space-y-1 max-h-[250px] overflow-y-auto pr-1">
                 {(sfxFilter === 'all' ? sfxLibrary.sounds : sfxLibrary.sounds?.filter(s => s.category === sfxFilter))?.map(sfx => (
-                  <div key={sfx.id} className="flex items-center gap-2 p-2 rounded-sm bg-white border-2 border-slate-200 hover:border-slate-300 transition group" data-testid={`sfx-item-${sfx.id}`}>
+                  <div key={sfx.id} className={`flex items-center gap-2 p-2 rounded-sm border-2 transition group ${project?.slides?.find(s => s.id === selectedSlideId)?.sfxUrl === sfx.url ? 'bg-pink-50 border-pink-300' : 'bg-white border-slate-200 hover:border-slate-300'}`} data-testid={`sfx-item-${sfx.id}`}>
                     <button onClick={() => { if (previewingTrack === sfx.id) { previewAudioRef.current?.pause(); setPreviewingTrack(null); } else { if (previewAudioRef.current) { previewAudioRef.current.src = `${API.replace('/api', '')}${sfx.url}`; previewAudioRef.current.play().catch(() => {}); } setPreviewingTrack(sfx.id); } }} className="w-6 h-6 rounded-sm bg-slate-100 group-hover:bg-pink-500 flex items-center justify-center flex-shrink-0 transition">
                       {previewingTrack === sfx.id ? <Square className="w-2.5 h-2.5 text-slate-500 group-hover:text-white" /> : <Play className="w-2.5 h-2.5 text-slate-500 group-hover:text-white ml-0.5" />}
                     </button>
@@ -452,7 +503,9 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                       <p className="text-[10px] text-slate-900 font-bold truncate">{sfx.name}</p>
                       <p className="text-[9px] text-slate-400 truncate">{sfx.description} &middot; {sfx.duration}s</p>
                     </div>
-                    <span className="px-1.5 py-0.5 rounded-none text-[8px] bg-slate-100 text-slate-500 capitalize flex-shrink-0 font-bold border border-slate-200">{sfx.category}</span>
+                    <button onClick={() => { if (selectedSlideId) { const currentSlide = project?.slides?.find(s => s.id === selectedSlideId); if (currentSlide?.sfxUrl === sfx.url) { updateSlide(selectedSlideId, { sfxUrl: null, sfxName: null }); } else { updateSlide(selectedSlideId, { sfxUrl: sfx.url, sfxName: sfx.name }); } } }} className={`px-2 py-0.5 rounded-none text-[9px] font-bold flex-shrink-0 transition ${project?.slides?.find(s => s.id === selectedSlideId)?.sfxUrl === sfx.url ? 'bg-pink-600 text-white' : 'bg-pink-50 text-pink-600 border border-pink-200 hover:bg-pink-100'}`} data-testid={`sfx-use-${sfx.id}`}>
+                      {project?.slides?.find(s => s.id === selectedSlideId)?.sfxUrl === sfx.url ? 'Active' : 'Use'}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -529,12 +582,74 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                 </button>
               ))}
             </div>
+
             <div>
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Mode</h4>
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Display Mode</h4>
               <div className="flex gap-1">
                 {['sentence', 'lines', 'words'].map(m => (
-                  <button key={m} onClick={() => setCaptionMode(m)} className={`flex-1 py-1.5 rounded-none text-xs font-bold border-2 transition ${captionMode === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-400 border-slate-200'}`}>{m}</button>
+                  <button key={m} onClick={() => setCaptionMode(m)} className={`flex-1 py-1.5 rounded-none text-xs font-bold border-2 transition capitalize ${captionMode === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-400 border-slate-200'}`} data-testid={`caption-mode-${m}`}>{m}</button>
                 ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-200" />
+
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Position</h4>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: 'top', label: 'Top' },
+                  { id: 'center', label: 'Center' },
+                  { id: 'bottom', label: 'Bottom' },
+                ].map(pos => (
+                  <button key={pos.id} onClick={() => setCaptionPosition(pos.id)} className={`py-1.5 rounded-none text-[10px] font-bold border-2 transition ${captionPosition === pos.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-400 border-slate-200'}`} data-testid={`caption-pos-${pos.id}`}>{pos.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Font</h4>
+              <select value={captionFont} onChange={(e) => setCaptionFont(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-200 rounded-sm px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 outline-none" data-testid="caption-font-select">
+                {['Liberation Sans', 'Arial', 'Georgia', 'Courier New', 'Impact', 'Verdana', 'Trebuchet MS', 'Comic Sans MS', 'Times New Roman'].map(f => (
+                  <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Font Size: {captionSize}px</h4>
+              <Slider value={[captionSize]} min={24} max={72} step={2} className="w-full" onValueChange={(v) => setCaptionSize(v[0])} data-testid="caption-size-slider" />
+              <div className="flex justify-between text-[8px] text-slate-400 mt-1"><span>24px</span><span>72px</span></div>
+            </div>
+
+            <div className="h-px bg-slate-200" />
+
+            <div>
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Custom Colors <span className="text-[8px] text-slate-300 font-normal">(leave empty for preset)</span></h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-[9px] text-slate-500 font-bold w-16">Text</label>
+                  <input type="color" value={captionColor || '#ffffff'} onChange={(e) => setCaptionColor(e.target.value)} className="w-7 h-7 rounded-sm border-2 border-slate-200 cursor-pointer p-0.5" data-testid="caption-text-color" />
+                  <input type="text" value={captionColor} onChange={(e) => setCaptionColor(e.target.value)} placeholder="Auto" className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-sm px-2 py-1 text-[10px] text-slate-900 focus:border-indigo-500 outline-none" />
+                  {captionColor && <button onClick={() => setCaptionColor('')} className="text-[9px] text-red-400 font-bold">Reset</button>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[9px] text-slate-500 font-bold w-16">Background</label>
+                  <input type="color" value={captionBgColor || '#000000'} onChange={(e) => setCaptionBgColor(e.target.value)} className="w-7 h-7 rounded-sm border-2 border-slate-200 cursor-pointer p-0.5" data-testid="caption-bg-color" />
+                  <input type="text" value={captionBgColor} onChange={(e) => setCaptionBgColor(e.target.value)} placeholder="Auto" className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-sm px-2 py-1 text-[10px] text-slate-900 focus:border-indigo-500 outline-none" />
+                  {captionBgColor && <button onClick={() => setCaptionBgColor('')} className="text-[9px] text-red-400 font-bold">Reset</button>}
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-200" />
+            
+            <div className="p-3 rounded-md bg-slate-50 border-2 border-slate-200">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Preview</h4>
+              <div className="w-full h-20 rounded-sm bg-slate-900 relative overflow-hidden flex items-center justify-center" style={{ alignItems: captionPosition === 'top' ? 'flex-start' : captionPosition === 'center' ? 'center' : 'flex-end', padding: '8px' }}>
+                <div className="px-3 py-1 rounded-sm" style={{ background: captionBgColor || (CAPTION_STYLES.find(s => s.id === activeCaptionStyleId)?.bg || 'rgba(0,0,0,0.7)'), color: captionColor || (CAPTION_STYLES.find(s => s.id === activeCaptionStyleId)?.text || '#fff'), fontFamily: captionFont, fontSize: `${Math.min(captionSize * 0.35, 16)}px`, fontWeight: 700, textShadow: CAPTION_STYLES.find(s => s.id === activeCaptionStyleId)?.id === 'neon' ? '0 0 4px currentColor' : 'none' }}>
+                  Sample caption text
+                </div>
               </div>
             </div>
           </div>
@@ -706,7 +821,7 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
 
 function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSlideId }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
-  const { activeCaptionStyleId } = useCaptionStore();
+  const { activeCaptionStyleId, captionFont, captionColor, captionBgColor, captionPosition, captionSize } = useCaptionStore();
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [globalTime, setGlobalTime] = useState(0);
@@ -806,9 +921,21 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
           </div>
           
           {currentSlide?.narration && activeCaptionStyleId && (
-            <div className="absolute bottom-14 left-4 right-4 flex justify-center">
-              <div style={captionCss} className="max-w-[80%]">
-                <p className="text-sm text-center leading-relaxed">{currentSlide.narration}</p>
+            <div className={`absolute left-4 right-4 flex justify-center ${captionPosition === 'top' ? 'top-14' : captionPosition === 'center' ? 'top-1/2 -translate-y-1/2' : 'bottom-14'}`}>
+              <div style={{ ...captionCss, fontFamily: captionFont || captionCss.fontFamily, color: captionColor || captionCss.color, background: captionBgColor || captionCss.background, fontSize: `${Math.max(10, captionSize * 0.32)}px` }} className="max-w-[80%]">
+                <p className="text-center leading-relaxed">{currentSlide.narration}</p>
+              </div>
+            </div>
+          )}
+          
+          {currentSlide?.title && currentSlide?.titlePosition !== 'hidden' && (
+            <div className={`absolute px-4 ${
+              (currentSlide.titlePosition || 'bottom-center').includes('top') ? 'top-14' : 'bottom-14'
+            } ${
+              (currentSlide.titlePosition || 'bottom-center').includes('left') ? 'left-4 text-left' : 'left-1/2 -translate-x-1/2 text-center'
+            }`}>
+              <div className="px-4 py-1.5 rounded-sm bg-black/70 backdrop-blur">
+                <p className="text-sm font-bold text-white">{currentSlide.title}</p>
               </div>
             </div>
           )}
@@ -1023,7 +1150,7 @@ export default function EditorPage() {
   const { user } = useAuth();
   const { project, setProject, updateSlide, videoCategory } = useProjectStore();
   const { primaryColor, setPrimaryColor, selectedFont, setSelectedFont } = useBrandKitStore();
-  const { activeCaptionStyleId, setActiveCaptionStyleId, captionMode, setCaptionMode } = useCaptionStore();
+  const { activeCaptionStyleId, setActiveCaptionStyleId, captionMode, setCaptionMode, captionFont, captionColor, captionBgColor, captionPosition, captionSize } = useCaptionStore();
   const [activeTab, setActiveTab] = useState('script');
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
@@ -1099,7 +1226,7 @@ export default function EditorPage() {
     }
     setRendering(true); setRenderProgress(0); setRenderStatus('starting'); setRenderStep('Initializing...'); setShowExportModal(true);
     try {
-      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: selectedVoice, captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4 });
+      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: selectedVoice, captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', captionFont: captionFont || null, captionColor: captionColor || null, captionBgColor: captionBgColor || null, captionPosition: captionPosition || 'bottom', captionSize: captionSize || 44, bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4 });
       if (res.data.success) {
         const jobId = res.data.jobId;
         setRenderStatus('processing');

@@ -26,7 +26,7 @@ function splitIntoLines(text, maxWordsPerLine = 8) {
   return lines;
 }
 
-function WordByWord({ text, style, durationInFrames }) {
+function WordByWord({ text, style, durationInFrames, fontSize, fontFamily }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const words = text.split(" ");
@@ -40,7 +40,7 @@ function WordByWord({ text, style, durationInFrames }) {
         const isHighlighted = i <= currentWordIndex;
         const wordScale = spring({ frame: Math.max(0, frame - wordEnterFrame), fps, config: { damping: 50, stiffness: 300 }, durationInFrames: 8 });
         return (
-          <span key={i} style={{ color: style.color, fontFamily: "'Liberation Sans', Arial, sans-serif", fontSize: 44, fontWeight: style.fontWeight, textShadow: style.textShadow || "none", opacity: isHighlighted ? 1 : 0.3, transform: `scale(${interpolate(wordScale, [0, 1], [0.8, 1])})`, display: "inline-block" }}>
+          <span key={i} style={{ color: style.color, fontFamily, fontSize, fontWeight: style.fontWeight, textShadow: style.textShadow || "none", opacity: isHighlighted ? 1 : 0.3, transform: `scale(${interpolate(wordScale, [0, 1], [0.8, 1])})`, display: "inline-block" }}>
             {word}
           </span>
         );
@@ -49,7 +49,7 @@ function WordByWord({ text, style, durationInFrames }) {
   );
 }
 
-function LineByLine({ text, style, durationInFrames }) {
+function LineByLine({ text, style, durationInFrames, fontSize, fontFamily }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const lines = splitIntoLines(text);
@@ -64,14 +64,14 @@ function LineByLine({ text, style, durationInFrames }) {
 
   return (
     <div style={{ padding: style.bg !== "transparent" ? "14px 28px" : "14px 0", background: style.bg, borderRadius: style.borderRadius || 0, backdropFilter: style.backdropFilter || "none", textAlign: "center", maxWidth: "80%" }}>
-      <span style={{ color: style.color, fontFamily: "'Liberation Sans', Arial, sans-serif", fontSize: 44, fontWeight: style.fontWeight, textShadow: style.textShadow || "none", opacity: enterOpacity * exitOpacity, transform: `scale(${interpolate(enterScale, [0, 1], [0.9, 1])})`, display: "inline-block" }}>
+      <span style={{ color: style.color, fontFamily, fontSize, fontWeight: style.fontWeight, textShadow: style.textShadow || "none", opacity: enterOpacity * exitOpacity, transform: `scale(${interpolate(enterScale, [0, 1], [0.9, 1])})`, display: "inline-block" }}>
         {currentLine}
       </span>
     </div>
   );
 }
 
-function Sentence({ text, style, durationInFrames }) {
+function Sentence({ text, style, durationInFrames, fontSize, fontFamily }) {
   const frame = useCurrentFrame();
   const enterOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
   const exitOpacity = interpolate(frame, [durationInFrames - 15, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -79,19 +79,49 @@ function Sentence({ text, style, durationInFrames }) {
 
   return (
     <div style={{ padding: style.bg !== "transparent" ? "16px 32px" : "16px 0", background: style.bg, borderRadius: style.borderRadius || 0, backdropFilter: style.backdropFilter || "none", textAlign: "center", maxWidth: "80%", opacity: enterOpacity * exitOpacity, transform: `translateY(${yOffset}px)` }}>
-      <span style={{ color: style.color, fontFamily: "'Liberation Sans', Arial, sans-serif", fontSize: 42, fontWeight: style.fontWeight, textShadow: style.textShadow || "none", lineHeight: 1.4 }}>
+      <span style={{ color: style.color, fontFamily, fontSize, fontWeight: style.fontWeight, textShadow: style.textShadow || "none", lineHeight: 1.4 }}>
         {text}
       </span>
     </div>
   );
 }
 
-export const AnimatedCaption = ({ text, styleId = "minimal", durationInFrames, captionMode = "words" }) => {
+export const AnimatedCaption = ({
+  text,
+  styleId = "minimal",
+  durationInFrames,
+  captionMode = "words",
+  customFont,
+  customColor,
+  customBgColor,
+  position = "bottom",
+  fontSize = 44,
+}) => {
   const frame = useCurrentFrame();
-  const style = CAPTION_STYLES[styleId] || CAPTION_STYLES.minimal;
+  const baseStyle = CAPTION_STYLES[styleId] || CAPTION_STYLES.minimal;
+
+  // Apply custom overrides
+  const style = {
+    ...baseStyle,
+    ...(customColor ? { color: customColor } : {}),
+    ...(customBgColor ? { bg: customBgColor } : {}),
+  };
+
+  const fontFamily = customFont
+    ? `'${customFont}', 'Liberation Sans', Arial, sans-serif`
+    : "'Liberation Sans', Arial, sans-serif";
 
   const containerOpacity = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" });
   const fadeOutOpacity = interpolate(frame, [durationInFrames - 15, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
+  // Position mapping
+  const positionStyles = {
+    top: { justifyContent: "flex-start", padding: "80px 60px 0" },
+    center: { justifyContent: "center", padding: "0 60px" },
+    bottom: { justifyContent: "flex-end", padding: "0 60px 80px" },
+  };
+
+  const posStyle = positionStyles[position] || positionStyles.bottom;
 
   let CaptionComponent;
   if (captionMode === "lines") CaptionComponent = LineByLine;
@@ -99,8 +129,14 @@ export const AnimatedCaption = ({ text, styleId = "minimal", durationInFrames, c
   else CaptionComponent = WordByWord;
 
   return (
-    <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", padding: "0 60px 80px", opacity: containerOpacity * fadeOutOpacity }}>
-      <CaptionComponent text={text} style={style} durationInFrames={durationInFrames} />
+    <AbsoluteFill style={{ ...posStyle, alignItems: "center", opacity: containerOpacity * fadeOutOpacity }}>
+      <CaptionComponent
+        text={text}
+        style={style}
+        durationInFrames={durationInFrames}
+        fontSize={fontSize}
+        fontFamily={fontFamily}
+      />
     </AbsoluteFill>
   );
 };

@@ -1287,6 +1287,11 @@ class RenderRequest(BaseModel):
     voiceId: str = "en-US-Journey-D"
     captionStyleId: Optional[str] = None
     captionMode: str = "words"
+    captionFont: Optional[str] = None
+    captionColor: Optional[str] = None
+    captionBgColor: Optional[str] = None
+    captionPosition: str = "bottom"
+    captionSize: int = 44
     bgmUrl: Optional[str] = None
     bgmVolume: float = 0.4
 
@@ -1602,6 +1607,11 @@ async def start_render(request: RenderRequest):
         "voice_id": request.voiceId,
         "caption_style_id": request.captionStyleId,
         "caption_mode": request.captionMode,
+        "caption_font": request.captionFont,
+        "caption_color": request.captionColor,
+        "caption_bg_color": request.captionBgColor,
+        "caption_position": request.captionPosition,
+        "caption_size": request.captionSize,
         "bgm_url": request.bgmUrl,
         "bgm_volume": request.bgmVolume,
     }

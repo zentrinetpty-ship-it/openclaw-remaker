@@ -34,7 +34,53 @@ const GraphicsOverlay = ({ graphics, durationInFrames, accentColor }) => {
   });
 };
 
-export const ExplainerVideo = ({ slides = [], captionStyleId, captionMode = "words", bgmUrl, bgmVolume = 0.4, accentColor }) => {
+const SlideTitleOverlay = ({ title, position = "bottom-center", durationInFrames }) => {
+  if (!title || position === "hidden") return null;
+
+  const isTop = position.includes("top");
+  const isLeft = position.includes("left");
+
+  const positionStyle = {
+    position: "absolute",
+    left: isLeft ? 40 : "50%",
+    transform: isLeft ? "none" : "translateX(-50%)",
+    ...(isTop ? { top: 40 } : { bottom: 60 }),
+  };
+
+  return (
+    <div style={positionStyle}>
+      <div style={{
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(4px)",
+        padding: "8px 20px",
+        borderRadius: 4,
+      }}>
+        <span style={{
+          color: "#fff",
+          fontSize: 28,
+          fontWeight: 700,
+          fontFamily: "'Liberation Sans', Arial, sans-serif",
+        }}>
+          {title}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+export const ExplainerVideo = ({
+  slides = [],
+  captionStyleId,
+  captionMode = "words",
+  captionFont,
+  captionColor,
+  captionBgColor,
+  captionPosition = "bottom",
+  captionSize = 44,
+  bgmUrl,
+  bgmVolume = 0.4,
+  accentColor,
+}) => {
   const { fps } = useVideoConfig();
   const TRANSITION_FRAMES = 15;
 
@@ -73,14 +119,29 @@ export const ExplainerVideo = ({ slides = [], captionStyleId, captionMode = "wor
             <Audio src={slide.voiceUrl} volume={1} />
           )}
 
+          {slide.sfxUrl && (
+            <Audio src={slide.sfxUrl} volume={0.7} />
+          )}
+
           {captionStyleId && slide.narration && (
             <AnimatedCaption
               text={slide.narration}
               styleId={captionStyleId}
               durationInFrames={slide.durationFrames}
               captionMode={captionMode}
+              customFont={captionFont}
+              customColor={captionColor}
+              customBgColor={captionBgColor}
+              position={captionPosition}
+              fontSize={captionSize}
             />
           )}
+
+          <SlideTitleOverlay
+            title={slide.title}
+            position={slide.titlePosition}
+            durationInFrames={slide.durationFrames}
+          />
 
           <GraphicsOverlay
             graphics={slide.graphics}

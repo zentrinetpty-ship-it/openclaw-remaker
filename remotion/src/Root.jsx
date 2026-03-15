@@ -15,6 +15,11 @@ export const Root = () => {
         slides: [],
         captionStyleId: null,
         captionMode: "words",
+        captionFont: null,
+        captionColor: null,
+        captionBgColor: null,
+        captionPosition: "bottom",
+        captionSize: 44,
         bgmUrl: null,
         bgmVolume: 0.4,
       }}

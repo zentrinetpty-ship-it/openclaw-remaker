@@ -63,6 +63,11 @@ async def run_render(job_file):
     voice_id = job.get('voice_id', 'en-US-Journey-D')
     caption_style_id = job.get('caption_style_id')
     caption_mode = job.get('caption_mode', 'words')
+    caption_font = job.get('caption_font')
+    caption_color = job.get('caption_color')
+    caption_bg_color = job.get('caption_bg_color')
+    caption_position = job.get('caption_position', 'bottom')
+    caption_size = job.get('caption_size', 44)
     bgm_url = job.get('bgm_url')
     bgm_volume = job.get('bgm_volume', 0.4)
     
@@ -111,13 +116,32 @@ async def run_render(job_file):
                         f.write(audio_bytes)
                     voice_http_url = f"{base_url}/api/uploads/{audio_fn}"
             
+            # Resolve SFX URL
+            sfx_url = slide.get('sfxUrl')
+            sfx_http_url = None
+            if sfx_url:
+                if '/api/library/' in sfx_url:
+                    fn = sfx_url.split('/')[-1]
+                    d = SFX_LIB_DIR if '/sfx/' in sfx_url else MUSIC_LIB_DIR
+                    if (d / fn).exists():
+                        sfx_http_url = f"{base_url}{sfx_url}"
+                elif '/api/uploads/' in sfx_url:
+                    fn = sfx_url.split('/')[-1]
+                    if (UPLOADS_DIR / fn).exists():
+                        sfx_http_url = f"{base_url}/api/uploads/{fn}"
+                elif sfx_url.startswith('http'):
+                    sfx_http_url = sfx_url
+            
             remotion_slides.append({
                 "imageUrl": image_url,
                 "narration": narration,
                 "duration": duration,
                 "transition": transition,
                 "voiceUrl": voice_http_url,
+                "sfxUrl": sfx_http_url,
                 "graphics": slide.get('graphics', []),
+                "title": slide.get('title', ''),
+                "titlePosition": slide.get('titlePosition', 'bottom-center'),
             })
         
         if not remotion_slides:
@@ -144,6 +168,11 @@ async def run_render(job_file):
             "slides": remotion_slides,
             "captionStyleId": caption_style_id,
             "captionMode": caption_mode,
+            "captionFont": caption_font,
+            "captionColor": caption_color,
+            "captionBgColor": caption_bg_color,
+            "captionPosition": caption_position,
+            "captionSize": caption_size,
             "bgmUrl": bgm_http_url,
             "bgmVolume": bgm_volume,
         }
