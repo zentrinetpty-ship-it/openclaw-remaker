@@ -24,21 +24,35 @@ from google import genai
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Ensure render dependencies are available (chromium, ffmpeg for Remotion)
+# Ensure render dependencies are available (chromium, ffmpeg, node for Remotion)
 def ensure_render_deps():
-    """Install chromium and ffmpeg if missing. These are required for video rendering."""
+    """Install chromium, ffmpeg, and node if missing. Ensure remotion node_modules exist."""
     missing = []
     for cmd in ['chromium', 'ffmpeg', 'ffprobe']:
         if not shutil.which(cmd):
             missing.append(cmd)
+    if not shutil.which('node'):
+        missing.append('nodejs')
     if missing:
         logging.info(f"Installing missing render dependencies: {missing}")
         try:
             subprocess.run(['apt-get', 'update', '-qq'], capture_output=True, timeout=60)
-            subprocess.run(['apt-get', 'install', '-y', '-qq', 'chromium', 'ffmpeg'], capture_output=True, timeout=120)
+            pkgs = ['chromium', 'ffmpeg']
+            if 'nodejs' in missing:
+                pkgs.append('nodejs')
+            subprocess.run(['apt-get', 'install', '-y', '-qq'] + pkgs, capture_output=True, timeout=120)
             logging.info("Render dependencies installed successfully")
         except Exception as e:
             logging.warning(f"Could not install render dependencies: {e}")
+    # Ensure remotion node_modules are installed
+    remotion_dir = ROOT_DIR.parent / 'remotion'
+    if remotion_dir.exists() and not (remotion_dir / 'node_modules').exists():
+        logging.info("Installing remotion node_modules...")
+        try:
+            subprocess.run(['yarn', 'install', '--frozen-lockfile'], cwd=str(remotion_dir), capture_output=True, timeout=120)
+            logging.info("Remotion node_modules installed successfully")
+        except Exception as e:
+            logging.warning(f"Could not install remotion node_modules: {e}")
 
 ensure_render_deps()
 

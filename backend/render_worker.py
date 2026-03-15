@@ -164,7 +164,23 @@ async def run_render(job_file):
         
         # Run Remotion
         remotion_dir = ROOT_DIR.parent / "remotion"
-        node_path = shutil.which('node') or '/usr/bin/node'
+        node_path = shutil.which('node')
+        if not node_path:
+            # Try installing node if missing
+            logger.warning("node not found, attempting install...")
+            import subprocess as sp
+            sp.run(['apt-get', 'update', '-qq'], capture_output=True, timeout=60)
+            sp.run(['apt-get', 'install', '-y', '-qq', 'nodejs'], capture_output=True, timeout=120)
+            node_path = shutil.which('node')
+        if not node_path:
+            write_status(status_file, {"status": "failed", "error": "Node.js is not installed. Please restart the server to auto-install dependencies."})
+            return
+        
+        # Ensure remotion node_modules exist
+        if not (remotion_dir / 'node_modules').exists():
+            logger.info("Installing remotion dependencies...")
+            import subprocess as sp
+            sp.run(['yarn', 'install', '--frozen-lockfile'], cwd=str(remotion_dir), capture_output=True, timeout=120)
         
         env = {**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"}
         
