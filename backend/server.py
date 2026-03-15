@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks, Body
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -15,6 +15,8 @@ import base64
 import aiofiles
 import subprocess
 import shutil
+import sys
+import json
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from google import genai
@@ -1274,8 +1276,6 @@ class RenderRequest(BaseModel):
     bgmUrl: Optional[str] = None
     bgmVolume: float = 0.4
 
-render_jobs = {}
-
 def format_ass_time(seconds):
     """Convert seconds to ASS time format H:MM:SS.CC"""
     h = int(seconds // 3600)
@@ -1552,214 +1552,71 @@ async def get_audio_duration_endpoint(request: Dict[str, Any] = Body(...)):
             return {"duration": round(dur, 2)}
     return {"duration": 0}
 
-async def render_video_task(job_id: str, project_id: str, slides: List[Dict], title: str, generate_voice: bool = True, voice_id: str = "en-US-Journey-D", caption_style_id: str = None, caption_mode: str = "words", bgm_url: str = None, bgm_volume: float = 0.4):
-    """Background task to render video using Remotion with animated slides, transitions, and captions."""
-    try:
-        render_jobs[job_id] = {"status": "processing", "progress": 0, "step": "Preparing assets..."}
-        
-        temp_dir = RENDERS_DIR / f"temp_{job_id}"
-        temp_dir.mkdir(exist_ok=True)
-        
-        total_slides = len(slides)
-        tts_api_key = os.getenv("GOOGLE_TTS_API_KEY")
-        base_url = "http://localhost:8001"
-        
-        remotion_slides = []
-        
-        for idx, slide in enumerate(slides):
-            progress = int((idx / total_slides) * 40)
-            render_jobs[job_id]["progress"] = progress
-            render_jobs[job_id]["step"] = f"Processing slide {idx + 1}/{total_slides}"
-            
-            asset_url = slide.get('assetUrl')
-            duration = slide.get('duration', 6)
-            narration = slide.get('narration', '')
-            voice_url = slide.get('voiceUrl')
-            transition = slide.get('transition', 'fade')
-            
-            # Resolve image URL for Remotion (needs absolute HTTP URL)
-            image_url = None
-            if asset_url:
-                if '/api/uploads/' in asset_url:
-                    filename = asset_url.split('/')[-1]
-                    if (UPLOADS_DIR / filename).exists():
-                        image_url = f"{base_url}/api/uploads/{filename}"
-                elif asset_url.startswith('http'):
-                    image_url = asset_url
-            
-            # Handle voice audio - always regenerate with consistent voice
-            voice_http_url = None
-            if voice_url and voice_url.startswith('/api/uploads/'):
-                src_audio = UPLOADS_DIR / voice_url.split('/')[-1]
-                if src_audio.exists():
-                    voice_http_url = f"{base_url}{voice_url}"
-            
-            # If no existing voice but has narration, generate with the selected voice
-            if not voice_http_url and generate_voice and narration and tts_api_key:
-                render_jobs[job_id]["step"] = f"Generating voice for slide {idx + 1}"
-                audio_bytes = await generate_voice_for_slide(narration, voice_id, tts_api_key)
-                if audio_bytes:
-                    audio_filename = f"voice_{job_id}_{idx}.mp3"
-                    audio_path = UPLOADS_DIR / audio_filename
-                    async with aiofiles.open(audio_path, 'wb') as f:
-                        await f.write(audio_bytes)
-                    voice_http_url = f"{base_url}/api/uploads/{audio_filename}"
-            
-            remotion_slides.append({
-                "imageUrl": image_url,
-                "narration": narration,
-                "duration": duration,
-                "transition": transition,
-                "voiceUrl": voice_http_url,
-                "graphics": slide.get('graphics', []),
-            })
-        
-        if not remotion_slides:
-            render_jobs[job_id] = {"status": "failed", "error": "No slides to render"}
-            return
-        
-        # Resolve BGM URL
-        bgm_http_url = None
-        if bgm_url:
-            if '/api/library/' in bgm_url:
-                lib_filename = bgm_url.split('/')[-1]
-                lib_type = 'music' if '/music/' in bgm_url else 'sfx'
-                lib_dir = MUSIC_LIB_DIR if lib_type == 'music' else SFX_LIB_DIR
-                if (lib_dir / lib_filename).exists():
-                    bgm_http_url = f"{base_url}{bgm_url}"
-            elif '/api/uploads/' in bgm_url:
-                filename = bgm_url.split('/')[-1]
-                if (UPLOADS_DIR / filename).exists():
-                    bgm_http_url = f"{base_url}/api/uploads/{filename}"
-            elif bgm_url.startswith('http'):
-                bgm_http_url = bgm_url
-        
-        # Build Remotion input props
-        remotion_data = {
-            "slides": remotion_slides,
-            "captionStyleId": caption_style_id,
-            "captionMode": caption_mode,
-            "bgmUrl": bgm_http_url,
-            "bgmVolume": bgm_volume,
-        }
-        
-        data_file = temp_dir / "render_data.json"
-        import json
-        with open(data_file, 'w') as f:
-            json.dump(remotion_data, f)
-        
-        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        output_filename = f"{safe_title}-{timestamp}.mp4"
-        output_path = RENDERS_DIR / output_filename
-        
-        render_jobs[job_id]["progress"] = 50
-        render_jobs[job_id]["step"] = "Rendering with Remotion..."
-        
-        logger.info(f"Starting Remotion render: {len(remotion_slides)} slides, caption={caption_style_id}, bgm={bgm_http_url is not None}")
-        
-        # Run Remotion render
-        remotion_dir = ROOT_DIR.parent / "remotion"
-        node_path = shutil.which('node') or '/usr/bin/node'
-        render_cmd = [
-            node_path, '--max-old-space-size=4096',
-            str(remotion_dir / 'render.mjs'),
-            str(data_file),
-            str(output_path),
-        ]
-        
-        proc = await asyncio.create_subprocess_exec(
-            *render_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(remotion_dir),
-            env={**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"},
-        )
-        
-        # Read stderr for progress updates
-        async def read_progress():
-            while True:
-                line = await proc.stderr.readline()
-                if not line:
-                    break
-                msg = line.decode().strip()
-                if msg:
-                    logger.info(f"Remotion: {msg}")
-                    if "Progress:" in msg:
-                        try:
-                            pct = int(msg.split("Progress:")[1].strip().replace("%", ""))
-                            render_jobs[job_id]["progress"] = 50 + int(pct * 0.45)
-                            render_jobs[job_id]["step"] = f"Rendering... {pct}%"
-                        except (ValueError, IndexError):
-                            pass
-        
-        await read_progress()
-        stdout_data = await proc.stdout.read()
-        await proc.wait()
-        
-        if proc.returncode == 0 and output_path.exists():
-            render_jobs[job_id]["progress"] = 95
-            
-            # Parse Remotion output
-            try:
-                result_json = json.loads(stdout_data.decode().strip().split('\n')[-1])
-                logger.info(f"Remotion result: {result_json}")
-            except Exception:
-                pass
-            
-            video_url = f"/api/renders/{output_filename}"
-            render_jobs[job_id] = {
-                "status": "completed",
-                "progress": 100,
-                "videoUrl": video_url,
-                "hasAudio": any(s.get('voiceUrl') for s in remotion_slides) or bgm_http_url is not None
-            }
-            
-            await db.projects.update_one(
-                {"id": project_id},
-                {"$set": {"renderUrl": video_url, "status": "rendered"}}
-            )
-            logger.info(f"Remotion render completed: {output_path}")
-        else:
-            error_msg = stdout_data.decode().strip() if stdout_data else "Unknown error"
-            logger.error(f"Remotion render failed (exit={proc.returncode}): {error_msg}")
-            render_jobs[job_id] = {"status": "failed", "error": f"Remotion render failed: {error_msg[:200]}"}
-        
-        # Clean up temp directory
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        
-    except Exception as e:
-        logger.error(f"Render error: {e}")
-        render_jobs[job_id] = {"status": "failed", "error": str(e)}
+RENDER_JOBS_DIR = RENDERS_DIR / "jobs"
+RENDER_JOBS_DIR.mkdir(exist_ok=True)
+
+def read_render_status(job_id):
+    """Read render status from disk."""
+    status_file = RENDER_JOBS_DIR / f"{job_id}.status.json"
+    if status_file.exists():
+        try:
+            with open(status_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
 
 @api_router.post("/render")
-async def start_render(request: RenderRequest, background_tasks: BackgroundTasks):
-    """Start video rendering process with voice audio."""
+async def start_render(request: RenderRequest):
+    """Start video rendering in a detached subprocess that survives backend restarts."""
     job_id = str(uuid.uuid4())
-    render_jobs[job_id] = {"status": "pending", "progress": 0, "step": "Starting..."}
+    status_file = RENDER_JOBS_DIR / f"{job_id}.status.json"
+    job_config_file = RENDER_JOBS_DIR / f"{job_id}.config.json"
     
-    background_tasks.add_task(
-        render_video_task, 
-        job_id, 
-        request.projectId, 
-        request.slides, 
-        request.title,
-        request.generateVoice,
-        request.voiceId,
-        request.captionStyleId,
-        request.captionMode,
-        request.bgmUrl,
-        request.bgmVolume
+    # Write initial status
+    with open(status_file, 'w') as f:
+        json.dump({"status": "pending", "progress": 0, "step": "Starting..."}, f)
+    
+    # Write job config for the worker
+    job_config = {
+        "job_id": job_id,
+        "status_file": str(status_file),
+        "slides": [dict(s) for s in request.slides],
+        "title": request.title,
+        "project_id": request.projectId,
+        "generate_voice": request.generateVoice,
+        "voice_id": request.voiceId,
+        "caption_style_id": request.captionStyleId,
+        "caption_mode": request.captionMode,
+        "bgm_url": request.bgmUrl,
+        "bgm_volume": request.bgmVolume,
+    }
+    with open(job_config_file, 'w') as f:
+        json.dump(job_config, f)
+    
+    # Launch detached render worker subprocess
+    python_path = sys.executable
+    worker_script = str(ROOT_DIR / 'render_worker.py')
+    
+    # Use subprocess.Popen with start_new_session=True so it survives parent death
+    subprocess.Popen(
+        [python_path, worker_script, str(job_config_file)],
+        stdout=open(RENDER_JOBS_DIR / f"{job_id}.stdout.log", 'w'),
+        stderr=open(RENDER_JOBS_DIR / f"{job_id}.stderr.log", 'w'),
+        cwd=str(ROOT_DIR),
+        start_new_session=True,
+        env={**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"},
     )
     
     return {"success": True, "jobId": job_id, "status": "started"}
 
 @api_router.get("/render/{job_id}")
 async def get_render_status(job_id: str):
-    """Get render job status."""
-    if job_id not in render_jobs:
+    """Get render job status from disk."""
+    status = read_render_status(job_id)
+    if status is None:
         raise HTTPException(status_code=404, detail="Render job not found")
-    return {"success": True, **render_jobs[job_id]}
+    return {"success": True, **status}
 
 # Include the router in the main app
 app.include_router(api_router)
