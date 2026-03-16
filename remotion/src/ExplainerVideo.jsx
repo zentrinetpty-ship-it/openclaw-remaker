@@ -34,7 +34,7 @@ const GraphicsOverlay = ({ graphics, durationInFrames, accentColor }) => {
   });
 };
 
-const SlideTitleOverlay = ({ title, position = "bottom-center", durationInFrames }) => {
+const SlideTitleOverlay = ({ title, position = "top-left", durationInFrames }) => {
   if (!title || position === "hidden") return null;
 
   const isTop = position.includes("top");

@@ -241,13 +241,13 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                           { id: 'bottom-left', label: 'Bot L' },
                           { id: 'bottom-center', label: 'Bot C' },
                         ].map(pos => (
-                          <button key={pos.id} onClick={() => updateSlide(slide.id, { titlePosition: pos.id })} className={`py-1 rounded-none text-[8px] font-bold border-2 transition ${(slide.titlePosition || 'bottom-center') === pos.id ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-400 border-slate-200'}`} data-testid={`title-pos-${pos.id}-${idx}`}>{pos.label}</button>
+                          <button key={pos.id} onClick={() => updateSlide(slide.id, { titlePosition: pos.id })} className={`py-1 rounded-none text-[8px] font-bold border-2 transition ${(slide.titlePosition || 'top-left') === pos.id ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-400 border-slate-200'}`} data-testid={`title-pos-${pos.id}-${idx}`}>{pos.label}</button>
                         ))}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <label className="text-[9px] text-slate-500 font-bold uppercase">Show Title</label>
-                      <button onClick={() => updateSlide(slide.id, { titlePosition: slide.titlePosition === 'hidden' ? 'bottom-center' : 'hidden' })} className={`px-2 py-0.5 rounded-none text-[9px] font-bold border-2 transition ${slide.titlePosition === 'hidden' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-emerald-50 text-emerald-600 border-emerald-300'}`} data-testid={`title-toggle-${idx}`}>{slide.titlePosition === 'hidden' ? 'Hidden' : 'Visible'}</button>
+                      <button onClick={() => updateSlide(slide.id, { titlePosition: slide.titlePosition === 'hidden' ? 'top-left' : 'hidden' })} className={`px-2 py-0.5 rounded-none text-[9px] font-bold border-2 transition ${slide.titlePosition === 'hidden' ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-emerald-50 text-emerald-600 border-emerald-300'}`} data-testid={`title-toggle-${idx}`}>{slide.titlePosition === 'hidden' ? 'Hidden' : 'Visible'}</button>
                     </div>
                     <div>
                       <label className="text-[9px] text-slate-500 font-bold uppercase">Narration</label>
@@ -930,9 +930,9 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
           
           {currentSlide?.title && currentSlide?.titlePosition !== 'hidden' && (
             <div className={`absolute px-4 ${
-              (currentSlide.titlePosition || 'bottom-center').includes('top') ? 'top-14' : 'bottom-14'
+              (currentSlide.titlePosition || 'top-left').includes('top') ? 'top-14' : 'bottom-14'
             } ${
-              (currentSlide.titlePosition || 'bottom-center').includes('left') ? 'left-4 text-left' : 'left-1/2 -translate-x-1/2 text-center'
+              (currentSlide.titlePosition || 'top-left').includes('left') ? 'left-4 text-left' : 'left-1/2 -translate-x-1/2 text-center'
             }`}>
               <div className="px-4 py-1.5 rounded-sm bg-black/70 backdrop-blur">
                 <p className="text-sm font-bold text-white">{currentSlide.title}</p>

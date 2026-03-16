@@ -141,7 +141,7 @@ async def run_render(job_file):
                 "sfxUrl": sfx_http_url,
                 "graphics": slide.get('graphics', []),
                 "title": slide.get('title', ''),
-                "titlePosition": slide.get('titlePosition', 'bottom-center'),
+                "titlePosition": slide.get('titlePosition', 'top-left'),
             })
         
         if not remotion_slides:
