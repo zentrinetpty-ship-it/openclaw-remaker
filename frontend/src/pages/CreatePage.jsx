@@ -300,6 +300,8 @@ function ReadyStep({ onOpenEditor, onBack }) {
   const { user } = useAuth();
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   const [saving, setSaving] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingHtml, setExportingHtml] = useState(false);
   if (!project) return null;
 
   const saveAndOpen = async () => {
@@ -312,6 +314,28 @@ function ReadyStep({ onOpenEditor, onBack }) {
     setSaving(false);
   };
 
+  const exportAs = async (format) => {
+    const setter = format === 'pdf' ? setExportingPdf : setExportingHtml;
+    setter(true);
+    try {
+      const res = await axios.post(`${API}/export/${format}`, {
+        title: project.title || 'Video Storyboard',
+        slides: project.slides,
+        format,
+      });
+      if (res.data.success && res.data.url) {
+        const link = document.createElement('a');
+        link.href = `${process.env.REACT_APP_BACKEND_URL}${res.data.url}`;
+        link.download = res.data.filename;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (e) { alert(`Export failed: ${e.response?.data?.detail || e.message}`); }
+    finally { setter(false); }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 px-6">
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-24 h-24 rounded-sm flex items-center justify-center shadow-xl" style={{ background: cat?.color }}>
@@ -321,8 +345,14 @@ function ReadyStep({ onOpenEditor, onBack }) {
         <h2 className="text-3xl font-black text-slate-900">Your storyboard is ready!</h2>
         <p className="text-slate-500 mt-2 font-semibold">{project.slides.length} slides · {project.slides.filter(s => s.assetUrl).length} with assets · {project.duration}s total</p>
       </div>
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap justify-center">
         <button onClick={onBack} className="px-5 py-2.5 border-2 border-slate-200 rounded-none text-sm font-bold text-slate-500">Back</button>
+        <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-blue-200 text-sm font-bold text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" data-testid="ready-export-pdf-btn">
+          {exportingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Film className="w-4 h-4" />} Download PDF
+        </button>
+        <button onClick={() => exportAs('html')} disabled={exportingHtml} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-purple-200 text-sm font-bold text-purple-600 hover:bg-purple-50 transition disabled:opacity-50" data-testid="ready-export-html-btn">
+          {exportingHtml ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Download HTML
+        </button>
         <motion.button whileHover={{ scale: 1.03 }} onClick={saveAndOpen} disabled={saving} className="flex items-center gap-2 px-8 py-3 rounded-none text-base font-bold text-white disabled:opacity-50 btn-sharp" style={{ background: cat?.color }} data-testid="open-editor-btn">
           {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
           {saving ? 'Saving...' : 'Open in Editor'}

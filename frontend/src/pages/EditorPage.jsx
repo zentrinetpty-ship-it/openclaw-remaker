@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowLeft, Save, Download, Play, Pause, Square, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload, Type, MessageCircle } from 'lucide-react';
+import { Sparkles, ArrowLeft, Save, Download, Play, Pause, Square, SkipBack, SkipForward, Volume2, FileText, Image, Music, Volume1, Mic, Captions, Wand2, Heart, ZoomIn, ZoomOut, Settings, Layers, SlidersHorizontal, Loader2, Check, X, Film, RefreshCcw, Upload, Type, MessageCircle, Monitor } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -1214,6 +1214,8 @@ export default function EditorPage() {
   const [renderStep, setRenderStep] = useState('');
   const [renderUrl, setRenderUrl] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingHtml, setExportingHtml] = useState(false);
   const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [showTimeline, setShowTimeline] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState('en-US-Journey-D');
@@ -1265,6 +1267,29 @@ export default function EditorPage() {
       const res = await axios.post(`${API}/generate-voice`, { text: slide.narration, voiceId: selectedVoice });
       if (res.data.success) updateSlide(slide.id, { voiceUrl: res.data.url });
     } catch (e) { console.error(e); }
+  };
+
+  const exportAs = async (format) => {
+    if (!project?.slides?.length) { alert('No slides to export.'); return; }
+    const setter = format === 'pdf' ? setExportingPdf : setExportingHtml;
+    setter(true);
+    try {
+      const res = await axios.post(`${API}/export/${format}`, {
+        title: project.title || 'Video Storyboard',
+        slides: project.slides,
+        format,
+      });
+      if (res.data.success && res.data.url) {
+        const link = document.createElement('a');
+        link.href = `${process.env.REACT_APP_BACKEND_URL}${res.data.url}`;
+        link.download = res.data.filename;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (e) { alert(`Export failed: ${e.response?.data?.detail || e.message}`); }
+    finally { setter(false); }
   };
 
   const startRender = async () => {
@@ -1376,12 +1401,18 @@ export default function EditorPage() {
                     <Check className="w-10 h-10 text-emerald-500" />
                   </div>
                   <h3 className="text-2xl font-black text-slate-900 mb-2">Video Ready!</h3>
-                  <p className="text-sm text-slate-500 mb-6">Your video has been rendered successfully with voice narration.</p>
-                  <div className="flex gap-3 justify-center">
-                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2.5 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition">Close</button>
-                    <a href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} download={`${project?.title || 'video'}.mp4`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-none bg-emerald-600 text-white font-bold text-sm btn-sharp hover:bg-emerald-700 transition" data-testid="download-video-btn">
-                      <Download className="w-4 h-4" /> Download MP4
+                  <p className="text-sm text-slate-500 mb-6">Your video has been rendered successfully. Download in your preferred format.</p>
+                  <div className="flex flex-col gap-3 items-center">
+                    <a href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} download={`${project?.title || 'video'}.mp4`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-2.5 w-64 justify-center rounded-none bg-emerald-600 text-white font-bold text-sm btn-sharp hover:bg-emerald-700 transition" data-testid="download-video-btn">
+                      <Film className="w-4 h-4" /> Download MP4
                     </a>
+                    <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="inline-flex items-center gap-2 px-6 py-2.5 w-64 justify-center rounded-none bg-blue-600 text-white font-bold text-sm btn-sharp hover:bg-blue-700 transition disabled:opacity-50" data-testid="download-pdf-btn">
+                      {exportingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Download PDF
+                    </button>
+                    <button onClick={() => exportAs('html')} disabled={exportingHtml} className="inline-flex items-center gap-2 px-6 py-2.5 w-64 justify-center rounded-none bg-purple-600 text-white font-bold text-sm btn-sharp hover:bg-purple-700 transition disabled:opacity-50" data-testid="download-html-btn">
+                      {exportingHtml ? <Loader2 className="w-4 h-4 animate-spin" /> : <Monitor className="w-4 h-4" />} Download HTML
+                    </button>
+                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition">Close</button>
                   </div>
                 </div>
               ) : renderStatus === 'failed' || renderStatus === 'timeout' ? (
@@ -1420,6 +1451,12 @@ export default function EditorPage() {
           </button>
           <button onClick={saveProject} disabled={saving} className="flex items-center gap-1.5 px-4 py-1.5 rounded-none border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 transition disabled:opacity-50" data-testid="save-btn">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {saving ? 'Saving...' : 'Save'}
+          </button>
+          <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 border-blue-200 text-sm font-bold text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" data-testid="export-pdf-btn">
+            {exportingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} PDF
+          </button>
+          <button onClick={() => exportAs('html')} disabled={exportingHtml} className="flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 border-purple-200 text-sm font-bold text-purple-600 hover:bg-purple-50 transition disabled:opacity-50" data-testid="export-html-btn">
+            {exportingHtml ? <Loader2 className="w-4 h-4 animate-spin" /> : <Monitor className="w-4 h-4" />} HTML
           </button>
           <button onClick={startRender} disabled={rendering} className="flex items-center gap-1.5 px-4 py-1.5 rounded-none text-sm font-bold text-white btn-sharp disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${cat?.color || primaryColor}, #10b981)` }} data-testid="export-btn">
             {rendering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}

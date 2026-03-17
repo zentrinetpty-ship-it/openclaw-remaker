@@ -128,7 +128,7 @@ export default function LandingPage() {
   const { user, logout, isAuthenticated } = useAuth();
   const { setRawInput, setInputType, setVideoDuration, setVideoTone, setVideoCategory, setSlideCount, setAssetType, setPreferredVisualStyle, setStep, setProject } = useProjectStore();
   
-  const [selectedCategory, setSelectedCategory] = useState('explainer');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duration, setDuration] = useState(30);
@@ -312,13 +312,13 @@ export default function LandingPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-md border-2 border-slate-200 shadow-[0_8px_40px_-12px_rgba(79,70,229,0.12)] overflow-hidden">
             
             {/* Card Header */}
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100" style={{ background: `${cat?.color}08` }}>
-              <div className="w-8 h-8 rounded-sm flex items-center justify-center" style={{ background: cat?.color }}>
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100" style={{ background: cat ? `${cat.color}08` : '#f8fafc' }}>
+              <div className="w-8 h-8 rounded-sm flex items-center justify-center" style={{ background: cat?.color || '#94a3b8' }}>
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900">{cat?.label}</span>
-                {cat?.badge && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-none text-white" style={{ background: cat?.color }}>{cat?.badge}</span>}
+                <span className="text-sm font-bold text-slate-900">{cat ? cat.label : 'Please select video category'}</span>
+                {cat?.badge && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-none text-white" style={{ background: cat?.color }}>{cat.badge}</span>}
               </div>
             </div>
 
@@ -326,15 +326,27 @@ export default function LandingPage() {
             <div className="px-6 pt-5 pb-3">
               <div className="flex items-center gap-1.5 mb-2"><Film className="w-3 h-3 text-indigo-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Video Category</span></div>
               <button onClick={() => setCategoryPickerOpen(!categoryPickerOpen)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border-2 border-slate-200 hover:border-indigo-400 bg-white transition" data-testid="category-picker-trigger">
-                <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: cat?.color || '#4F46E5' }}>
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-900">{cat?.label}</span>
-                    {cat?.badge && <span className="text-[8px] font-black px-1.5 py-0.5 rounded-none text-white" style={{ background: cat?.color }}>{cat?.badge}</span>}
+                {cat ? (
+                  <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: cat.color }}>
+                    <Sparkles className="w-5 h-5 text-white" />
                   </div>
-                  <span className="text-[10px] text-slate-400 truncate block">{cat?.desc}</span>
+                ) : (
+                  <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0 bg-slate-200">
+                    <Film className="w-5 h-5 text-slate-400" />
+                  </div>
+                )}
+                <div className="flex-1 text-left min-w-0">
+                  {cat ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-900">{cat.label}</span>
+                        {cat.badge && <span className="text-[8px] font-black px-1.5 py-0.5 rounded-none text-white" style={{ background: cat.color }}>{cat.badge}</span>}
+                      </div>
+                      <span className="text-[10px] text-slate-400 truncate block">{cat.desc}</span>
+                    </>
+                  ) : (
+                    <span className="text-sm font-semibold text-slate-400">Please select video category</span>
+                  )}
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-400 transition flex-shrink-0 ${categoryPickerOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -573,8 +585,8 @@ export default function LandingPage() {
             {/* Footer */}
             <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
               <span className="text-xs text-slate-400 font-mono">{selectedCategory === 'remaker' ? (remakerFile ? remakerFile.name : 'No file') : isBusiness ? (bizAnalysis ? bizAnalysis.businessName : 'Business') : `${inputValue.length} chars`}</span>
-              <motion.button onClick={handleSubmit} disabled={selectedCategory === 'remaker' ? !remakerFile || isSubmitting : isBusiness ? (!bizAnalysis || isSubmitting) : !inputValue.trim() || isSubmitting} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-6 py-2.5 rounded-none text-sm font-bold text-white disabled:opacity-40 btn-sharp transition-all" style={{ background: cat?.color || '#4F46E5' }} data-testid="generate-btn">
-                {isSubmitting ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> {selectedCategory === 'remaker' ? 'Analyze & Remake' : isBusiness && bizAnalysis ? 'Generate Business Video' : `Generate ${cat?.label}`}</>}
+              <motion.button onClick={handleSubmit} disabled={!selectedCategory || (selectedCategory === 'remaker' ? !remakerFile || isSubmitting : isBusiness ? (!bizAnalysis || isSubmitting) : !inputValue.trim() || isSubmitting)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-6 py-2.5 rounded-none text-sm font-bold text-white disabled:opacity-40 btn-sharp transition-all" style={{ background: cat?.color || '#4F46E5' }} data-testid="generate-btn">
+                {isSubmitting ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> {selectedCategory === 'remaker' ? 'Analyze & Remake' : isBusiness && bizAnalysis ? 'Generate Business Video' : cat ? `Generate ${cat.label}` : 'Generate Video'}</>}
               </motion.button>
             </div>
           </motion.div>
