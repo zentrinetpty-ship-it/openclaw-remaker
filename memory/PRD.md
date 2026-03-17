@@ -1,203 +1,54 @@
 # ExplainaPro - AI Video Creation Platform
 
 ## Original Problem Statement
-Build ExplainaPro - an AI-powered cinematic video creation platform with 13 video categories, AI script generation, image generation, full video editor with timeline, project management, user authentication, and MP4 video export.
+Build a full-stack AI-powered cinematic video creation platform called "ExplainaPro" with AI script generation, visual asset generation, voiceover, and video rendering capabilities.
 
-## Architecture
-- **Frontend**: React + Tailwind CSS + Framer Motion + Zustand (with persist middleware)
-- **Backend**: FastAPI + MongoDB + google-generativeai SDK
-- **AI Services**: Google Gemini (via user-provided GOOGLE_GENERATIVE_AI_API_KEY)
-- **Auth**: JWT with bcrypt password hashing
-- **Video Rendering**: Remotion 4.x (@remotion/renderer, @remotion/bundler) with system Chromium
-- **Audio**: Google Cloud Text-to-Speech (TTS), FFmpeg for audio mixing
+## Tech Stack
+- **Frontend:** React/Vite, Tailwind CSS, Shadcn/UI, Framer Motion, Zustand
+- **Backend:** Python, FastAPI
+- **Database:** MongoDB
+- **AI:** Google Gemini API
+- **Video Rendering:** Remotion
+- **Auth:** JWT (bcrypt)
 
-## What's Been Implemented
+## Core Architecture
+```
+/app
+├── backend/server.py         # FastAPI monolith
+├── backend/render_worker.py  # Detached render process
+├── frontend/src/
+│   ├── pages/LandingPage.jsx      # Landing + creator form
+│   ├── pages/CreatePage.jsx       # AI generation pipeline
+│   ├── pages/EditorPage.jsx       # Multi-panel editor
+│   ├── pages/DashboardPage.jsx    # Project management
+│   ├── store/useProjectStore.js   # Zustand state
+│   └── context/AuthContext.js     # JWT auth
+├── remotion/src/                  # Video rendering components
+└── renders/                       # Job queue directory
+```
 
-### Phase 1 - Core Features (March 13)
-- [x] Landing page with 13 category selection and dynamic theming
-- [x] Creator card with duration, slides, tone, visual style settings
-- [x] AI script generation via Gemini 2.5 Flash
-- [x] Storyboard display with characters and slides
-- [x] AI image generation via Gemini Nano Banana
-- [x] Asset assignment step with Generate All option
-- [x] Full video editor with 7 tabs (Script, Assets, Graphics, Music, Voice, Captions, Effects)
-- [x] Canvas preview with playback controls
-- [x] Dashboard with project list
+## Completed Features
+- Landing page with categorized video category dropdown (21 categories, 5 groups)
+- Visual image style picker with AI-generated preview thumbnails (22 styles, 6 categories)
+- JSON Prompt Generator for AI-enhanced content creation
+- Advanced Settings expanded by default with 15 tone options
+- Full editor with video uploads, multi-music tracks, SFX, caption/title customization
+- JWT auth (bcrypt), CORS stabilized
+- Persistent render worker with stuck job cleanup
+- Slide count up to 50, duration up to 20 minutes
 
-### Phase 2 - Auth & Export (March 14)
-- [x] JWT-based authentication (register/login)
-- [x] User-specific project storage
-- [x] Auth modal with login/register toggle
-- [x] User menu in navbar (name display, logout)
-- [x] FFmpeg-based video rendering with audio sync
-- [x] Export MP4 button with progress modal
-- [x] Download rendered videos
-- [x] Google Cloud TTS voice generation per slide
+## Pending Verification
+- Authentication stability (was recurring issue)
+- Rendering stability (was recurring issue)
 
-### Phase 3 - Editor Enhancements (March 14)
-- [x] Functional live video preview with slide-by-slide playback
-- [x] Per-slide voice generation and playback
-- [x] Assets panel with upload/regenerate/edit prompts
-- [x] Voice panel with single voice selection for all slides
-- [x] Captions panel with 6 styles (Bold Pop, Netflix, Minimal, TikTok, Neon, Glass)
-- [x] Effects panel with transitions and VFX per slide
-- [x] Batch apply for transitions and VFX
-
-### Phase 4 - Caption Burn-in & Persistence (March 14)
-- [x] Caption burn-in in rendered MP4 using FFmpeg ASS subtitle filter
-- [x] 6 caption styles mapped to ASS format with proper colors/fonts
-- [x] Frontend passes captionStyleId to render endpoint
-- [x] State persistence using Zustand persist middleware (localStorage)
-- [x] Preview shows styled captions matching selected caption style
-
-### Phase 5 - Music Upload & BGM in Render (March 14)
-- [x] Music upload endpoint for audio files
-- [x] Music tab with upload UI, audio player, volume slider, remove button
-- [x] BGM mixed into rendered video
-- [x] Voice + BGM mixing with adjustable volume
-
-### Phase 6 - Music & SFX Library (March 14)
-- [x] 78 audio files: 34 music + 44 SFX across multiple categories
-- [x] Backend endpoints: GET /api/library/music, GET /api/library/sfx
-- [x] Frontend: Browsable library with category filters, preview, one-click selection
-
-### Phase 7 - Remotion Video Engine (March 14)
-- [x] Replaced FFmpeg with Remotion programmatic video engine
-- [x] Ken Burns effect, smooth transitions (fade, slide, zoom)
-- [x] Word-by-word animated captions with 6 styles
-- [x] Audio integration (per-slide voice + background music)
-- [x] Optimized render (concurrency=1, 24fps, bundle caching)
-- [x] Save button fixed with upsert
-
-### Phase 8 - P0 Verification (March 14)
-- [x] Verified Remotion render stability, save button, render speed
-- [x] Fixed transition frames mismatch (Root.jsx aligned to 15 frames)
-
-### Phase 9 - Advanced Features (March 14)
-- [x] **Multiple Caption Modes**: Words, Lines, Sentence — AnimatedCaption.jsx supports all 3 modes, passed through render pipeline
-- [x] **Motion Graphics**: 4 Remotion components (TitleCard, LowerThird, KineticText, StatCounter), GraphicsOverlay in ExplainerVideo.jsx, Graphics tab in Editor for adding/editing/removing overlays per slide
-- [x] **Video Remaker**: /api/analyze-video endpoint extracts frames with FFmpeg, analyzes with Gemini, returns storyboard. Landing page shows upload UI for remaker category
-- [x] **AI Motion Graphics Prompt**: AI generates slides with graphics arrays when motiongraphic category selected
-
-### Phase 10 - User Asset Library (March 14)
-- [x] **GET /api/user/library**: Returns all user assets with category filtering and counts
-- [x] **DELETE /api/user/assets/{id}**: Removes asset from library and deletes file from disk
-- [x] **Auto-save on upload**: POST /api/upload automatically saves to user library when authenticated
-- [x] **Dashboard My Library tab**: Category filters, search, delete, preview
-- [x] **Editor My Library**: Browse and one-click assign library assets to slides
-
-### Phase 11 - AI Chat Box & Asset Suggestions (March 14)
-- [x] **POST /api/editor/chat**: AI-powered natural language command parser using Gemini 2.5 Flash
-- [x] **13 action types**: update_slide, delete_slide, add_graphic, remove_graphics, set_caption_style/mode, generate_image/voice, open_tab, batch_update, info
-- [x] **Floating chat panel**: Toggle, input, quick suggestions, message history
-- [x] **Real-time actions**: AI responses execute structured actions on project state
-- [x] **AI Asset Suggestions**: Keyword matching between slide text and library assets, shown in Assets tab
-- [x] Testing: 100% backend (13/13), 100% frontend
-
-## API Endpoints
-**Auth:**
-- POST /api/auth/register
-- POST /api/auth/login
-- GET /api/auth/me
-
-**AI Generation:**
-- POST /api/restructure-script - AI storyboard generation
-- POST /api/generate-image - AI image generation
-- POST /api/generate-video - AI video background
-- POST /api/generate-voice - Google TTS voice generation
-- POST /api/analyze-video - Video Remaker (upload + Gemini analysis)
-- POST /api/editor/chat - AI chat command parser (natural language → structured actions)
-
-**Video Rendering:**
-- POST /api/render - Start MP4 render (captionStyleId, captionMode, bgmUrl, bgmVolume, graphics)
-- GET /api/render/:jobId - Get render status
-- GET /api/renders/:filename - Download rendered video
-
-**File Upload:**
-- POST /api/upload - Upload files (auto-saves to library when authenticated)
-
-**Projects:**
-- POST /api/projects - Save project (upsert by title+userId)
-- GET /api/projects - List projects
-- GET /api/projects/:id - Get project
-
-**User Library:**
-- GET /api/user/library - Get user's asset library with category filter
-- GET /api/user/assets - Get user's generated assets
-- DELETE /api/user/assets/:id - Delete asset from library
-- GET /api/user/stats - Get user statistics
-
-**Library:**
-- GET /api/library/music - Music library catalog
-- GET /api/library/sfx - SFX library catalog
-
-## Database Schema (MongoDB)
-- `users`: { id, email, name, password, createdAt, subscriptionTier }
-- `projects`: { id, userId, title, status, slides, settings, projectData }
-- `generated_assets`: { id, userId, type, url, prompt, metadata, projectId, createdAt }
-- `render_jobs`: In-memory dict
-
-## Key Files
-- `/app/backend/server.py` - All API endpoints, Remotion render orchestration
-- `/app/remotion/` - Remotion video engine
-- `/app/remotion/src/ExplainerVideo.jsx` - Main video composition with GraphicsOverlay
-- `/app/remotion/src/components/Slide.jsx` - Slide with Ken Burns + transitions
-- `/app/remotion/src/components/AnimatedCaption.jsx` - 3 caption modes (words/lines/sentence)
-- `/app/remotion/src/components/MotionGraphics.jsx` - TitleCard, LowerThird, KineticText, StatCounter
-- `/app/remotion/render.mjs` - Server-side render script
-- `/app/frontend/src/pages/EditorPage.jsx` - Video editor with 7 tabs + My Library
-- `/app/frontend/src/pages/DashboardPage.jsx` - Dashboard with Projects + My Library tabs
-- `/app/frontend/src/pages/LandingPage.jsx` - Landing page with Video Remaker upload
+## Backlog (Prioritized)
+- P1: Real SFX generation (ElevenLabs integration)
+- P1: Stock asset search (Pexels/Pixabay integration)
+- P2: Backend refactoring (split server.py monolith)
+- P2: Editor refactoring (break down EditorPage.jsx)
+- P2: Backend pytest suite
+- P3: Tech stack migration (Next.js, Prisma, SQLite)
 
 ## Mocked Features
-- Music Generation (/api/generate-music)
-- SFX Generation (/api/generate-sfx)
-- Stock Asset Search (/api/search/assets)
-
-### Phase 12 - Light Theme Refactor & Render Fix (March 14)
-- [x] **Landing Page Redesign**: Modern light theme with Poppins font, indigo-600 accents, sharp-edged components
-- [x] **Dashboard Light Theme**: White cards, slate-200 borders, indigo active states, stats banner
-- [x] **Editor Light Theme**: Light sidebars/nav/controls, dark canvas preview for video contrast
-- [x] **ChatBox Light Theme**: White panel with indigo accents, light message bubbles
-- [x] **AuthModal Light Theme**: White background with proper contrast
-- [x] **CreatePage Light Theme**: Consistent with landing page design language
-- [x] **Video Render Fix**: Installed missing chromium and ffmpeg system dependencies required by Remotion
-- [x] **Render Verified**: Successfully renders single-slide and multi-slide MP4 videos with captions and voice audio from both API and UI
-- [x] **Image Generation Fix**: Updated from deprecated `imagen-3.0-generate-002` to `imagen-4.0-generate-001`
-
-### Phase 13 - Timeline & Auto-Sync (March 14)
-- [x] **CapCut-style Timeline Panel**: Toggleable bottom panel with 5 color-coded layers (Video, Voice, Caption, Music, SFX)
-- [x] **Draggable/Resizable Blocks**: Each layer shows proportional blocks with left/right resize handles
-- [x] **Waveform Decorations**: Audio layers show waveform-like visual indicators
-- [x] **Auto Sync System**: One-click button that generates missing TTS voices, analyzes audio durations via ffprobe, and optimizes slide durations
-- [x] **Timeline Controls**: Zoom in/out (0.5x-4x), expand/collapse, layer lock/unlock, time markers, red playhead
-- [x] **Slide Selection**: Clicking timeline selects corresponding slide, blue highlight shows selected range
-- [x] **POST /api/editor/auto-sync**: Generates missing voices, returns optimized timing with BGM analysis
-- [x] **POST /api/audio/duration**: Helper endpoint for frontend to query audio file durations
-- [x] Testing: 100% backend (11/11), 100% frontend
-
-### Phase 14 - Enhanced Editor Controls (March 15)
-- [x] **SFX "Use" Button**: Each SFX item now has a "Use" button to assign it to the currently selected slide, with "Active" state toggle
-- [x] **Per-slide SFX Assignment**: Slides store `sfxUrl` and `sfxName`, SFX icon shows on slide cards when assigned
-- [x] **SFX Removal**: Click "Active" SFX or the X button to remove SFX from a slide
-- [x] **SFX in Render**: SFX audio is passed through the render pipeline and played in Remotion output
-- [x] **Music Volume Fix**: Changed Slider from `defaultValue` to `value` prop for reactive volume control
-- [x] **Caption Font Selection**: Dropdown with 9 font options (Liberation Sans, Arial, Georgia, Courier New, Impact, Verdana, Trebuchet MS, Comic Sans MS, Times New Roman)
-- [x] **Caption Font Size**: Slider control (24px-72px) for caption text size
-- [x] **Caption Position**: Top/Center/Bottom selector for caption placement
-- [x] **Caption Custom Colors**: Text and Background color pickers with hex input and Reset buttons
-- [x] **Caption Live Preview**: Preview box at bottom of Captions tab showing current styling
-- [x] **Slide Title Text Edit**: Inline editable title input per slide
-- [x] **Slide Title Position**: 4-position grid (Top Left, Top Center, Bottom Left, Bottom Center) with amber highlighting
-- [x] **Slide Title Visibility**: Toggle to show/hide title overlay per slide
-- [x] **Per-Slide Narration Edit**: Textarea to edit narration directly in Script tab
-- [x] **Per-Slide Duration/Transition**: Inline controls for duration and transition type per slide
-- [x] **Render Pipeline Updated**: All new caption props (font, color, bgColor, position, size) and SFX pass through backend to Remotion
-- [x] **Render Worker Robustness**: Auto-installs node and remotion node_modules if missing
-- [x] Testing: 100% backend (6/6), 100% frontend
-
-## Backlog (P1/P2)
-- P1: Real stock asset search integration (Pixabay/Pexels)
-- P1: Real SFX generation (ElevenLabs)
-- P2: Backend refactoring (break server.py into routers)
-- P2: Render queue with progress notifications
+- Stock Asset Search (static images/videos)
+- AI SFX Generation (static sound library)
