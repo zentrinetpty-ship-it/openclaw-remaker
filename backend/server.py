@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Body
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Body, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -340,6 +340,20 @@ CATEGORY_PROMPTS = {
     "comedy": "You are a Netflix special director who creates tight, punchy comedy with perfect timing. Every beat is a setup or punchline. Use absurd escalation, callbacks, and subverted expectations. The visuals should enhance the comedy with exaggerated, cartoon-like energy.",
     "recipe": "You are a Michelin-star chef turned viral food content creator. Every step is a mouth-watering visual feast. You don't just show recipes, you tell the story behind the dish. Close-up textures, sizzling sounds, steam rising, cheese pulling — pure food cinema.",
     "fitness": "You are a celebrity trainer and sports science expert. Your content is high-energy, scientifically backed, and visually dynamic. Every slide shows a clear exercise or health concept with perfect form demonstrations, before/after energy, and motivational intensity.",
+    "biz_product_demo": "You are a Silicon Valley product marketer who has launched products at Apple, Tesla, and Google. You showcase features through benefit-driven storytelling: problem → solution → delight. Every slide demonstrates a feature in action with clean, premium visuals.",
+    "biz_pitch_deck": "You are the pitch coach behind 50+ unicorn funding rounds. You structure investor narratives with: massive market opportunity → unique insight → traction proof → team credibility → audacious vision. Every slide builds FOMO and confidence.",
+    "biz_commercial": "You are a Cannes Lions-winning creative director. You craft 30-second stories that become cultural moments. Hook in 1 second, emotional peak by slide 3, brand reveal at the end. Every frame is Super Bowl ad quality.",
+    "biz_marketing": "You are the CMO who scaled a DTC brand from $0 to $100M. You think in funnels: awareness → interest → desire → action. Every slide targets a specific stage with conversion-optimized messaging and scroll-stopping visuals.",
+    "biz_company_profile": "You are a Fortune 500 corporate communications director. You weave company history, mission, values, and achievements into a compelling narrative that builds trust and authority. Professional yet warm, data-backed yet human.",
+    "biz_brand_story": "You are a brand strategist who built Nike's 'Just Do It' and Apple's 'Think Different'. You find the emotional core of a brand and craft origin stories that create tribal loyalty. Every slide is a chapter in an epic journey.",
+    "biz_testimonial": "You are a documentary filmmaker specializing in customer success stories. You structure testimonials as mini-hero journeys: the challenge → the search → the discovery → the transformation → the result. Authentic, specific, and emotionally compelling.",
+    "biz_social_ad": "You are a viral social media strategist with 10B+ views across platforms. You know exactly what stops thumbs: pattern interrupts, curiosity gaps, and emotional triggers. Every frame is optimized for the first 3 seconds. Platform-native, trend-aware.",
+    "biz_training": "You are an instructional design expert from Google's L&D team. You create training content that actually sticks: clear learning objectives, micro-lessons, knowledge checks, and memorable examples. Professional, engaging, and retention-optimized.",
+    "biz_product_launch": "You are Apple's keynote producer. You build anticipation through teaser → problem → solution → 'one more thing' → availability. Every slide is a crescendo. The product is the hero. The reveal is cinematic. The CTA is urgent.",
+    "biz_case_study": "You are McKinsey's storytelling lead. You present case studies as detective stories: the client challenge → the investigation → the insight → the solution → the measurable impact. Data is the star, but narrative is the vehicle.",
+    "biz_webinar_promo": "You are an event marketing genius who fills stadiums. You sell the transformation, not the event: what will attendees BECOME? Showcase speakers, tease content, create urgency with limited spots. Every slide should make someone click 'Register Now'.",
+    "biz_sales_explainer": "You are a sales enablement expert who simplifies complex sales processes. You use whiteboard-style progressive revelation: identify the pain → present the framework → show the solution → prove the ROI. Clear, logical, and persuasive.",
+    "biz_presentation": "You are a TED Talk coach and McKinsey presentation specialist. You structure business presentations with the Minto Pyramid: answer first, then evidence. Every slide makes ONE point with maximum visual impact. Clean, confident, executive-ready.",
 }
 
 def build_master_prompt(request: ScriptRequest) -> str:
@@ -693,6 +707,136 @@ Return ONLY valid JSON:
         raise HTTPException(status_code=500, detail="Failed to parse AI-generated prompts")
     except Exception as e:
         logger.error(f"Prompt generator error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/analyze-business")
+async def analyze_business(
+    url: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+):
+    """Analyze a business from URL, file upload, or description and suggest video types."""
+    try:
+        business_context = ""
+
+        # 1. Scrape URL if provided
+        if url and url.strip():
+            try:
+                import requests as req
+                from bs4 import BeautifulSoup
+                headers = {"User-Agent": "Mozilla/5.0 (compatible; ExplainaPro/1.0)"}
+                resp = req.get(url.strip(), headers=headers, timeout=15)
+                resp.raise_for_status()
+                soup = BeautifulSoup(resp.text, "html.parser")
+                for tag in soup(["script", "style", "nav", "footer", "header"]):
+                    tag.decompose()
+                text = soup.get_text(separator=" ", strip=True)[:5000]
+                title = soup.title.string if soup.title else ""
+                meta_desc = ""
+                meta_tag = soup.find("meta", attrs={"name": "description"})
+                if meta_tag:
+                    meta_desc = meta_tag.get("content", "")
+                business_context += f"WEBSITE URL: {url}\nTITLE: {title}\nMETA: {meta_desc}\nCONTENT: {text}\n\n"
+            except Exception as e:
+                logger.warning(f"URL scrape failed: {e}")
+                business_context += f"WEBSITE URL: {url} (could not scrape, use URL as reference)\n\n"
+
+        # 2. Extract text from uploaded file
+        if file:
+            content = await file.read()
+            ext = Path(file.filename).suffix.lower()
+            try:
+                if ext == ".pdf":
+                    from PyPDF2 import PdfReader
+                    import io
+                    reader = PdfReader(io.BytesIO(content))
+                    text = " ".join(page.extract_text() or "" for page in reader.pages)[:5000]
+                    business_context += f"UPLOADED PDF ({file.filename}):\n{text}\n\n"
+                elif ext in (".docx", ".doc"):
+                    from docx import Document
+                    import io
+                    doc = Document(io.BytesIO(content))
+                    text = " ".join(p.text for p in doc.paragraphs)[:5000]
+                    business_context += f"UPLOADED DOCUMENT ({file.filename}):\n{text}\n\n"
+                elif ext in (".txt", ".md", ".csv"):
+                    text = content.decode("utf-8", errors="ignore")[:5000]
+                    business_context += f"UPLOADED FILE ({file.filename}):\n{text}\n\n"
+                elif ext in (".png", ".jpg", ".jpeg", ".webp"):
+                    b64 = base64.b64encode(content).decode()
+                    business_context += f"UPLOADED IMAGE ({file.filename}): [image provided as context]\n\n"
+                else:
+                    text = content.decode("utf-8", errors="ignore")[:3000]
+                    business_context += f"UPLOADED FILE ({file.filename}):\n{text}\n\n"
+            except Exception as e:
+                logger.warning(f"File extraction failed: {e}")
+                business_context += f"UPLOADED FILE ({file.filename}): [extraction failed]\n\n"
+
+        # 3. Add manual description
+        if description and description.strip():
+            business_context += f"BUSINESS DESCRIPTION: {description.strip()}\n\n"
+
+        if not business_context.strip():
+            raise HTTPException(status_code=400, detail="Please provide a URL, file, or description")
+
+        # 4. Analyze with Gemini
+        analysis_prompt = f"""You are a world-class business video strategist. Analyze the following business information and provide:
+1. A concise summary of what this business does
+2. Key products/services offered
+3. Target audience
+4. Brand tone and personality
+5. Recommend which video types would be MOST valuable for this business, ranked by impact
+
+BUSINESS INFORMATION:
+{business_context}
+
+Return ONLY valid JSON:
+{{
+  "businessName": "Company name",
+  "businessSummary": "2-3 sentence summary of the business",
+  "products": ["product/service 1", "product/service 2"],
+  "targetAudience": "Description of ideal customers",
+  "brandTone": "professional|energetic|friendly|premium|innovative",
+  "suggestedVideos": [
+    {{
+      "categoryId": "biz_product_demo",
+      "label": "Product Demo",
+      "reason": "Why this video type would benefit this specific business (1 sentence)",
+      "priority": "high|medium|low",
+      "suggestedTopic": "A specific topic/angle for this business"
+    }}
+  ],
+  "keyMessages": ["3-5 key brand messages to highlight in videos"],
+  "competitiveEdge": "What makes this business unique"
+}}
+
+Available categoryIds: biz_product_demo, biz_pitch_deck, biz_commercial, biz_marketing, biz_company_profile, biz_brand_story, biz_testimonial, biz_social_ad, biz_training, biz_product_launch, biz_case_study, biz_webinar_promo, biz_sales_explainer, biz_presentation
+
+Include at least 6 relevant video types in suggestedVideos, sorted by priority (high first)."""
+
+        response = await gemini_generate(
+            "You are an elite business video strategist who has consulted for Fortune 500 companies. Always respond with valid JSON only.",
+            analysis_prompt
+        )
+
+        cleaned = response.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
+        parsed = json.loads(cleaned)
+        return {"success": True, "data": parsed}
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Business analysis JSON error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse AI analysis")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Business analysis error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/restructure-script")

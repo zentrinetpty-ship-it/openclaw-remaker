@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, ArrowLeft, Check, Loader2, Wand2, Image, Film, Upload, RefreshCcw, Play } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, Check, Loader2, Wand2, Image, Film, Upload, RefreshCcw, Play, Copy } from 'lucide-react';
 import { useProjectStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -160,6 +160,12 @@ function StoryboardStep({ onNext, onBack }) {
                 <summary className="text-[9px] text-indigo-600 font-bold cursor-pointer list-none">Image Prompt</summary>
                 <p className="text-[9px] text-slate-400 mt-1 italic line-clamp-2">{slide.imagePrompt}</p>
               </details>
+              {slide.videoPrompt && (
+                <details className="group">
+                  <summary className="text-[9px] text-blue-600 font-bold cursor-pointer list-none">Video Prompt</summary>
+                  <p className="text-[9px] text-slate-400 mt-1 italic line-clamp-2">{slide.videoPrompt}</p>
+                </details>
+              )}
             </div>
           </motion.div>
         ))}
@@ -216,6 +222,20 @@ function SlideAssetCard({ slide, index, cat }) {
       </div>
       <div className="p-3 space-y-2">
         <p className="text-xs font-bold text-slate-900 line-clamp-1">{slide.title}</p>
+        {/* Video Generation Prompt - copyable for external AI tools */}
+        {(slide.videoPrompt || slide.imagePrompt) && (
+          <div className="relative group/prompt">
+            <div className="p-2 rounded bg-slate-50 border border-slate-200">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Video Gen Prompt</span>
+                <button onClick={() => { navigator.clipboard.writeText(slide.videoPrompt || slide.imagePrompt); }} className="opacity-0 group-hover/prompt:opacity-100 transition flex items-center gap-1 text-[9px] text-slate-400 hover:text-indigo-600" data-testid={`copy-video-prompt-${slide.id}`}>
+                  <Copy className="w-2.5 h-2.5" /> Copy
+                </button>
+              </div>
+              <p className="text-[9px] text-slate-500 leading-relaxed line-clamp-3">{slide.videoPrompt || slide.imagePrompt}</p>
+            </div>
+          </div>
+        )}
         <div className="flex gap-1.5">
           <button onClick={generateImage} disabled={generating} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-none text-[11px] font-bold text-white disabled:opacity-50 btn-sharp" style={{ background: cat?.color }}>
             {generating === 'image' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />} Image

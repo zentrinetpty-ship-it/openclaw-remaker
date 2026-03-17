@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { Sparkles, ArrowRight, Play, Clock, Layers, Image, Palette, Mic2, ChevronDown, ChevronUp, Wand2, Upload, Film, Zap, PenTool, Volume2, Monitor, Star, Check, ArrowUpRight, User, LogOut } from 'lucide-react';
+import { Sparkles, ArrowRight, Play, Clock, Layers, Image, Palette, Mic2, ChevronDown, ChevronUp, Wand2, Upload, Film, Zap, PenTool, Volume2, Monitor, Star, Check, ArrowUpRight, User, LogOut, Globe, FileText, Loader2, Briefcase, Copy } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { useProjectStore, CATEGORIES, CATEGORY_GROUPS } from '../store/useProjectStore';
@@ -100,14 +100,14 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { num: '01', title: 'Choose a Category', desc: 'Pick from 21 video types — explainers, tutorials, motion graphics, horror, sci-fi, and more.' },
+  { num: '01', title: 'Choose a Category', desc: 'Pick from 36 video types — explainers, tutorials, business presentations, commercials, pitch decks, and more.' },
   { num: '02', title: 'Describe Your Idea', desc: 'Type a few sentences. Our AI understands your vision and writes a full storyboard.' },
   { num: '03', title: 'Customize & Edit', desc: 'Tweak scripts, swap images, adjust timing, add motion graphics — full creative control.' },
   { num: '04', title: 'Export & Share', desc: 'Render a polished MP4 with voiceover, captions, and background music. Ready to publish.' },
 ];
 
 const STATS = [
-  { value: '21', label: 'Video Categories' },
+  { value: '36', label: 'Video Categories' },
   { value: '6', label: 'Caption Styles' },
   { value: '78+', label: 'Music & SFX Tracks' },
   { value: '1080p', label: 'Export Quality' },
@@ -142,13 +142,42 @@ export default function LandingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remakerFile, setRemakerFile] = useState(null);
   const [remakerUploading, setRemakerUploading] = useState(false);
+  // Business analysis state
+  const [bizUrl, setBizUrl] = useState('');
+  const [bizFile, setBizFile] = useState(null);
+  const [bizAnalysis, setBizAnalysis] = useState(null);
+  const [bizAnalyzing, setBizAnalyzing] = useState(false);
+  const [bizSelectedType, setBizSelectedType] = useState(null);
 
   const cat = useMemo(() => CATEGORIES.find(c => c.id === selectedCategory), [selectedCategory]);
+  const isBusiness = cat?.isBusiness || false;
 
   useEffect(() => {
     if (cat) setTone(cat.tone);
     setInputValue('');
+    setBizAnalysis(null);
+    setBizSelectedType(null);
+    setBizUrl('');
+    setBizFile(null);
   }, [selectedCategory, cat]);
+
+  const handleAnalyzeBusiness = async () => {
+    if (bizAnalyzing) return;
+    if (!bizUrl.trim() && !bizFile && !inputValue.trim()) return;
+    setBizAnalyzing(true);
+    try {
+      const API = process.env.REACT_APP_BACKEND_URL + '/api';
+      const formData = new FormData();
+      if (bizUrl.trim()) formData.append('url', bizUrl.trim());
+      if (inputValue.trim()) formData.append('description', inputValue.trim());
+      if (bizFile) formData.append('file', bizFile);
+      const res = await fetch(`${API}/analyze-business`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.detail || 'Analysis failed');
+      setBizAnalysis(data.data);
+    } catch (e) { alert('Business analysis failed: ' + (e.message || 'Unknown error')); }
+    finally { setBizAnalyzing(false); }
+  };
 
   const handleSubmit = async () => {
     if (selectedCategory === 'remaker') {
@@ -168,6 +197,23 @@ export default function LandingPage() {
         navigate('/create');
       } catch (e) { alert('Video analysis failed: ' + (e.message || 'Unknown error')); }
       finally { setRemakerUploading(false); setIsSubmitting(false); }
+      return;
+    }
+    // Business category flow: use analysis context if available
+    if (isBusiness && bizAnalysis) {
+      const bizContext = JSON.stringify({
+        businessAnalysis: bizAnalysis,
+        selectedVideoType: bizSelectedType || selectedCategory,
+        additionalNotes: inputValue.trim(),
+        businessUrl: bizUrl.trim(),
+      });
+      if (!isSubmitting) {
+        setIsSubmitting(true);
+        const targetCategory = bizSelectedType || selectedCategory;
+        setRawInput(bizContext);
+        setInputType('idea'); setVideoDuration(duration); setVideoTone(tone); setVideoCategory(targetCategory); setSlideCount(slideCount); setAssetType(localAssetType); setPreferredVisualStyle(visualStyle); setStep('processing');
+        navigate('/create');
+      }
       return;
     }
     if (!inputValue.trim() || isSubmitting) return;
@@ -362,6 +408,83 @@ export default function LandingPage() {
                   </label>
                   <Textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Optional: Add notes about style changes..." className="min-h-[60px] resize-none bg-slate-50 text-slate-800 text-sm placeholder:text-slate-400 rounded-sm border-slate-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2" data-testid="remaker-notes" />
                 </div>
+              ) : isBusiness ? (
+                <div className="space-y-3">
+                  {/* URL Input */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1.5"><Globe className="w-3 h-3 text-blue-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Website URL</span></div>
+                    <input type="url" value={bizUrl} onChange={(e) => setBizUrl(e.target.value)} placeholder="https://yourcompany.com" className="w-full bg-slate-50 border-2 border-slate-200 rounded-sm px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" data-testid="biz-url-input" />
+                  </div>
+                  {/* File Upload */}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1.5"><FileText className="w-3 h-3 text-blue-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Upload Company Files</span></div>
+                    <label className="flex items-center justify-center min-h-[64px] rounded-sm border-2 border-dashed border-slate-300 hover:border-indigo-400 cursor-pointer transition bg-slate-50 hover:bg-indigo-50/50" data-testid="biz-file-upload">
+                      <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.csv,.png,.jpg,.jpeg,.webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setBizFile(f); }} />
+                      {bizFile ? (
+                        <div className="flex items-center gap-3 p-3 w-full">
+                          <FileText className="w-6 h-6 text-indigo-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-slate-900 font-bold truncate">{bizFile.name}</p>
+                            <p className="text-[10px] text-slate-400">{(bizFile.size / 1024).toFixed(0)} KB</p>
+                          </div>
+                          <button onClick={(e) => { e.preventDefault(); setBizFile(null); }} className="text-[10px] text-slate-400 hover:text-red-500 font-semibold flex-shrink-0">Remove</button>
+                        </div>
+                      ) : (
+                        <div className="text-center p-3">
+                          <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+                          <p className="text-[10px] text-slate-500 font-semibold">PDF, DOCX, TXT, Images</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+                  {/* Description */}
+                  <Textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={cat?.placeholder || 'Describe your business, products, and goals...'} className="min-h-[80px] resize-none bg-slate-50 text-slate-800 text-sm placeholder:text-slate-400 rounded-sm border-slate-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2" data-testid="biz-description" />
+                  {/* Analyze Button */}
+                  {!bizAnalysis && (
+                    <motion.button onClick={handleAnalyzeBusiness} disabled={bizAnalyzing || (!bizUrl.trim() && !bizFile && !inputValue.trim())} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-sm text-sm font-bold text-white disabled:opacity-40 transition-all bg-gradient-to-r from-blue-600 to-indigo-600" data-testid="biz-analyze-btn">
+                      {bizAnalyzing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing Business...</> : <><Briefcase className="w-4 h-4" /> Analyze Business</>}
+                    </motion.button>
+                  )}
+                  {/* Analysis Results */}
+                  {bizAnalysis && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                      <div className="p-3 rounded-md bg-blue-50 border-2 border-blue-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Briefcase className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-bold text-blue-900">{bizAnalysis.businessName}</span>
+                        </div>
+                        <p className="text-[11px] text-blue-700 leading-relaxed">{bizAnalysis.businessSummary}</p>
+                        {bizAnalysis.competitiveEdge && <p className="text-[10px] text-blue-500 mt-1 italic">{bizAnalysis.competitiveEdge}</p>}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-2"><Film className="w-3 h-3 text-indigo-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Recommended Videos for Your Business</span></div>
+                        <div className="grid grid-cols-1 gap-1.5 max-h-[280px] overflow-y-auto">
+                          {(bizAnalysis.suggestedVideos || []).map((sv, i) => {
+                            const matchCat = CATEGORIES.find(c => c.id === sv.categoryId);
+                            const isSelected = (bizSelectedType || selectedCategory) === sv.categoryId;
+                            return (
+                              <button key={i} onClick={() => { setBizSelectedType(sv.categoryId); if (matchCat) setSelectedCategory(sv.categoryId); }} className={`flex items-start gap-3 w-full px-3 py-2.5 rounded-md text-left transition-all ${isSelected ? 'bg-indigo-50 border-2 border-indigo-500' : 'border-2 border-slate-200 hover:border-indigo-300 hover:bg-slate-50'}`} data-testid={`biz-video-type-${sv.categoryId}`}>
+                                <div className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: matchCat?.color || '#4F46E5' }}>
+                                  <Sparkles className="w-3.5 h-3.5 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-900">{sv.label}</span>
+                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-none text-white ${sv.priority === 'high' ? 'bg-red-500' : sv.priority === 'medium' ? 'bg-amber-500' : 'bg-slate-400'}`}>{sv.priority?.toUpperCase()}</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">{sv.reason}</p>
+                                  {sv.suggestedTopic && <p className="text-[10px] text-indigo-500 mt-0.5 italic">Topic: {sv.suggestedTopic}</p>}
+                                </div>
+                                {isSelected && <Check className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-1" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <button onClick={() => { setBizAnalysis(null); setBizSelectedType(null); }} className="text-[10px] text-slate-400 hover:text-indigo-600 font-semibold">Re-analyze</button>
+                    </motion.div>
+                  )}
+                </div>
               ) : (
                 <Textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={cat?.placeholder} className="min-h-[120px] resize-none bg-slate-50 text-slate-800 text-sm placeholder:text-slate-400 rounded-sm border-slate-200 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2" onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(); }} data-testid="input-textarea" />
               )}
@@ -449,9 +572,9 @@ export default function LandingPage() {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <span className="text-xs text-slate-400 font-mono">{selectedCategory === 'remaker' ? (remakerFile ? remakerFile.name : 'No file') : `${inputValue.length} chars`}</span>
-              <motion.button onClick={handleSubmit} disabled={(selectedCategory === 'remaker' ? !remakerFile : !inputValue.trim()) || isSubmitting} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-6 py-2.5 rounded-none text-sm font-bold text-white disabled:opacity-40 btn-sharp transition-all" style={{ background: cat?.color || '#4F46E5' }} data-testid="generate-btn">
-                {isSubmitting ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {selectedCategory === 'remaker' ? 'Analyzing...' : 'Generating...'}</> : <><Wand2 className="w-3.5 h-3.5" /> {selectedCategory === 'remaker' ? 'Analyze & Remake' : `Generate ${cat?.label}`}</>}
+              <span className="text-xs text-slate-400 font-mono">{selectedCategory === 'remaker' ? (remakerFile ? remakerFile.name : 'No file') : isBusiness ? (bizAnalysis ? bizAnalysis.businessName : 'Business') : `${inputValue.length} chars`}</span>
+              <motion.button onClick={handleSubmit} disabled={selectedCategory === 'remaker' ? !remakerFile || isSubmitting : isBusiness ? (!bizAnalysis || isSubmitting) : !inputValue.trim() || isSubmitting} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center gap-2 px-6 py-2.5 rounded-none text-sm font-bold text-white disabled:opacity-40 btn-sharp transition-all" style={{ background: cat?.color || '#4F46E5' }} data-testid="generate-btn">
+                {isSubmitting ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Generating...</> : <><Wand2 className="w-3.5 h-3.5" /> {selectedCategory === 'remaker' ? 'Analyze & Remake' : isBusiness && bizAnalysis ? 'Generate Business Video' : `Generate ${cat?.label}`}</>}
               </motion.button>
             </div>
           </motion.div>
