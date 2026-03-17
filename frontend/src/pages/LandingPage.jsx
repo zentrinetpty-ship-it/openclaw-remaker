@@ -11,7 +11,9 @@ import React from 'react';
 
 const DURATIONS = [
   { label: '15s', value: 15 }, { label: '30s', value: 30 }, { label: '60s', value: 60 },
-  { label: '90s', value: 90 }, { label: '2 min', value: 120 }, { label: '5 min', value: 300 },
+  { label: '90s', value: 90 }, { label: '2 min', value: 120 }, { label: '3 min', value: 180 },
+  { label: '5 min', value: 300 }, { label: '7 min', value: 420 }, { label: '10 min', value: 600 },
+  { label: '15 min', value: 900 }, { label: '20 min', value: 1200 },
 ];
 
 const TONES = [
@@ -22,7 +24,12 @@ const TONES = [
   { label: 'Humorous', value: 'humorous' },
 ];
 
-const VISUAL_STYLES = ['Cinematic', 'Animation', '3D Render', 'Anime', 'Photorealistic', 'Digital Art', 'Cyberpunk'];
+const VISUAL_STYLES = [
+  'Cinematic', 'Animation', '3D Render', 'Anime', 'Photorealistic', 'Digital Art', 'Cyberpunk',
+  'Watercolor', 'Oil Painting', 'Pixel Art', 'Vaporwave', 'Surrealism', 'Pop Art',
+  'Noir', 'Neon Glow', 'Minimalist', 'Retro 80s', 'Studio Ghibli', 'Comic Book',
+  'Isometric', 'Low Poly', 'Steampunk', 'Dreamy Pastel', 'Dark Fantasy',
+];
 
 const FEATURES = [
   { icon: PenTool, title: 'AI Script Writing', desc: 'Describe your idea and our AI writes a complete, engaging script with perfect pacing and structure.', span: 'col-span-1', color: '#4F46E5' },
@@ -285,7 +292,7 @@ export default function LandingPage() {
                       </div>
                       <div className="space-y-1.5">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1"><Layers className="w-3 h-3" /> Slides ({slideCount})</span>
-                        <input type="range" min="1" max="20" value={slideCount} onChange={(e) => setLocalSlideCount(Number(e.target.value))} className="w-full accent-indigo-600" data-testid="slide-count" />
+                        <input type="range" min="1" max="50" value={slideCount} onChange={(e) => setLocalSlideCount(Number(e.target.value))} className="w-full accent-indigo-600" data-testid="slide-count" />
                       </div>
                       <div className="space-y-1.5">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1"><Image className="w-3 h-3" /> Media</span>
