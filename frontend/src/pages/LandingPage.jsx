@@ -24,12 +24,63 @@ const TONES = [
   { label: 'Humorous', value: 'humorous' },
 ];
 
-const VISUAL_STYLES = [
-  'Cinematic', 'Animation', '3D Render', 'Anime', 'Photorealistic', 'Digital Art', 'Cyberpunk',
-  'Watercolor', 'Oil Painting', 'Pixel Art', 'Vaporwave', 'Surrealism', 'Pop Art',
-  'Noir', 'Neon Glow', 'Minimalist', 'Retro 80s', 'Studio Ghibli', 'Comic Book',
-  'Isometric', 'Low Poly', 'Steampunk', 'Dreamy Pastel', 'Dark Fantasy',
+const STYLE_CATEGORIES = [
+  {
+    name: 'Film & Photography',
+    styles: [
+      { id: 'Cinematic', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/6b4aa5b0ddb9e7b7b1ad9b1c5ebd3fa6126d493d08d6745925783f167582b812.png' },
+      { id: 'Photorealistic', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/047d4aa36c22ce81c042a058afa46e1134c1628474860e7240166dcb0588305d.png' },
+      { id: 'Noir', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/b97d8d82d1d7d67473dd7dd9a12b2ea4dab3fff456ebb32f41edb63dc9f5bce1.png' },
+    ]
+  },
+  {
+    name: 'Illustration & Art',
+    styles: [
+      { id: 'Watercolor', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/824207a1f04e123cb301f594296003c88bcca99486e1f07d138b34933c9197e1.png' },
+      { id: 'Oil Painting', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/d1cc62d094ec20a5935c97bea7289711cdb15ff48fdd7e6ef1291026e2d3948d.png' },
+      { id: 'Digital Art', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/6b4aa5b0ddb9e7b7b1ad9b1c5ebd3fa6126d493d08d6745925783f167582b812.png' },
+      { id: 'Pop Art', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/875212e3cc7343dfc43de1623c8a75f1604b1a1b38725d9615915a9fed453fd6.png' },
+      { id: 'Surrealism', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/d2675e4023c78abfcc06b1dcd9a528f3196455acfd6c5132b5eba6e1ddf3e315.png' },
+      { id: 'Minimalist', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/1744894c516b8ed8be036007f893d6dfd62e345ff57652e17116d7db2ad29272.png' },
+      { id: 'Comic Book', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/a2a60f6d9701b3ded3984d7bf28fce44555036632ff68b68b061e559c3b98d82.png' },
+    ]
+  },
+  {
+    name: 'Anime & Animation',
+    styles: [
+      { id: 'Anime', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/da11df89d0f93ed31366c74489fa3b3c2dd4a382e80e0ab61d3854ab08b2f35a.png' },
+      { id: 'Studio Ghibli', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/65493dfc021534a758552f60c85bbab63513ba8930b9df8be6ad91b61a1339bf.png' },
+      { id: 'Animation', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/da11df89d0f93ed31366c74489fa3b3c2dd4a382e80e0ab61d3854ab08b2f35a.png' },
+      { id: 'Dreamy Pastel', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/5079eefe11b2947ebde1cb8f5cefb7b5ca06f411e2e09dfa16ee5a1884af2295.png' },
+    ]
+  },
+  {
+    name: '3D & Modern',
+    styles: [
+      { id: '3D Render', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/047d4aa36c22ce81c042a058afa46e1134c1628474860e7240166dcb0588305d.png' },
+      { id: 'Low Poly', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/8b4fc250bce0f8613b2793902dd027221d8b55569df1a63c337650d82a3a3d29.png' },
+      { id: 'Isometric', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/8b4fc250bce0f8613b2793902dd027221d8b55569df1a63c337650d82a3a3d29.png' },
+      { id: 'Pixel Art', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/c4f31ed181e00c7c57522e8a1b7ab47cf9bf445fc09570ff1c17d25f0ccb428e.png' },
+    ]
+  },
+  {
+    name: 'Sci-Fi & Fantasy',
+    styles: [
+      { id: 'Cyberpunk', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/a9ec4a35dcafdb7ca7cade524f3466063d00e75ddd713ee970f832e62b4d8606.png' },
+      { id: 'Neon Glow', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/f460c30eaade59b20f4053c06984229a97972be6b8fb75d7ba5e0fa51bff6f08.png' },
+      { id: 'Dark Fantasy', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/1943d809d673eb1356706de2f9b20d2d33a5a975d5a6490049e27a0fe248d727.png' },
+      { id: 'Steampunk', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/b583ab9c51edf1c9679c4ae9c00ab42d41476226680b8e868c2708c208ee69f5.png' },
+    ]
+  },
+  {
+    name: 'Retro & Aesthetic',
+    styles: [
+      { id: 'Retro 80s', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/e1fff0ef6c41aa506b2cfe56ba4ced321684dee8f23e1421bd6ea214e65c2e4b.png' },
+      { id: 'Vaporwave', img: 'https://static.prod-images.emergentagent.com/jobs/2b3459fe-0785-4966-b00c-af788e8221f8/images/347f912c2a42c1909a2184b7161b7e2af90dae1065b5923bff5375685c61489b.png' },
+    ]
+  },
 ];
+const VISUAL_STYLES = STYLE_CATEGORIES.flatMap(c => c.styles.map(s => s.id));
 
 const FEATURES = [
   { icon: PenTool, title: 'AI Script Writing', desc: 'Describe your idea and our AI writes a complete, engaging script with perfect pacing and structure.', span: 'col-span-1', color: '#4F46E5' },
@@ -76,6 +127,7 @@ export default function LandingPage() {
   const [localAssetType, setLocalAssetType] = useState('image');
   const [visualStyle, setVisualStyle] = useState('Cinematic');
   const [showSettings, setShowSettings] = useState(false);
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remakerFile, setRemakerFile] = useState(null);
   const [remakerUploading, setRemakerUploading] = useState(false);
@@ -265,14 +317,47 @@ export default function LandingPage() {
               )}
             </div>
 
-            {/* Visual Style */}
+            {/* Visual Style - Categorized with Previews */}
             <div className="px-6 pb-4">
               <div className="flex items-center gap-1.5 mb-2"><Palette className="w-3 h-3 text-indigo-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Image Style</span></div>
-              <div className="flex gap-1.5 flex-wrap">
-                {VISUAL_STYLES.map(style => (
-                  <button key={style} onClick={() => setVisualStyle(style)} className={`px-3 py-1.5 rounded-none text-xs font-bold border-2 transition-all ${visualStyle === style ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`} data-testid={`style-${style}`}>{style}</button>
-                ))}
-              </div>
+              <button onClick={() => setStylePickerOpen(!stylePickerOpen)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border-2 border-slate-200 hover:border-indigo-400 bg-white transition" data-testid="style-picker-trigger">
+                {(() => { const found = STYLE_CATEGORIES.flatMap(c => c.styles).find(s => s.id === visualStyle); return found ? <img src={found.img} className="w-10 h-10 rounded object-cover" alt="" /> : null; })()}
+                <div className="flex-1 text-left">
+                  <span className="text-sm font-bold text-slate-900">{visualStyle}</span>
+                  <span className="text-[10px] text-slate-400 ml-2">{STYLE_CATEGORIES.find(c => c.styles.some(s => s.id === visualStyle))?.name}</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition ${stylePickerOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {stylePickerOpen && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                    <div className="mt-2 rounded-md border-2 border-slate-200 bg-white max-h-[420px] overflow-y-auto" data-testid="style-picker-dropdown">
+                      {STYLE_CATEGORIES.map(cat => (
+                        <div key={cat.name} className="border-b border-slate-100 last:border-0">
+                          <div className="px-3 py-2 bg-slate-50 sticky top-0 z-10">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{cat.name}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5 p-2">
+                            {cat.styles.map(style => (
+                              <button key={style.id} onClick={() => { setVisualStyle(style.id); setStylePickerOpen(false); }} className={`group relative rounded-md overflow-hidden border-2 transition-all ${visualStyle === style.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-transparent hover:border-slate-300'}`} data-testid={`style-${style.id}`}>
+                                <img src={style.img} alt={style.id} className="w-full aspect-square object-cover" loading="lazy" />
+                                <div className={`absolute inset-x-0 bottom-0 px-1.5 py-1 text-center ${visualStyle === style.id ? 'bg-indigo-600' : 'bg-black/60 group-hover:bg-black/80'} transition`}>
+                                  <span className="text-[9px] font-bold text-white leading-none">{style.id}</span>
+                                </div>
+                                {visualStyle === style.id && (
+                                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center">
+                                    <Check className="w-3 h-3 text-white" />
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Settings Toggle */}
