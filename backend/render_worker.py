@@ -224,7 +224,11 @@ async def run_render(job_file):
         if not (remotion_dir / 'node_modules').exists():
             logger.info("Installing remotion dependencies...")
             import subprocess as sp
-            sp.run(['yarn', 'install', '--frozen-lockfile'], cwd=str(remotion_dir), capture_output=True, timeout=120)
+            yarn_path = shutil.which('yarn') or '/usr/bin/yarn'
+            if not os.path.isfile(yarn_path):
+                sp.run([node_path, '/usr/bin/npm', 'install', '-g', 'yarn'], capture_output=True, timeout=60, env=env)
+                yarn_path = shutil.which('yarn') or '/usr/bin/yarn'
+            sp.run([yarn_path, 'install', '--frozen-lockfile'], cwd=str(remotion_dir), capture_output=True, timeout=120, env=env)
         
         env = {**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"}
         
