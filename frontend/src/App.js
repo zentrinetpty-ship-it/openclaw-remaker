@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import CreatePage from "./pages/CreatePage";
-import EditorPage from "./pages/EditorPage";
+import EditorPage from "./pages/Editor/EditorPage";
 import DashboardPage from "./pages/DashboardPage";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
