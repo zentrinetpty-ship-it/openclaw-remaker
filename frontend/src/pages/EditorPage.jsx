@@ -205,7 +205,11 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                 <div className="flex items-start gap-3">
                   <div className="w-16 h-10 rounded-sm bg-slate-100 flex-shrink-0 overflow-hidden flex items-center justify-center border border-slate-200">
                     {slide.assetUrl ? (
-                      <img src={slide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${slide.assetUrl}` : slide.assetUrl} className="w-full h-full object-cover" alt="" />
+                      slide.assetType === 'video' ? (
+                        <video src={slide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${slide.assetUrl}` : slide.assetUrl} className="w-full h-full object-cover" muted />
+                      ) : (
+                        <img src={slide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${slide.assetUrl}` : slide.assetUrl} className="w-full h-full object-cover" alt="" />
+                      )
                     ) : (
                       <span className="text-xs text-slate-400 font-bold">{idx + 1}</span>
                     )}
@@ -213,6 +217,7 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-xs font-bold text-slate-900 truncate">{slide.title}</p>
+                      {slide.assetType === 'video' && <Film className="w-3 h-3 text-blue-500" />}
                       {slide.voiceUrl && <Mic className="w-3 h-3 text-emerald-500" />}
                       {slide.sfxUrl && <Volume1 className="w-3 h-3 text-pink-500" />}
                     </div>
@@ -413,42 +418,69 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
         {activeTab === 'music' && (
           <div className="space-y-4">
             <div>
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Background Music</h3>
-              {project?.bgmUrl ? (
-                <div className="p-3 rounded-md bg-indigo-50 border-2 border-indigo-200 space-y-3">
-                  <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Active Music Tracks</h3>
+              
+              {/* Primary BGM */}
+              {project?.bgmUrl && (
+                <div className="p-3 rounded-md bg-indigo-50 border-2 border-indigo-200 space-y-2 mb-2">
+                  <div className="flex items-center gap-2">
                     <Music className="w-3 h-3 text-indigo-500" />
-                    <span className="text-[10px] text-indigo-700 font-bold truncate">{project.bgmName || 'Custom Track'}</span>
+                    <span className="text-[10px] text-indigo-700 font-bold truncate flex-1">Primary: {project.bgmName || 'Custom Track'}</span>
+                    <span className="text-[8px] bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded font-bold">LOOPS</span>
+                    <button onClick={() => { useProjectStore.getState().setBgmUrl(null); setProject({ ...project, bgmUrl: null, bgmName: null }); }} className="text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
                   </div>
-                  <audio controls src={project.bgmUrl.startsWith('/api/') ? `${API.replace('/api', '')}${project.bgmUrl}` : project.bgmUrl} className="w-full h-8" data-testid="bgm-audio-player" />
+                  <audio controls src={project.bgmUrl.startsWith('/api/') ? `${API.replace('/api', '')}${project.bgmUrl}` : project.bgmUrl} className="w-full h-7" data-testid="bgm-audio-player" />
                   <div className="flex items-center gap-2">
                     <Volume2 className="w-3 h-3 text-slate-400" />
-                    <Slider value={[project.bgmVolume || 0.4]} max={1} step={0.1} className="flex-1" data-testid="bgm-volume-slider" onValueChange={(v) => { useProjectStore.getState().setBgmVolume(v[0]); }} />
+                    <Slider value={[project.bgmVolume || 0.4]} max={1} step={0.05} className="flex-1" data-testid="bgm-volume-slider" onValueChange={(v) => { useProjectStore.getState().setBgmVolume(v[0]); }} />
                     <span className="text-[10px] text-slate-500 w-8 text-right">{Math.round((project.bgmVolume || 0.4) * 100)}%</span>
                   </div>
-                  <button onClick={() => { useProjectStore.getState().setBgmUrl(null); setProject({ ...project, bgmUrl: null, bgmName: null }); }} className="w-full px-2 py-1.5 rounded-none text-[10px] bg-red-50 text-red-500 hover:bg-red-100 border-2 border-red-200 transition font-bold" data-testid="remove-bgm-btn">
-                    <X className="w-3 h-3 inline mr-1" /> Remove Music
-                  </button>
                 </div>
-              ) : (
-                <label className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-slate-200 rounded-md cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition" data-testid="upload-bgm-label">
-                  <Upload className="w-5 h-5 text-slate-400" />
-                  <span className="text-[10px] text-slate-500 font-bold">Upload Your Own Music</span>
-                  <span className="text-[9px] text-slate-400">MP3, WAV, AAC</span>
-                  <input type="file" accept="audio/*" className="hidden" data-testid="upload-bgm-input"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const formData = new FormData();
-                      formData.append('file', file);
-                      try {
-                        const res = await axios.post(`${API}/upload`, formData);
-                        if (res.data.success) { useProjectStore.getState().setBgmUrl(res.data.url); setProject({ ...project, bgmUrl: res.data.url, bgmName: file.name }); }
-                      } catch (err) { console.error('Music upload failed:', err); }
-                    }}
-                  />
-                </label>
               )}
+              
+              {/* Additional music tracks */}
+              {(project?.musicTracks || []).map((track, idx) => (
+                <div key={idx} className="p-3 rounded-md bg-emerald-50 border-2 border-emerald-200 space-y-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <Music className="w-3 h-3 text-emerald-500" />
+                    <span className="text-[10px] text-emerald-700 font-bold truncate flex-1">Track {idx + 2}: {track.name || 'Custom Track'}</span>
+                    <span className="text-[8px] bg-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded font-bold">LOOPS</span>
+                    <button onClick={() => useProjectStore.getState().removeMusicTrack(idx)} className="text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
+                  </div>
+                  <audio controls src={track.url.startsWith('/api/') ? `${API.replace('/api', '')}${track.url}` : track.url} className="w-full h-7" />
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="w-3 h-3 text-slate-400" />
+                    <Slider value={[track.volume || 0.3]} max={1} step={0.05} className="flex-1" onValueChange={(v) => { useProjectStore.getState().updateMusicTrack(idx, { volume: v[0] }); }} />
+                    <span className="text-[10px] text-slate-500 w-8 text-right">{Math.round((track.volume || 0.3) * 100)}%</span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Upload music */}
+              <label className="flex flex-col items-center gap-2 p-3 border-2 border-dashed border-slate-200 rounded-md cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition" data-testid="upload-bgm-label">
+                <Upload className="w-4 h-4 text-slate-400" />
+                <span className="text-[10px] text-slate-500 font-bold">{project?.bgmUrl ? 'Add Another Music Track' : 'Upload Music'}</span>
+                <span className="text-[9px] text-slate-400">MP3, WAV, AAC — loops throughout video</span>
+                <input type="file" accept="audio/*" className="hidden" data-testid="upload-bgm-input"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    try {
+                      const res = await axios.post(`${API}/upload`, formData);
+                      if (res.data.success) {
+                        if (!project?.bgmUrl) {
+                          useProjectStore.getState().setBgmUrl(res.data.url);
+                          setProject({ ...project, bgmUrl: res.data.url, bgmName: file.name });
+                        } else {
+                          useProjectStore.getState().addMusicTrack({ url: res.data.url, name: file.name, volume: 0.3 });
+                        }
+                      }
+                    } catch (err) { console.error('Music upload failed:', err); }
+                  }}
+                />
+              </label>
             </div>
 
             <div>
@@ -460,8 +492,10 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                 ))}
               </div>
               <div className="space-y-1 max-h-[280px] overflow-y-auto pr-1">
-                {(musicFilter === 'all' ? musicLibrary.tracks : musicLibrary.tracks?.filter(t => t.category === musicFilter))?.map(track => (
-                  <div key={track.id} className={`flex items-center gap-2 p-2 rounded-sm border-2 transition cursor-pointer group ${project?.bgmUrl === track.url ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-slate-200 hover:border-slate-300'}`} data-testid={`music-track-${track.id}`}>
+                {(musicFilter === 'all' ? musicLibrary.tracks : musicLibrary.tracks?.filter(t => t.category === musicFilter))?.map(track => {
+                  const isActive = project?.bgmUrl === track.url || (project?.musicTracks || []).some(t => t.url === track.url);
+                  return (
+                  <div key={track.id} className={`flex items-center gap-2 p-2 rounded-sm border-2 transition cursor-pointer group ${isActive ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-slate-200 hover:border-slate-300'}`} data-testid={`music-track-${track.id}`}>
                     <button onClick={() => { if (previewingTrack === track.id) { previewAudioRef.current?.pause(); setPreviewingTrack(null); } else { if (previewAudioRef.current) { previewAudioRef.current.src = `${API.replace('/api', '')}${track.url}`; previewAudioRef.current.play().catch(() => {}); } setPreviewingTrack(track.id); } }} className="w-6 h-6 rounded-sm bg-slate-100 group-hover:bg-indigo-600 flex items-center justify-center flex-shrink-0 transition">
                       {previewingTrack === track.id ? <Square className="w-2.5 h-2.5 text-slate-500 group-hover:text-white" /> : <Play className="w-2.5 h-2.5 text-slate-500 group-hover:text-white ml-0.5" />}
                     </button>
@@ -469,11 +503,20 @@ function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCateg
                       <p className="text-[10px] text-slate-900 font-bold truncate">{track.name}</p>
                       <p className="text-[9px] text-slate-400 truncate">{track.mood} &middot; {track.duration}s</p>
                     </div>
-                    <button onClick={() => { useProjectStore.getState().setBgmUrl(track.url); setProject({ ...project, bgmUrl: track.url, bgmName: track.name }); if (previewAudioRef.current) previewAudioRef.current.pause(); setPreviewingTrack(null); }} className={`px-2 py-0.5 rounded-none text-[9px] font-bold flex-shrink-0 transition ${project?.bgmUrl === track.url ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100'}`}>
-                      {project?.bgmUrl === track.url ? 'Active' : 'Use'}
+                    <button onClick={() => {
+                      if (isActive) return;
+                      if (!project?.bgmUrl) {
+                        useProjectStore.getState().setBgmUrl(track.url); setProject({ ...project, bgmUrl: track.url, bgmName: track.name });
+                      } else {
+                        useProjectStore.getState().addMusicTrack({ url: track.url, name: track.name, volume: 0.3 });
+                      }
+                      if (previewAudioRef.current) previewAudioRef.current.pause(); setPreviewingTrack(null);
+                    }} className={`px-2 py-0.5 rounded-none text-[9px] font-bold flex-shrink-0 transition ${isActive ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100'}`}>
+                      {isActive ? 'Active' : 'Add'}
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -899,7 +942,19 @@ function CanvasPreview({ project, videoCategory, selectedSlideId, setSelectedSli
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="relative w-full max-w-4xl aspect-video rounded-md overflow-hidden bg-black shadow-2xl" style={{ boxShadow: `0 0 80px ${cat?.color}20` }}>
           {currentSlide?.assetUrl ? (
-            <img src={currentSlide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${currentSlide.assetUrl}` : currentSlide.assetUrl} className="w-full h-full object-cover" alt={currentSlide.title} />
+            currentSlide.assetType === 'video' ? (
+              <video
+                key={currentSlide.id}
+                src={currentSlide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${currentSlide.assetUrl}` : currentSlide.assetUrl}
+                className="w-full h-full object-cover"
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            ) : (
+              <img src={currentSlide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${currentSlide.assetUrl}` : currentSlide.assetUrl} className="w-full h-full object-cover" alt={currentSlide.title} />
+            )
           ) : (
             <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${cat?.color}30, #0f172a)` }}>
               <div className="text-center px-8">
@@ -1226,7 +1281,7 @@ export default function EditorPage() {
     }
     setRendering(true); setRenderProgress(0); setRenderStatus('starting'); setRenderStep('Initializing...'); setShowExportModal(true);
     try {
-      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: selectedVoice, captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', captionFont: captionFont || null, captionColor: captionColor || null, captionBgColor: captionBgColor || null, captionPosition: captionPosition || 'bottom', captionSize: captionSize || 44, bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4 });
+      const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: selectedVoice, captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', captionFont: captionFont || null, captionColor: captionColor || null, captionBgColor: captionBgColor || null, captionPosition: captionPosition || 'bottom', captionSize: captionSize || 44, bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4, musicTracks: project.musicTracks || [] });
       if (res.data.success) {
         const jobId = res.data.jobId;
         setRenderStatus('processing');

@@ -61,6 +61,9 @@ export const useProjectStore = create(persist((set, get) => ({
   
   setBgmUrl: (url) => set((s) => ({ project: s.project ? { ...s.project, bgmUrl: url } : null })),
   setBgmVolume: (v) => set((s) => ({ project: s.project ? { ...s.project, bgmVolume: v } : null })),
+  addMusicTrack: (track) => set((s) => ({ project: s.project ? { ...s.project, musicTracks: [...(s.project.musicTracks || []), track] } : null })),
+  removeMusicTrack: (idx) => set((s) => ({ project: s.project ? { ...s.project, musicTracks: (s.project.musicTracks || []).filter((_, i) => i !== idx) } : null })),
+  updateMusicTrack: (idx, data) => set((s) => ({ project: s.project ? { ...s.project, musicTracks: (s.project.musicTracks || []).map((t, i) => i === idx ? { ...t, ...data } : t) } : null })),
   setVoiceId: (v) => set((s) => ({ project: s.project ? { ...s.project, voiceId: v } : null })),
   
   updateSlide: (id, updates) => set((s) => ({

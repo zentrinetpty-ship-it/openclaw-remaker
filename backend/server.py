@@ -1413,6 +1413,7 @@ class RenderRequest(BaseModel):
     captionSize: int = 44
     bgmUrl: Optional[str] = None
     bgmVolume: float = 0.4
+    musicTracks: List[Dict[str, Any]] = []
 
 def format_ass_time(seconds):
     """Convert seconds to ASS time format H:MM:SS.CC"""
@@ -1752,6 +1753,7 @@ async def start_render(request: RenderRequest):
         "caption_size": request.captionSize,
         "bgm_url": request.bgmUrl,
         "bgm_volume": request.bgmVolume,
+        "music_tracks": request.musicTracks,
     }
     with open(job_config_file, 'w') as f:
         json.dump(job_config, f)

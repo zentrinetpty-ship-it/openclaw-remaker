@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Img, useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
+import { AbsoluteFill, Img, Video, useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
 
 const TRANSITION_TYPES = {
   fade: { enter: "opacity", exit: "opacity" },
@@ -9,14 +9,16 @@ const TRANSITION_TYPES = {
   blur: { enter: "blur", exit: "blur" },
 };
 
-export const Slide = ({ imageUrl, transition = "fade", durationInFrames, isFirst, isLast, transitionFrames = 15 }) => {
+export const Slide = ({ imageUrl, videoUrl, transition = "fade", durationInFrames, isFirst, isLast, transitionFrames = 15 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const isVideo = !!videoUrl;
+  const mediaUrl = videoUrl || imageUrl;
 
-  // Ken Burns: slow zoom and pan
-  const kenBurnsScale = interpolate(frame, [0, durationInFrames], [1.0, 1.15], { extrapolateRight: "clamp" });
-  const kenBurnsPanX = interpolate(frame, [0, durationInFrames], [0, -15], { extrapolateRight: "clamp" });
-  const kenBurnsPanY = interpolate(frame, [0, durationInFrames], [0, -8], { extrapolateRight: "clamp" });
+  // Ken Burns: slow zoom and pan (only for images)
+  const kenBurnsScale = isVideo ? 1 : interpolate(frame, [0, durationInFrames], [1.0, 1.15], { extrapolateRight: "clamp" });
+  const kenBurnsPanX = isVideo ? 0 : interpolate(frame, [0, durationInFrames], [0, -15], { extrapolateRight: "clamp" });
+  const kenBurnsPanY = isVideo ? 0 : interpolate(frame, [0, durationInFrames], [0, -8], { extrapolateRight: "clamp" });
 
   // Entry transition
   let enterOpacity = 1;
@@ -84,19 +86,29 @@ export const Slide = ({ imageUrl, transition = "fade", durationInFrames, isFirst
   const filter = [enterFilter, exitFilter].filter(Boolean).join(" ") || "none";
   const clipPath = enterClipPath || "none";
 
+  const mediaStyle = {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    transform,
+    filter,
+  };
+
   return (
     <AbsoluteFill style={{ opacity, clipPath }}>
-      {imageUrl ? (
-        <Img
-          src={imageUrl}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            transform,
-            filter,
-          }}
-        />
+      {mediaUrl ? (
+        isVideo ? (
+          <Video
+            src={mediaUrl}
+            style={mediaStyle}
+            muted
+          />
+        ) : (
+          <Img
+            src={mediaUrl}
+            style={mediaStyle}
+          />
+        )
       ) : (
         <AbsoluteFill
           style={{

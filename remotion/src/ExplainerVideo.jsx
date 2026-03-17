@@ -79,6 +79,7 @@ export const ExplainerVideo = ({
   captionSize = 44,
   bgmUrl,
   bgmVolume = 0.4,
+  musicTracks = [],
   accentColor,
 }) => {
   const { fps } = useVideoConfig();
@@ -108,6 +109,7 @@ export const ExplainerVideo = ({
         <Sequence key={idx} from={slide.startFrame} durationInFrames={slide.durationFrames}>
           <Slide
             imageUrl={slide.imageUrl}
+            videoUrl={slide.videoUrl}
             transition={slide.transition || "fade"}
             durationInFrames={slide.durationFrames}
             isFirst={idx === 0}
@@ -154,6 +156,10 @@ export const ExplainerVideo = ({
       {bgmUrl && (
         <Audio src={bgmUrl} volume={bgmVolume} loop />
       )}
+      
+      {musicTracks && musicTracks.map((track, i) => (
+        track.url && <Audio key={i} src={track.url} volume={track.volume || 0.3} loop />
+      ))}
     </AbsoluteFill>
   );
 };

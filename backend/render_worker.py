@@ -70,6 +70,7 @@ async def run_render(job_file):
     caption_size = job.get('caption_size', 44)
     bgm_url = job.get('bgm_url')
     bgm_volume = job.get('bgm_volume', 0.4)
+    music_tracks = job.get('music_tracks', [])
     
     tts_api_key = os.getenv("GOOGLE_TTS_API_KEY")
     base_url = "http://localhost:8001"
@@ -90,15 +91,23 @@ async def run_render(job_file):
             voice_url = slide.get('voiceUrl')
             transition = slide.get('transition', 'fade')
             
-            # Resolve image
+            # Resolve image/video asset
+            asset_type = slide.get('assetType', 'image')
             image_url = None
+            video_url = None
             if asset_url:
+                resolved_url = None
                 if '/api/uploads/' in asset_url:
                     fn = asset_url.split('/')[-1]
                     if (UPLOADS_DIR / fn).exists():
-                        image_url = f"{base_url}/api/uploads/{fn}"
+                        resolved_url = f"{base_url}/api/uploads/{fn}"
                 elif asset_url.startswith('http'):
-                    image_url = asset_url
+                    resolved_url = asset_url
+                
+                if asset_type == 'video':
+                    video_url = resolved_url
+                else:
+                    image_url = resolved_url
             
             # Resolve or generate voice
             voice_http_url = None
@@ -134,6 +143,7 @@ async def run_render(job_file):
             
             remotion_slides.append({
                 "imageUrl": image_url,
+                "videoUrl": video_url,
                 "narration": narration,
                 "duration": duration,
                 "transition": transition,
@@ -163,6 +173,25 @@ async def run_render(job_file):
             elif bgm_url.startswith('http'):
                 bgm_http_url = bgm_url
         
+        # Resolve additional music track URLs
+        resolved_music_tracks = []
+        for track in music_tracks:
+            track_url = track.get('url')
+            if track_url:
+                resolved = None
+                if '/api/library/music/' in track_url:
+                    fn = track_url.split('/')[-1]
+                    if (MUSIC_LIB_DIR / fn).exists():
+                        resolved = f"{base_url}{track_url}"
+                elif '/api/uploads/' in track_url:
+                    fn = track_url.split('/')[-1]
+                    if (UPLOADS_DIR / fn).exists():
+                        resolved = f"{base_url}/api/uploads/{fn}"
+                elif track_url.startswith('http'):
+                    resolved = track_url
+                if resolved:
+                    resolved_music_tracks.append({"url": resolved, "volume": track.get('volume', 0.3)})
+        
         # Write Remotion data
         remotion_data = {
             "slides": remotion_slides,
@@ -175,6 +204,7 @@ async def run_render(job_file):
             "captionSize": caption_size,
             "bgmUrl": bgm_http_url,
             "bgmVolume": bgm_volume,
+            "musicTracks": resolved_music_tracks,
         }
         
         temp_dir = RENDERS_DIR / f"temp_{job_id}"
@@ -221,6 +251,7 @@ async def run_render(job_file):
         logger.info(f"Using node at: {node_path}")
         
         # Ensure remotion node_modules exist
+        env = {**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"}
         if not (remotion_dir / 'node_modules').exists():
             logger.info("Installing remotion dependencies...")
             import subprocess as sp
@@ -229,8 +260,6 @@ async def run_render(job_file):
                 sp.run([node_path, '/usr/bin/npm', 'install', '-g', 'yarn'], capture_output=True, timeout=60, env=env)
                 yarn_path = shutil.which('yarn') or '/usr/bin/yarn'
             sp.run([yarn_path, 'install', '--frozen-lockfile'], cwd=str(remotion_dir), capture_output=True, timeout=120, env=env)
-        
-        env = {**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"}
         
         proc = await asyncio.create_subprocess_exec(
             node_path, '--max-old-space-size=4096',

@@ -22,6 +22,7 @@ export const Root = () => {
         captionSize: 44,
         bgmUrl: null,
         bgmVolume: 0.4,
+        musicTracks: [],
       }}
       calculateMetadata={({ props }) => {
         const fps = 24;
