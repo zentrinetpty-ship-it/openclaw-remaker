@@ -4,7 +4,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { Sparkles, ArrowRight, Play, Clock, Layers, Image, Palette, Mic2, ChevronDown, ChevronUp, Wand2, Upload, Film, Zap, PenTool, Volume2, Monitor, Star, Check, ArrowUpRight, User, LogOut } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
-import { useProjectStore, CATEGORIES } from '../store/useProjectStore';
+import { useProjectStore, CATEGORIES, CATEGORY_GROUPS } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/AuthModal';
 import React from 'react';
@@ -22,6 +22,16 @@ const TONES = [
   { label: 'Documentary', value: 'documentary' },
   { label: 'Storytelling', value: 'storytelling' },
   { label: 'Humorous', value: 'humorous' },
+  { label: 'Bold', value: 'bold' },
+  { label: 'Soft', value: 'soft' },
+  { label: 'Dramatic', value: 'dramatic' },
+  { label: 'Inspirational', value: 'inspirational' },
+  { label: 'Casual', value: 'casual' },
+  { label: 'Cinematic', value: 'cinematic' },
+  { label: 'Educational', value: 'educational' },
+  { label: 'Mysterious', value: 'mysterious' },
+  { label: 'Witty', value: 'witty' },
+  { label: 'Empathetic', value: 'empathetic' },
 ];
 
 const STYLE_CATEGORIES = [
@@ -126,8 +136,9 @@ export default function LandingPage() {
   const [slideCount, setLocalSlideCount] = useState(5);
   const [localAssetType, setLocalAssetType] = useState('image');
   const [visualStyle, setVisualStyle] = useState('Cinematic');
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remakerFile, setRemakerFile] = useState(null);
   const [remakerUploading, setRemakerUploading] = useState(false);
@@ -250,31 +261,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ============ CATEGORIES ============ */}
-      <section id="categories" className="relative z-10 bg-white border-y border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex overflow-x-auto scrollbar-hide py-1">
-            {CATEGORIES.map((c, i) => {
-              const active = c.id === selectedCategory;
-              return (
-                <motion.button key={c.id} onClick={() => setSelectedCategory(c.id)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="relative flex items-center gap-2 py-4 px-4 min-w-fit flex-shrink-0" data-testid={`category-${c.id}`}>
-                  {active && <motion.div layoutId="cat-underline" className="absolute bottom-0 left-2 right-2 h-[3px] rounded-full" style={{ background: c.color }} />}
-                  <div className="w-7 h-7 rounded-sm flex items-center justify-center transition-all" style={{ background: active ? c.color : '#F1F5F9' }}>
-                    <Sparkles className="w-3.5 h-3.5" style={{ color: active ? '#fff' : '#94a3b8' }} />
-                  </div>
-                  <span className="text-xs font-bold whitespace-nowrap transition-all" style={{ color: active ? c.color : '#64748b' }}>{c.label}</span>
-                  {c.badge && <span className="text-[8px] font-black px-1.5 py-0.5 rounded-none text-white" style={{ background: c.color }}>{c.badge}</span>}
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* ============ CREATOR CARD ============ */}
       <section id="creator-card" className="relative z-10 max-w-3xl mx-auto px-4 py-12">
-        <AnimatePresence mode="wait">
-          <motion.div key={selectedCategory} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="bg-white rounded-md border-2 border-slate-200 shadow-[0_8px_40px_-12px_rgba(79,70,229,0.12)] overflow-hidden">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-md border-2 border-slate-200 shadow-[0_8px_40px_-12px_rgba(79,70,229,0.12)] overflow-hidden">
             
             {/* Card Header */}
             <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100" style={{ background: `${cat?.color}08` }}>
@@ -287,7 +276,68 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Input Area */}
+            {/* Video Category Picker - Categorized Dropdown */}
+            <div className="px-6 pt-5 pb-3">
+              <div className="flex items-center gap-1.5 mb-2"><Film className="w-3 h-3 text-indigo-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Video Category</span></div>
+              <button onClick={() => setCategoryPickerOpen(!categoryPickerOpen)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md border-2 border-slate-200 hover:border-indigo-400 bg-white transition" data-testid="category-picker-trigger">
+                <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: cat?.color || '#4F46E5' }}>
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-900">{cat?.label}</span>
+                    {cat?.badge && <span className="text-[8px] font-black px-1.5 py-0.5 rounded-none text-white" style={{ background: cat?.color }}>{cat?.badge}</span>}
+                  </div>
+                  <span className="text-[10px] text-slate-400 truncate block">{cat?.desc}</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition flex-shrink-0 ${categoryPickerOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {categoryPickerOpen && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                    <div className="mt-2 rounded-md border-2 border-slate-200 bg-white max-h-[420px] overflow-y-auto" data-testid="category-picker-dropdown">
+                      {CATEGORY_GROUPS.map(group => {
+                        const groupCats = CATEGORIES.filter(c => c.group === group.name);
+                        if (groupCats.length === 0) return null;
+                        return (
+                          <div key={group.name} className="border-b border-slate-100 last:border-0">
+                            <div className="px-3 py-2 bg-slate-50 sticky top-0 z-10">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{group.name}</span>
+                            </div>
+                            <div className="p-2 grid grid-cols-1 gap-1">
+                              {groupCats.map(c => (
+                                <button
+                                  key={c.id}
+                                  onClick={() => { setSelectedCategory(c.id); setCategoryPickerOpen(false); }}
+                                  className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-left transition-all ${selectedCategory === c.id ? 'bg-indigo-50 border-2 border-indigo-500 ring-1 ring-indigo-200' : 'border-2 border-transparent hover:bg-slate-50 hover:border-slate-200'}`}
+                                  data-testid={`category-${c.id}`}
+                                >
+                                  <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: c.color }}>
+                                    <Sparkles className="w-4 h-4 text-white" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-slate-900">{c.label}</span>
+                                      {c.badge && <span className="text-[7px] font-black px-1 py-0.5 rounded-none text-white" style={{ background: c.color }}>{c.badge}</span>}
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 truncate block">{c.desc}</span>
+                                  </div>
+                                  {selectedCategory === c.id && (
+                                    <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: c.color }}>
+                                      <Check className="w-3 h-3 text-white" />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <div className="px-6 pt-5 pb-3">
               {selectedCategory === 'remaker' ? (
                 <div className="space-y-3">
@@ -405,7 +455,6 @@ export default function LandingPage() {
               </motion.button>
             </div>
           </motion.div>
-        </AnimatePresence>
       </section>
 
       {/* ============ FEATURES BENTO GRID ============ */}

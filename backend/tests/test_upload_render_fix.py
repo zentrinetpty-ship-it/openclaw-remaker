@@ -447,7 +447,7 @@ class TestURLNormalization:
     
     def test_render_normalizes_full_https_url(self):
         """Test that render normalizes full https://.../.../api/uploads/xxx.png to /api/uploads/xxx.png"""
-        full_url = f"https://ai-filmlab-1.preview.emergentagent.com{EXISTING_IMAGES[0]}"
+        full_url = f"https://video-forge-ai-22.preview.emergentagent.com{EXISTING_IMAGES[0]}"
         
         slides = [{
             "id": "1",
