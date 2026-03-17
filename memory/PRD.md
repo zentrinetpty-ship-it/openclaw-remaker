@@ -1,7 +1,7 @@
 # ExplainaPro - AI Video Creation Platform
 
 ## Original Problem Statement
-Build a full-stack AI-powered cinematic video creation platform called "ExplainaPro" with AI script generation, visual asset generation, voiceover, and video rendering capabilities.
+Build a full-stack AI-powered cinematic video creation platform called "ExplainaPro".
 
 ## Tech Stack
 - **Frontend:** React/Vite, Tailwind CSS, Shadcn/UI, Framer Motion, Zustand
@@ -11,57 +11,47 @@ Build a full-stack AI-powered cinematic video creation platform called "Explaina
 - **Video Rendering:** Remotion
 - **Auth:** JWT (bcrypt)
 
-## Core Architecture
+## Architecture (Post-Refactor)
 ```
 /app
-├── backend/server.py         # FastAPI monolith
-├── backend/render_worker.py  # Detached render process
+├── backend/server.py
+├── backend/render_worker.py
 ├── frontend/src/
-│   ├── pages/LandingPage.jsx      # Landing + creator form + business flow
-│   ├── pages/CreatePage.jsx       # AI generation pipeline + video prompts + export
-│   ├── pages/EditorPage.jsx       # Multi-panel editor + PDF/HTML/MP4 export
-│   ├── pages/DashboardPage.jsx    # Project management
-│   ├── store/useProjectStore.js   # Zustand state (36 categories)
-│   └── context/AuthContext.js     # JWT auth
-├── remotion/src/                  # Video rendering components
-└── renders/                       # Job queue directory
+│   ├── pages/
+│   │   ├── LandingPage.jsx            # Landing + creator form + business flow
+│   │   ├── CreatePage.jsx             # AI generation + video prompts + export
+│   │   ├── DashboardPage.jsx          # Project management
+│   │   └── Editor/                    # REFACTORED: 6 focused files
+│   │       ├── EditorPage.jsx         # Orchestrator (220 lines)
+│   │       ├── LeftSidebar.jsx        # 7 tabs: Script, Assets, Graphics, Music, Voice, Captions, Effects
+│   │       ├── CanvasPreview.jsx      # Video preview + playback controls
+│   │       ├── RightSidebar.jsx       # Brand Kit + Slide Properties
+│   │       ├── RenderProgressPanel.jsx # Render progress visualization
+│   │       └── editorConstants.js     # Shared constants (TABS, VOICES, etc.)
+│   ├── store/useProjectStore.js       # Zustand state (36 categories)
+│   └── context/AuthContext.js         # JWT auth
+├── remotion/src/
+└── renders/
 ```
 
 ## Completed Features
-- **Multi-format Export (NEW):** Download slides as PDF (reportlab), HTML (standalone presentation with keyboard nav), or MP4 (Remotion render). Available in Editor top nav + export modal + ReadyStep.
-- **Category Picker Placeholder (NEW):** Default state shows "Please select video category" instead of pre-selecting Explainer Video. Generate button disabled until category selected.
-- **Business Video Suite:** 14 business categories with URL/file upload/text analysis workflow
-- **Business Analysis API:** `/api/analyze-business` endpoint with Gemini AI analysis
-- **Video Generation Prompts:** Copyable per-slide video prompts for external AI tools
-- Landing page with categorized video category dropdown (36 categories, 6 groups)
-- Visual image style picker with AI-generated preview thumbnails
-- JSON Prompt Generator for AI-enhanced content creation
-- Advanced Settings expanded by default with 15 tone options
-- Full editor with video uploads, multi-music tracks, SFX, caption/title customization
-- JWT auth (bcrypt), CORS stabilized
-- Persistent render worker with stuck job cleanup
-- Slide count up to 50, duration up to 20 minutes
+- **Editor Refactoring (NEW):** Split 1460-line monolith into 6 focused files
+- Multi-format export (PDF, HTML, MP4)
+- Category picker with "Please select" placeholder
+- Business Video Suite: 14 categories with URL/file analysis
+- Video generation prompts (copyable per slide)
+- 36 video categories in 6 groups, 15 tones
+- Visual image style picker, JSON Prompt Generator
+- Full editor with video uploads, multi-music, SFX, caption/title customization
+- JWT auth (bcrypt), persistent render worker
 
-## Key API Endpoints
-- POST `/api/export/pdf` - Export slides as PDF document
-- POST `/api/export/html` - Export slides as standalone HTML presentation
-- POST `/api/analyze-business` - AI-powered business analysis
-- POST `/api/generate-prompt` - JSON prompt generator
-- POST `/api/render` - Start MP4 video render
-- GET `/api/render/{job_id}` - Poll render status
-
-## Pending Verification
-- Authentication stability (was recurring issue)
-- Rendering stability (was recurring issue)
-
-## Backlog (Prioritized)
-- P1: Real SFX generation (ElevenLabs integration)
-- P1: Stock asset search (Pexels/Pixabay integration)
-- P2: Backend refactoring (split server.py monolith)
-- P2: Editor refactoring (break down EditorPage.jsx)
+## Backlog
+- P1: Real SFX generation (ElevenLabs)
+- P1: Stock asset search (Pexels/Pixabay)
+- P2: Backend refactoring (split server.py)
 - P2: Backend pytest suite
 - P3: Tech stack migration (Next.js, Prisma, SQLite)
 
-## Mocked Features
-- Stock Asset Search (static images/videos)
-- AI SFX Generation (static sound library)
+## Mocked
+- Stock Asset Search (static)
+- AI SFX Generation (static library)
