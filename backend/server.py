@@ -319,32 +319,40 @@ class Slide(BaseModel):
 # ─── Category Prompts ───────────────────────────────────────────────────────
 
 CATEGORY_PROMPTS = {
-    "news": "senior broadcast journalist with access to credible global sources",
-    "explainer": "expert explainer video producer making complex topics crystal clear",
-    "cartoon": "creative director at a premium 2D animation studio",
-    "ebook": "professional book summarizer for YouTube and TikTok",
-    "biography": "documentary filmmaker specializing in life-story videos",
-    "tutorial": "world-class educator and tutorial creator",
-    "datastory": "data journalist turning complex data into visual narratives",
-    "youtube": "content strategist specializing in YouTube content repurposing",
-    "motiongraphic": "high-end Motion Graphics Designer and Creative Director",
-    "prayer": "spiritual guide creating diverse prayer and devotional videos",
-    "reporter": "professional News Anchor with 20 years broadcast experience",
-    "history": "world-class historian and documentary filmmaker",
-    "remaker": "video content strategist creating inspired-by remakes"
+    "news": "You are a Peabody Award-winning broadcast journalist with 25 years at CNN and BBC. You craft viral, fact-checked news packages that combine hard-hitting reporting with cinematic storytelling. Every slide must feel like a breaking news segment that keeps viewers glued to the screen.",
+    "explainer": "You are the creative mind behind Kurzgesagt and Vox explainer videos. You transform the most complex topics into beautifully simple visual stories. Use powerful analogies, concrete examples, and a 'build-up to aha moment' structure that makes viewers feel smarter.",
+    "cartoon": "You are a Pixar-level story architect who creates emotionally resonant animated narratives. Every scene has exaggerated expressions, vivid colors, dynamic poses, and a clear emotional beat. Your stories have heart, humor, and a satisfying arc even in 30 seconds.",
+    "ebook": "You are a bestselling author and BookTok creator who distills 300-page books into gripping visual summaries. You extract the 3-5 most transformative ideas and present them as 'mind-blown' moments with vivid metaphors and real-world applications.",
+    "biography": "You are Ken Burns meets modern YouTube documentarian. You find the most dramatic, little-known turning points in a person's life and weave them into a cinematic narrative arc with tension, triumph, and legacy. Every slide should feel like a movie scene.",
+    "tutorial": "You are a world-class educator who has taught millions on Skillshare and MasterClass. You break skills into crystal-clear micro-steps with visual demonstrations. Every slide is one actionable concept with a clear before/after transformation.",
+    "datastory": "You are Hans Rosling reborn as a TikTok creator. You make data dance, surprise, and tell human stories. Every statistic is paired with a jaw-dropping visual comparison. You use progressive revelation to build tension before the data payoff.",
+    "youtube": "You are MrBeast's content strategist combined with a film school professor. You analyze YouTube content for hook structure, retention patterns, and viral elements, then reconstruct them into an even more engaging format with higher production value.",
+    "motiongraphic": "You are the lead motion designer at Apple. Every frame is a masterpiece of typography, geometry, and kinetic energy. You think in layers: background atmosphere, mid-ground data/text, foreground accents. Every transition is purposeful and every animation tells a micro-story.",
+    "prayer": "You are a globally beloved spiritual guide who creates deeply moving, multi-faith devotional experiences. Your words carry weight, reverence, and profound comfort. Every slide is a moment of peace, reflection, and spiritual connection with breathtaking sacred imagery.",
+    "reporter": "You are Anderson Cooper delivering a special report. Your presence is commanding, your facts are airtight, and your narrative builds like a thriller. Use professional broadcast structure: hook, context, development, impact, call-to-action.",
+    "history": "You are Dan Carlin narrating Hardcore History. You find the most electrifying moments in history and make the audience feel like they're THERE. Use vivid sensory details, dramatic irony, and the 'zoom in on a single person' technique to make history feel alive.",
+    "remaker": "You are a visionary content remixer who takes existing videos and elevates them to cinematic quality. You identify the core emotional beats and storytelling hooks, then reconstruct them with better pacing, stronger visuals, and more impactful narration.",
+    "horror": "You are the mastermind behind Creepypasta and horror podcasts that keep millions awake at night. You build dread through atmosphere, not jump scares. Every slide escalates tension with unsettling details, unreliable narration, and imagery that feels slightly wrong.",
+    "scifi": "You are Arthur C. Clarke meets Neil deGrasse Tyson. You blend hard science with visionary speculation to create mind-expanding content about the future, space, AI, and technology. Every slide should make the viewer question reality and marvel at possibility.",
+    "travel": "You are Anthony Bourdain meets National Geographic. You don't just show places, you make viewers FEEL them. Every slide captures the sounds, flavors, textures, and human stories of a destination. Your narration is poetic yet grounded in authentic cultural detail.",
+    "motivation": "You are Tony Robbins meets a spoken word poet. Your words hit like a freight train of inspiration. Every slide is a crescendo building toward an unstoppable call-to-action. Use raw emotion, powerful metaphors, and the 'dark moment before the breakthrough' structure.",
+    "crime": "You are the producer of Making a Murderer and host of Serial. You present evidence methodically while building unbearable suspense. Every slide reveals a new piece of the puzzle. Use forensic precision with noir-style visuals and an 'are you sure you know the truth?' hook.",
+    "comedy": "You are a Netflix special director who creates tight, punchy comedy with perfect timing. Every beat is a setup or punchline. Use absurd escalation, callbacks, and subverted expectations. The visuals should enhance the comedy with exaggerated, cartoon-like energy.",
+    "recipe": "You are a Michelin-star chef turned viral food content creator. Every step is a mouth-watering visual feast. You don't just show recipes, you tell the story behind the dish. Close-up textures, sizzling sounds, steam rising, cheese pulling — pure food cinema.",
+    "fitness": "You are a celebrity trainer and sports science expert. Your content is high-energy, scientifically backed, and visually dynamic. Every slide shows a clear exercise or health concept with perfect form demonstrations, before/after energy, and motivational intensity.",
 }
 
 def build_master_prompt(request: ScriptRequest) -> str:
     """Build the master prompt for script generation based on category."""
     tone_guide = {
-        'professional': 'Clear, authoritative, results-focused. No fluff.',
-        'energetic': 'Fast-paced, punchy. Short sentences. Action words.',
-        'soft': 'Warm, empathetic, gentle. Conversational.',
-        'bold': 'Strong, provocative, direct and impactful.',
-        'documentary': 'Narrative, observational, fact-based. Journalistic.',
-        'storytelling': 'Story arc with hero, problem, and resolution.',
-        'minimalist': 'Ultra-concise. One thought per slide.',
-        'humorous': 'Witty, playful, lighthearted.',
+        'professional': 'Clear, authoritative, results-focused. Short punchy sentences. Zero filler words. Every word earns its place.',
+        'energetic': 'EXPLOSIVE energy. Rapid-fire delivery. Action verbs. Exclamation points. Make the viewer feel ALIVE.',
+        'soft': 'Warm, intimate, like a trusted friend sharing wisdom over coffee. Gentle pauses. Empathetic.',
+        'bold': 'POWERFUL. Direct. Confrontational truth. Each sentence hits like a hammer. Unapologetic.',
+        'documentary': 'Cinematic gravitas. Rich sensory descriptions. Build tension like a thriller. Let facts speak through stories.',
+        'storytelling': 'Classic hero journey. Relatable protagonist. Clear stakes. Emotional crescendo. Satisfying resolution.',
+        'minimalist': 'Ultra-concise. One devastating thought per slide. Let silence and visuals do the heavy lifting.',
+        'humorous': 'Witty, self-aware, perfectly timed. Setup-punchline rhythm. Absurd escalation. Never try-hard.',
     }
     
     tone_desc = tone_guide.get(request.tone, tone_guide['professional'])
@@ -354,81 +362,97 @@ def build_master_prompt(request: ScriptRequest) -> str:
     persona = CATEGORY_PROMPTS.get(request.category, CATEGORY_PROMPTS['explainer'])
     
     json_schema = f'''{{
-  "title": "Video project title",
+  "title": "A compelling, click-worthy title (max 8 words)",
   "duration": {request.duration},
   "style": "cinematic|flat|minimal|3d|illustrated",
-  "colorScheme": "#HEX primary color",
+  "colorScheme": "#HEX primary color that matches the mood",
   "slides": [
     {{
       "id": "1",
-      "title": "Slide title",
-      "narration": "Narration text (1-2 sentences max, tone: {request.tone})",
+      "title": "Short impactful slide title (3-5 words)",
+      "narration": "Narration text. MUST be {request.tone} tone. 1-3 sentences. Write for SPOKEN delivery — use contractions, rhetorical questions, dramatic pauses (...).",
       "duration": {avg_slide_dur},
-      "imagePrompt": "Detailed AI image generation prompt. 16:9 landscape. No text in image.",
-      "videoPrompt": "Animation/camera movement description",
+      "imagePrompt": "ULTRA-DETAILED image generation prompt. Include: subject, action, composition, lighting (golden hour/dramatic/neon), camera angle (close-up/wide/aerial), color palette, mood, style ({request.preferredVisualStyle}). 16:9 landscape. NEVER include text in image. Example quality level: 'A weathered fisherman mending nets at dawn, golden sunlight streaming through morning mist, shot from low angle, warm amber and deep blue tones, photojournalistic style, shallow depth of field'",
+      "videoPrompt": "Specific camera movement: slow dolly in / parallax pan / aerial orbit / time-lapse / rack focus / handheld follow",
       "transition": "fade|slide|zoom|none",
-      "onScreenText": "Optional short bold text overlay",
+      "onScreenText": "Optional 2-4 word bold overlay for emphasis",
       "visualStyle": "abstract|realistic|illustrated|chart|screencast",
+      "sfxPrompt": "Specific sound effect for this slide moment (e.g., 'dramatic whoosh', 'crowd gasp', 'glass shatter', 'heartbeat')",
       "graphics": [
         {{
           "type": "title-card|lower-third|kinetic-text|stat-counter",
           "startTime": 0,
           "duration": 3,
-          "title": "For title-card: main title text",
-          "subtitle": "For title-card: subtitle text",
-          "name": "For lower-third: person name",
-          "text": "For kinetic-text: animated text content",
-          "value": "For stat-counter: numeric value",
-          "label": "For stat-counter: metric label",
-          "prefix": "For stat-counter: prefix like $",
-          "suffix": "For stat-counter: suffix like %"
+          "title": "For title-card",
+          "subtitle": "For title-card subtitle",
+          "name": "For lower-third person name",
+          "text": "For kinetic-text animated content",
+          "value": "For stat-counter numeric value",
+          "label": "For stat-counter metric label",
+          "prefix": "$ or other prefix",
+          "suffix": "% or other suffix"
         }}
       ]
     }}
   ],
-  "voiceoverStyle": "professional|energetic|calm|storytelling",
-  "musicMood": "uplifting|corporate|cinematic|minimal",
+  "voiceoverStyle": "Match the {request.tone} tone — specify pace (slow/medium/fast), emotion, emphasis patterns",
+  "musicMood": "Specific genre + energy level + instruments (e.g., 'lo-fi hip-hop with soft piano, building to orchestral crescendo')",
   "characters": [
-    {{ "name": "Character Name", "description": "Physical description for consistent AI image generation" }}
+    {{ "name": "Character Name", "description": "DETAILED physical description for CONSISTENT AI generation: age, ethnicity, build, hair color/style, clothing, distinguishing features. Be SPECIFIC enough that every image generation produces the same recognizable person." }}
   ],
-  "suggestedMusic": ["5 specific atmosphere/genre ideas for background music"],
-  "suggestedVfx": ["5 specific VFX prompt ideas to use in this video"],
-  "suggestedSfx": ["5 specific AI sound effect generation prompts for this video"]
+  "suggestedMusic": ["5 hyper-specific music descriptions with genre, tempo, instruments, and mood arc"],
+  "suggestedVfx": ["5 specific visual effects: particle systems, light leaks, glitch effects, color grading shifts, zoom transitions"],
+  "suggestedSfx": ["5 specific sound effects with timing context: 'metallic impact on stat reveal', 'wind ambience for landscape shot'"]
 }}'''
 
     motion_graphics_instruction = ""
     if request.category == "motiongraphic":
         motion_graphics_instruction = """
-MOTION GRAPHICS INSTRUCTIONS:
-This is a MOTION GRAPHICS video. Every slide MUST include a "graphics" array with at least 1-2 animated overlays.
-Available graphic types:
-- "title-card": Big animated title with optional subtitle. Use for intro slides and key section headers.
-- "lower-third": Name/title bar at bottom of screen. Use to introduce speakers, sources, or topics.
-- "kinetic-text": Large animated text that appears word-by-word. Use for key quotes or statements.
-- "stat-counter": Animated number counter with label. Use for statistics, percentages, amounts.
+MOTION GRAPHICS MASTERCLASS INSTRUCTIONS:
+This is a PREMIUM motion graphics piece. Every single slide MUST include 2-3 animated overlays from the graphics array.
+Design philosophy: Apple keynote meets Bloomberg data visualization.
 
-For each graphic, specify: type, startTime (seconds into the slide), duration (seconds), and the relevant text fields.
-The imagePrompt for motion graphics should be abstract, geometric, or gradient backgrounds - NOT busy photorealistic scenes.
+Available graphic types and when to use them:
+- "title-card": Cinematic title reveal with optional subtitle. Use for opening, section breaks, and closing.
+- "lower-third": Sleek name/title bar. Use to introduce sources, speakers, topics, or locations.
+- "kinetic-text": Large animated text that builds word-by-word. Use for key quotes, shocking stats, or call-to-action.
+- "stat-counter": Animated counter that counts up to final value. Use for ANY number, percentage, or metric.
+
+Image prompts for motion graphics should be: abstract gradient backgrounds, geometric patterns, flowing particle systems, or clean solid colors. NEVER busy photorealistic scenes.
 """
 
     visual_instruction = f'''
-CRITICAL: The user has selected a preferred visual style: "{request.preferredVisualStyle}". 
-1. Identify 1-2 key characters that should appear consistently throughout the video. 
-2. Define them in the "characters" array with specific physical descriptions.
-3. Reference these character names in the "imagePrompt" of EVERY slide where they appear.
-4. Ensure all "imagePrompt" fields are strictly tailored to the "{request.preferredVisualStyle}" style.
-5. Provide "suggestedMusic" (5 ideas), "suggestedVfx" (5 prompts), and "suggestedSfx" (5 prompts).
+VISUAL EXCELLENCE REQUIREMENTS:
+1. Visual style is "{request.preferredVisualStyle}" — EVERY imagePrompt MUST be crafted specifically for this style.
+2. Define 1-2 KEY CHARACTERS with ultra-specific physical descriptions in "characters" array.
+3. Reference these character names BY NAME in imagePrompt of EVERY slide they appear in.
+4. Each imagePrompt must be 40-80 words of rich visual detail — lighting, angle, composition, color, mood.
+5. NO TWO SLIDES should have similar compositions. Vary between: close-ups, wide shots, aerial views, POV shots, detail shots.
+6. Include "sfxPrompt" for each slide — a specific sound that enhances the moment.
 {motion_graphics_instruction}'''
 
-    return f'''You are a {persona}.
+    return f'''{persona}
 
-The user has provided {"an idea" if request.type == "idea" else "a script"} for a {request.category.upper()} VIDEO: "{request.input}"
+USER INPUT ({request.type.upper()}): "{request.input}"
 
-Your job:
-1. Create a {request.slideCount}-slide storyboard totaling exactly {request.duration} seconds
-2. Tone: {request.tone.upper()} - {tone_desc}
-3. CRITICAL: The TOTAL narration across all slides MUST be exactly around {target_word_count} words to ensure the video is exactly {request.duration} seconds long.
-4. Output ONLY valid JSON, no markdown fences
+CATEGORY: {request.category.upper()} VIDEO
+
+YOUR MISSION: Create a VIRAL-QUALITY {request.slideCount}-slide storyboard totaling exactly {request.duration} seconds.
+
+NARRATION RULES:
+- Tone: {request.tone.upper()} — {tone_desc}
+- TOTAL word count across ALL slides: exactly ~{target_word_count} words (this ensures {request.duration}s at natural speaking pace)
+- Write for SPOKEN delivery. Use contractions, rhetorical questions, power pauses (...)
+- First slide MUST hook the viewer in under 3 seconds. Open with a question, shocking fact, or bold statement.
+- Last slide MUST have a clear call-to-action or memorable closing line.
+
+IMAGE PROMPT RULES:
+- Every imagePrompt must be 40-80 words of cinematic detail
+- Specify: subject, action, lighting, camera angle, color palette, mood, style
+- NEVER include text/words/letters in any image
+- Maintain visual consistency across all slides (same color palette, same characters)
+
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences, no explanations)
 
 {json_schema}
 {visual_instruction}'''
@@ -587,6 +611,89 @@ IMPORTANT:
     except Exception as e:
         logger.error(f"Editor chat error: {e}")
         return {"success": False, "reply": "Sorry, I couldn't process that request.", "actions": []}
+
+class PromptGeneratorRequest(BaseModel):
+    story: str
+    category: str = "explainer"
+    tone: str = "professional"
+    slideCount: int = 5
+    duration: int = 30
+    visualStyle: str = "Cinematic"
+
+@api_router.post("/generate-prompt")
+async def generate_prompt(request: PromptGeneratorRequest):
+    """AI Prompt Generator: Takes a user story and generates comprehensive, optimized prompts for every aspect of video creation."""
+    try:
+        avg_slide_dur = round(request.duration / request.slideCount)
+        target_words = int((request.duration / 60) * 140)
+        
+        generator_prompt = f'''You are the world's best AI video prompt engineer. A user has provided a story/idea and you must generate the ULTIMATE set of prompts that will produce a VIRAL, CINEMATIC video.
+
+USER STORY: "{request.story}"
+CATEGORY: {request.category}
+TONE: {request.tone}
+SLIDES: {request.slideCount}
+DURATION: {request.duration}s
+VISUAL STYLE: {request.visualStyle}
+
+Generate a comprehensive JSON prompt package. Each prompt must be hyper-detailed, specific, and optimized for maximum quality.
+
+Return ONLY valid JSON:
+{{
+  "title": "Viral-worthy title (max 8 words)",
+  "hook": "The opening 1-sentence hook that makes viewers STOP scrolling",
+  "narrativeArc": "Brief description of the story structure: setup -> tension -> climax -> resolution",
+  "slides": [
+    {{
+      "id": "1",
+      "title": "3-5 word slide title",
+      "narrationPrompt": "The EXACT narration script for this slide. {request.tone} tone. Written for spoken delivery. Include pauses (...). Total across all slides must be ~{target_words} words.",
+      "imagePrompt": "60-80 word cinematic image generation prompt. Include: subject, action, composition rule (rule of thirds/leading lines/symmetry), specific lighting (golden hour/rembrandt/neon noir), camera (35mm wide/85mm portrait/macro), color palette (specific hex-worthy colors), mood, style: {request.visualStyle}. NEVER include text in image.",
+      "videoPrompt": "Camera movement: slow dolly forward / parallax drift right / aerial orbit 180deg / time-lapse clouds / rack focus near-to-far / handheld intimate shake",
+      "sfxPrompt": "Specific sound effect: 'deep bass impact + glass resonance', 'crowd murmur building to cheer', 'wind howl through canyon'",
+      "musicMoment": "What the music should do HERE: 'soft piano intro', 'drums kick in', 'build to crescendo', 'drop to silence'",
+      "duration": {avg_slide_dur},
+      "transition": "fade|slide|zoom|none"
+    }}
+  ],
+  "characters": [
+    {{
+      "name": "Name",
+      "imageDescription": "Ultra-specific: age, ethnicity, build (athletic/slim/stocky), hair (color, length, style), face (shape, expressions), clothing (specific items, colors, textures), distinguishing features. 50+ words for consistency.",
+      "voiceDescription": "Voice qualities: pitch, pace, accent, emotion, breathing patterns"
+    }}
+  ],
+  "globalImageStyle": "Master visual directive applied to ALL images: color grading, lighting philosophy, composition rules, texture preferences",
+  "voicePrompt": "Complete voice direction: pace (120wpm/150wpm), emotion progression across the video, emphasis words, pause locations, breathing style",
+  "musicPrompt": "Full music brief: genre, BPM range, key instruments, energy arc (start soft -> build -> climax -> resolve), reference tracks style",
+  "sfxDesign": ["8-10 specific sound design elements with exact timing descriptions"],
+  "colorPalette": ["5 hex colors that define the visual identity"],
+  "moodBoard": "3-sentence visual mood description that an AI image generator would understand"
+}}'''
+
+        response = await gemini_generate(
+            "You are the world's #1 AI prompt engineer specializing in video production. Your prompts consistently produce 10x better results than generic prompts. Always respond with valid JSON only.",
+            generator_prompt
+        )
+        
+        cleaned = response.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+        
+        parsed = json.loads(cleaned)
+        return {"success": True, "data": parsed}
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Prompt generator JSON error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse AI-generated prompts")
+    except Exception as e:
+        logger.error(f"Prompt generator error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/restructure-script")
 async def restructure_script(request: ScriptRequest):

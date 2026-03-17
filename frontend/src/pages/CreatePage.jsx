@@ -29,7 +29,8 @@ function StepIndicator({ step }) {
 
 function ProcessingStep({ onDone, onError }) {
   const { rawInput, inputType, videoDuration, videoTone, videoCategory, slideCount, preferredVisualStyle, setProject } = useProjectStore();
-  const [status, setStatus] = useState('Sending to Gemini AI...');
+  const [status, setStatus] = useState('Initializing AI...');
+  const [phase, setPhase] = useState(0);
   const called = useRef(false);
 
   useEffect(() => {
@@ -37,9 +38,29 @@ function ProcessingStep({ onDone, onError }) {
     called.current = true;
     const run = async () => {
       try {
+        // Phase 1: Generate optimized prompts
+        setPhase(1);
+        setStatus('Generating optimized prompts with AI...');
+        let enhancedInput = rawInput;
+        try {
+          const promptRes = await axios.post(`${API}/generate-prompt`, { story: rawInput, category: videoCategory, tone: videoTone, slideCount, duration: videoDuration, visualStyle: preferredVisualStyle });
+          if (promptRes.data.success && promptRes.data.data) {
+            const promptData = promptRes.data.data;
+            enhancedInput = JSON.stringify(promptData);
+            setStatus('Prompts generated! Building storyboard...');
+          }
+        } catch (promptErr) {
+          console.warn('Prompt generator failed, using raw input:', promptErr);
+          setStatus('Using direct input for storyboard...');
+        }
+        
+        // Phase 2: Build storyboard using enhanced prompts
+        setPhase(2);
         setStatus(`Building ${slideCount}-slide ${videoCategory} storyboard...`);
-        const res = await axios.post(`${API}/restructure-script`, { input: rawInput, type: inputType, duration: videoDuration, tone: videoTone, category: videoCategory, slideCount, preferredVisualStyle });
+        const res = await axios.post(`${API}/restructure-script`, { input: enhancedInput, type: inputType, duration: videoDuration, tone: videoTone, category: videoCategory, slideCount, preferredVisualStyle });
         if (!res.data.success) throw new Error(res.data.error || 'Failed');
+        
+        setPhase(3);
         setStatus('Preparing slides...');
         const project = { ...res.data.data, slides: (res.data.data.slides || []).map(s => ({ ...s, assetType: 'none', assetUrl: null, assetGenerating: false, graphics: (s.graphics || []).map(g => ({ ...g, url: null, assetGenerating: false })) })) };
         await new Promise(r => setTimeout(r, 500));
@@ -50,6 +71,8 @@ function ProcessingStep({ onDone, onError }) {
     run();
   }, []);
 
+  const phases = ['Prompt Engineering', 'Building Storyboard', 'Preparing Slides'];
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
       <div className="relative">
@@ -58,12 +81,18 @@ function ProcessingStep({ onDone, onError }) {
         <div className="absolute inset-0 flex items-center justify-center"><Sparkles className="w-8 h-8 text-indigo-600" /></div>
       </div>
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-slate-900">Gemini is working...</h2>
+        <h2 className="text-2xl font-bold text-slate-900">AI is crafting your video...</h2>
         <motion.p key={status} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-slate-500">{status}</motion.p>
       </div>
-      <div className="flex gap-2">
-        {[0, 1, 2, 3].map(i => (
-          <motion.div key={i} animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1, 0.8] }} transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.2 }} className="w-2 h-2 rounded-full bg-indigo-500" />
+      <div className="flex gap-3 items-center">
+        {phases.map((p, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${phase > i + 1 ? 'bg-emerald-500 border-emerald-500 text-white' : phase === i + 1 ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-white border-slate-200 text-slate-300'}`}>
+              {phase > i + 1 ? '✓' : i + 1}
+            </div>
+            <span className={`text-[10px] font-bold ${phase > i + 1 ? 'text-emerald-600' : phase === i + 1 ? 'text-indigo-600' : 'text-slate-300'}`}>{p}</span>
+            {i < phases.length - 1 && <div className={`w-8 h-0.5 ${phase > i + 1 ? 'bg-emerald-400' : 'bg-slate-200'}`} />}
+          </div>
         ))}
       </div>
     </div>

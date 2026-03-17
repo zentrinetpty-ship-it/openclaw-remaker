@@ -32,14 +32,14 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { num: '01', title: 'Choose a Category', desc: 'Pick from 13 video types — explainers, tutorials, motion graphics, ads, and more.' },
+  { num: '01', title: 'Choose a Category', desc: 'Pick from 21 video types — explainers, tutorials, motion graphics, horror, sci-fi, and more.' },
   { num: '02', title: 'Describe Your Idea', desc: 'Type a few sentences. Our AI understands your vision and writes a full storyboard.' },
   { num: '03', title: 'Customize & Edit', desc: 'Tweak scripts, swap images, adjust timing, add motion graphics — full creative control.' },
   { num: '04', title: 'Export & Share', desc: 'Render a polished MP4 with voiceover, captions, and background music. Ready to publish.' },
 ];
 
 const STATS = [
-  { value: '13', label: 'Video Categories' },
+  { value: '21', label: 'Video Categories' },
   { value: '6', label: 'Caption Styles' },
   { value: '78+', label: 'Music & SFX Tracks' },
   { value: '1080p', label: 'Export Quality' },
@@ -375,7 +375,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-14">
             <span className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-none border-2 border-amber-200 bg-amber-50 text-xs font-bold text-amber-700 uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" /> 13 Categories
+              <Sparkles className="w-3.5 h-3.5" /> 21 Categories
             </span>
             <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">Every video format you need</h2>
             <p className="text-lg text-slate-500 mt-4 max-w-xl mx-auto">From explainers to ads, tutorials to cinematic trailers.</p>
@@ -441,14 +441,14 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <AnimatedSection>
             <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">Ready to create your first video?</h2>
-            <p className="text-lg text-slate-500 max-w-xl mx-auto mb-8">Start with any of our 13 categories. No credit card required.</p>
+            <p className="text-lg text-slate-500 max-w-xl mx-auto mb-8">Start with any of our {CATEGORIES.length} categories. No credit card required.</p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
               <motion.button onClick={() => { setShowAuthModal(true); }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="px-8 py-3.5 rounded-none bg-indigo-600 text-white font-bold text-base btn-sharp flex items-center gap-2" data-testid="bottom-cta">
                 Get Started Free <ArrowUpRight className="w-4 h-4" />
               </motion.button>
             </div>
             <div className="flex items-center justify-center gap-6 mt-8 flex-wrap">
-              {['No credit card', 'Free to start', '13 video categories', 'AI-powered'].map((item, i) => (
+              {['No credit card', 'Free to start', `${CATEGORIES.length} video categories`, 'AI-powered'].map((item, i) => (
                 <span key={i} className="flex items-center gap-1.5 text-sm text-slate-500">
                   <Check className="w-4 h-4 text-emerald-500" /> {item}
                 </span>
