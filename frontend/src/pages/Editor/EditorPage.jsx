@@ -101,8 +101,17 @@ export default function EditorPage() {
         : `Only ${slidesWithImages.length}/${totalSlides} slides have images. Slides without images will use gradient placeholders. Continue rendering?`;
       if (!window.confirm(msg)) return;
     }
-    setRendering(true); setRenderProgress(0); setRenderStatus('starting'); setRenderStep('Initializing...'); setShowExportModal(true);
+    setRendering(true); setRenderProgress(0); setRenderStatus('starting'); setRenderStep('Checking render environment...'); setShowExportModal(true);
     try {
+      // Preflight check
+      const preflight = await axios.get(`${API}/render/preflight`);
+      if (!preflight.data.ready) {
+        setRenderStatus('failed');
+        setRenderStep(`Render environment not ready. Node.js: ${preflight.data.node ? 'OK' : 'MISSING'}, Remotion: ${preflight.data.remotion ? 'OK' : 'MISSING'}. Please contact support.`);
+        setRendering(false);
+        return;
+      }
+      setRenderStep('Starting render...');
       const res = await axios.post(`${API}/render`, { projectId: projectId || 'new', slides: project.slides, title: project.title, duration: project.duration || totalSlides * 6, generateVoice: true, voiceId: selectedVoice, captionStyleId: activeCaptionStyleId || null, captionMode: captionMode || 'words', captionFont: captionFont || null, captionColor: captionColor || null, captionBgColor: captionBgColor || null, captionPosition: captionPosition || 'bottom', captionSize: captionSize || 44, bgmUrl: project.bgmUrl || null, bgmVolume: project.bgmVolume || 0.4, musicTracks: project.musicTracks || [] });
       const jobId = res.data.jobId;
       if (jobId) {

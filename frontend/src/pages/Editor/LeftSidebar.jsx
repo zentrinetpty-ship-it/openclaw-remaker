@@ -9,7 +9,7 @@ const TAB_ICONS = { FileText, Image, Type, Music, Mic, Captions, Wand2 };
 
 export function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, videoCategory, primaryColor, selectedSlideId, setSelectedSlideId, selectedVoice, setSelectedVoice }) {
   const cat = CATEGORIES.find(c => c.id === videoCategory);
-  const { setProject } = useProjectStore();
+  const { setProject, preferredVisualStyle } = useProjectStore();
   const { activeCaptionStyleId, setActiveCaptionStyleId, captionMode, setCaptionMode, captionFont, setCaptionFont, captionColor, setCaptionColor, captionBgColor, setCaptionBgColor, captionPosition, setCaptionPosition, captionSize, setCaptionSize } = useCaptionStore();
   const [generating, setGenerating] = useState({});
   const [playingAudio, setPlayingAudio] = useState(null);
@@ -75,7 +75,7 @@ export function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, vid
     setGenerating(g => ({ ...g, [slide.id]: true }));
     updateSlide(slide.id, { assetGenerating: true, imagePrompt: prompt });
     try {
-      const res = await axios.post(`${API}/generate-image`, { description: prompt, style: 'Cinematic', characters: project?.characters });
+      const res = await axios.post(`${API}/generate-image`, { description: prompt, style: preferredVisualStyle || 'Cinematic', characters: project?.characters });
       if (res.data.success) updateSlide(slide.id, { assetType: 'image', assetUrl: res.data.image, assetGenerating: false });
     } catch (e) { console.error(e); }
     updateSlide(slide.id, { assetGenerating: false });

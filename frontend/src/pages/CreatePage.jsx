@@ -175,7 +175,7 @@ function StoryboardStep({ onNext, onBack }) {
 }
 
 function SlideAssetCard({ slide, index, cat }) {
-  const { updateSlide, project } = useProjectStore();
+  const { updateSlide, project, preferredVisualStyle } = useProjectStore();
   const [generating, setGenerating] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -183,7 +183,7 @@ function SlideAssetCard({ slide, index, cat }) {
     setGenerating('image');
     updateSlide(slide.id, { assetGenerating: true });
     try {
-      const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: 'Cinematic', characters: project?.characters });
+      const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: project?.characters });
       if (res.data.success && res.data.image) { updateSlide(slide.id, { assetType: 'image', assetUrl: res.data.image, assetGenerating: false }); } else throw new Error('No image');
     } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
     setGenerating(null);
@@ -252,7 +252,7 @@ function SlideAssetCard({ slide, index, cat }) {
 }
 
 function AssetStep({ onNext, onBack }) {
-  const { project, updateSlide, assetType, videoCategory } = useProjectStore();
+  const { project, updateSlide, assetType, videoCategory, preferredVisualStyle } = useProjectStore();
   const cat = CATEGORIES.find(c => c.id === videoCategory);
   if (!project) return null;
   const doneCount = project.slides.filter(s => s.assetUrl).length;
@@ -264,7 +264,7 @@ function AssetStep({ onNext, onBack }) {
       updateSlide(slide.id, { assetGenerating: true });
       try {
         const endpoint = assetType === 'video' ? '/generate-video' : '/generate-image';
-        const res = await axios.post(`${API}${endpoint}`, { description: slide.imagePrompt, style: 'Cinematic', characters: project?.characters });
+        const res = await axios.post(`${API}${endpoint}`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: project?.characters });
         if (res.data.success) { updateSlide(slide.id, { assetType: assetType, assetUrl: res.data.image || res.data.video, assetGenerating: false }); } else throw new Error('Failed');
       } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
     }

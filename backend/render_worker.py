@@ -224,9 +224,23 @@ async def run_render(job_file):
         # Run Remotion
         remotion_dir = ROOT_DIR.parent / "remotion"
         
-        # Find node - check common paths directly
+        # Find node - check common paths directly, including nvm
         node_path = None
-        for p in ['/usr/bin/node', '/usr/local/bin/node']:
+        search_paths = [
+            '/usr/bin/node',
+            '/usr/local/bin/node',
+            os.path.expanduser('~/.nvm/versions/node/*/bin/node'),  # nvm
+            '/root/.nvm/versions/node/*/bin/node',
+        ]
+        # Expand glob patterns
+        import glob as glob_mod
+        expanded_paths = []
+        for p in search_paths:
+            if '*' in p:
+                expanded_paths.extend(sorted(glob_mod.glob(p), reverse=True))  # latest version first
+            else:
+                expanded_paths.append(p)
+        for p in expanded_paths:
             if os.path.isfile(p) and os.access(p, os.X_OK):
                 node_path = p
                 break
@@ -248,10 +262,19 @@ async def run_render(job_file):
             write_status(status_file, {"status": "failed", "error": "Node.js could not be found or installed. Please contact support."})
             return
         
-        logger.info(f"Using node at: {node_path}")
+        logger.info(f"Using node at: {node_path} (version check follows)")
+        # Verify node actually works
+        try:
+            import subprocess as sp
+            ver_result = sp.run([node_path, '--version'], capture_output=True, timeout=10, text=True)
+            logger.info(f"Node version: {ver_result.stdout.strip()}")
+        except Exception as ve:
+            logger.error(f"Node version check failed: {ve}")
         
         # Ensure remotion node_modules exist
-        env = {**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"}
+        # Build PATH with node's parent dir included
+        node_bin_dir = os.path.dirname(node_path)
+        env = {**os.environ, "PATH": f"{node_bin_dir}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"}
         if not (remotion_dir / 'node_modules').exists():
             logger.info("Installing remotion dependencies...")
             import subprocess as sp

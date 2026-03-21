@@ -461,10 +461,12 @@ NARRATION RULES:
 - Last slide MUST have a clear call-to-action or memorable closing line.
 
 IMAGE PROMPT RULES:
+- CRITICAL: Every imagePrompt MUST explicitly state the style "{request.preferredVisualStyle}" at the END of the prompt
 - Every imagePrompt must be 40-80 words of cinematic detail
-- Specify: subject, action, lighting, camera angle, color palette, mood, style
+- Specify: subject, action, lighting, camera angle, color palette, mood
+- ALWAYS end each imagePrompt with: "Rendered in {request.preferredVisualStyle} style."
 - NEVER include text/words/letters in any image
-- Maintain visual consistency across all slides (same color palette, same characters)
+- Maintain visual consistency across all slides (same color palette, same characters, same {request.preferredVisualStyle} aesthetic)
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences, no explanations)
 
@@ -662,7 +664,7 @@ Return ONLY valid JSON:
       "id": "1",
       "title": "3-5 word slide title",
       "narrationPrompt": "The EXACT narration script for this slide. {request.tone} tone. Written for spoken delivery. Include pauses (...). Total across all slides must be ~{target_words} words.",
-      "imagePrompt": "60-80 word cinematic image generation prompt. Include: subject, action, composition rule (rule of thirds/leading lines/symmetry), specific lighting (golden hour/rembrandt/neon noir), camera (35mm wide/85mm portrait/macro), color palette (specific hex-worthy colors), mood, style: {request.visualStyle}. NEVER include text in image.",
+      "imagePrompt": "60-80 word cinematic image generation prompt. Include: subject, action, composition rule (rule of thirds/leading lines/symmetry), specific lighting (golden hour/rembrandt/neon noir), camera (35mm wide/85mm portrait/macro), color palette (specific hex-worthy colors), mood. MUST be in {request.visualStyle} style. Always end with: 'Rendered in {request.visualStyle} style.' NEVER include text in image.",
       "videoPrompt": "Camera movement: slow dolly forward / parallax drift right / aerial orbit 180deg / time-lapse clouds / rack focus near-to-far / handheld intimate shake",
       "sfxPrompt": "Specific sound effect: 'deep bass impact + glass resonance', 'crowd murmur building to cheer', 'wind howl through canyon'",
       "musicMoment": "What the music should do HERE: 'soft piano intro', 'drums kick in', 'build to crescendo', 'drop to silence'",
@@ -677,7 +679,7 @@ Return ONLY valid JSON:
       "voiceDescription": "Voice qualities: pitch, pace, accent, emotion, breathing patterns"
     }}
   ],
-  "globalImageStyle": "Master visual directive applied to ALL images: color grading, lighting philosophy, composition rules, texture preferences",
+  "globalImageStyle": "Master visual directive: ALL images MUST be in {request.visualStyle} style. Apply {request.visualStyle} aesthetic to every single image: color grading, lighting philosophy, composition rules, texture preferences. No exceptions.",
   "voicePrompt": "Complete voice direction: pace (120wpm/150wpm), emotion progression across the video, emphasis words, pause locations, breathing style",
   "musicPrompt": "Full music brief: genre, BPM range, key instruments, energy arc (start soft -> build -> climax -> resolve), reference tracks style",
   "sfxDesign": ["8-10 specific sound design elements with exact timing descriptions"],
@@ -762,7 +764,6 @@ async def analyze_business(
                     text = content.decode("utf-8", errors="ignore")[:5000]
                     business_context += f"UPLOADED FILE ({file.filename}):\n{text}\n\n"
                 elif ext in (".png", ".jpg", ".jpeg", ".webp"):
-                    b64 = base64.b64encode(content).decode()
                     business_context += f"UPLOADED IMAGE ({file.filename}): [image provided as context]\n\n"
                 else:
                     text = content.decode("utf-8", errors="ignore")[:3000]
@@ -877,8 +878,8 @@ async def restructure_script(request: ScriptRequest):
 async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get_current_user)):
     """Generate image using Gemini."""
     try:
-        # Build enhanced prompt
-        style_prompt = f"Generate a high-quality, professional image for a video background: {request.description}. Style: {request.style}. 16:9 aspect ratio, cinematic lighting, no text."
+        # Build enhanced prompt with strict style enforcement
+        style_prompt = f"Generate a high-quality, professional image for a video background. MANDATORY STYLE: {request.style} — the entire image MUST be rendered in {request.style} style consistently. Description: {request.description}. Requirements: 16:9 aspect ratio, {request.style} aesthetic throughout, no text or words in the image."
         
         if request.characters:
             char_desc = ", ".join([f"{c['name']}: {c['description']}" for c in request.characters])
@@ -2051,6 +2052,27 @@ def read_render_status(job_id):
             pass
     return None
 
+@api_router.get("/render/preflight")
+async def render_preflight():
+    """Check if rendering dependencies are available."""
+    checks = {"node": False, "remotion": False, "ready": False}
+    # Check node
+    node_path = None
+    for p in ['/usr/bin/node', '/usr/local/bin/node']:
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            node_path = p
+            break
+    if not node_path:
+        node_path = shutil.which('node')
+    if node_path:
+        checks["node"] = True
+        checks["nodeVersion"] = subprocess.run([node_path, '--version'], capture_output=True, text=True, timeout=5).stdout.strip()
+    # Check remotion
+    remotion_dir = ROOT_DIR.parent / 'remotion'
+    checks["remotion"] = (remotion_dir / 'node_modules').exists()
+    checks["ready"] = checks["node"] and checks["remotion"]
+    return checks
+
 @api_router.post("/render")
 async def start_render(request: RenderRequest):
     """Start video rendering in a detached subprocess that survives backend restarts."""
@@ -2090,13 +2112,25 @@ async def start_render(request: RenderRequest):
     worker_script = str(ROOT_DIR / 'render_worker.py')
     
     # Use subprocess.Popen with start_new_session=True so it survives parent death
+    # Include all possible node locations in PATH
+    render_env = {**os.environ}
+    render_env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" + os.environ.get("PATH", "")
+    # Add nvm paths if they exist
+    nvm_dir = os.path.expanduser("~/.nvm/versions/node")
+    if os.path.isdir(nvm_dir):
+        for d in sorted(os.listdir(nvm_dir), reverse=True):
+            bin_dir = os.path.join(nvm_dir, d, "bin")
+            if os.path.isdir(bin_dir):
+                render_env["PATH"] = bin_dir + ":" + render_env["PATH"]
+                break
+    
     subprocess.Popen(
         [python_path, worker_script, str(job_config_file)],
         stdout=open(RENDER_JOBS_DIR / f"{job_id}.stdout.log", 'w'),
         stderr=open(RENDER_JOBS_DIR / f"{job_id}.stderr.log", 'w'),
         cwd=str(ROOT_DIR),
         start_new_session=True,
-        env={**os.environ, "PATH": f"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{os.environ.get('PATH', '')}"},
+        env=render_env,
     )
     
     return {"success": True, "jobId": job_id, "status": "started"}
