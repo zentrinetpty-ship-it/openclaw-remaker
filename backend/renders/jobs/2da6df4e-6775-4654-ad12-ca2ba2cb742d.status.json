@@ -1,0 +1,1 @@
+{"status": "failed", "error": "Render failed: [Remotion] Rendering 3 slides...\n[Remotion] Using cached bundle: /tmp/remotion-webpack-bundle-eahYc2\n[Remotion] Error: TypeError: The \"durationInFrames\" prop of the \"<Composition />\" component with the id \"ExplainerVideo\" must be an integer, but got 790.8."}

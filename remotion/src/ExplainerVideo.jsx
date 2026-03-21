@@ -89,8 +89,8 @@ export const ExplainerVideo = ({
   const slideSequences = [];
 
   slides.forEach((slide, idx) => {
-    const slideDurationFrames = (slide.duration || 6) * fps;
-    const startFrame = frameOffset;
+    const slideDurationFrames = Math.round((slide.duration || 6) * fps);
+    const startFrame = Math.round(frameOffset);
 
     slideSequences.push({
       ...slide,

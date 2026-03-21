@@ -86,7 +86,7 @@ async def run_render(job_file):
             write_status(status_file, {"status": "processing", "progress": pct, "step": f"Processing slide {idx+1}/{total_slides}"})
             
             asset_url = slide.get('assetUrl')
-            duration = slide.get('duration', 6)
+            duration = round(slide.get('duration', 6))
             narration = slide.get('narration', '')
             voice_url = slide.get('voiceUrl')
             transition = slide.get('transition', 'fade')

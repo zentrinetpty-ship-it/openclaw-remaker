@@ -33,7 +33,7 @@ export const Root = () => {
           totalFrames += (s.duration || 6) * fps;
           if (idx < slides.length - 1) totalFrames -= transitionFrames;
         });
-        return { durationInFrames: Math.max(totalFrames, 1), fps, width: 1920, height: 1080 };
+        return { durationInFrames: Math.round(Math.max(totalFrames, 1)), fps, width: 1920, height: 1080 };
       }}
     />
   );

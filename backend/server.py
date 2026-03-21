@@ -1729,7 +1729,7 @@ class RenderRequest(BaseModel):
     projectId: str
     slides: List[Dict[str, Any]]
     title: str
-    duration: int = 30
+    duration: float = 30
     generateVoice: bool = True
     voiceId: str = "en-US-Journey-D"
     captionStyleId: Optional[str] = None
