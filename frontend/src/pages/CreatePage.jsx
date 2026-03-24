@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, ArrowLeft, Check, Loader2, Wand2, Image, Film, Upload, RefreshCcw, Play, Copy } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, Check, Loader2, Wand2, Image, Film, Upload, RefreshCcw, Play, Copy, User, X } from 'lucide-react';
 import { useProjectStore, CATEGORIES } from '../store/useProjectStore';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -174,17 +174,18 @@ function StoryboardStep({ onNext, onBack }) {
   );
 }
 
-function SlideAssetCard({ slide, index, cat }) {
+function SlideAssetCard({ slide, index, cat, characters }) {
   const { updateSlide, project, preferredVisualStyle } = useProjectStore();
   const [generating, setGenerating] = useState(null);
   const fileInputRef = useRef(null);
+  const mode = slide.assetMode || 'image';
 
   const generateImage = async () => {
     setGenerating('image');
     updateSlide(slide.id, { assetGenerating: true });
     try {
-      const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: project?.characters });
-      if (res.data.success && res.data.image) { updateSlide(slide.id, { assetType: 'image', assetUrl: res.data.image, assetGenerating: false }); } else throw new Error('No image');
+      const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: characters || project?.characters });
+      if (res.data.success && res.data.image) { updateSlide(slide.id, { assetType: 'image', assetMode: 'image', assetUrl: res.data.image, assetGenerating: false }); } else throw new Error('No image');
     } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
     setGenerating(null);
   };
@@ -193,36 +194,79 @@ function SlideAssetCard({ slide, index, cat }) {
     setGenerating('video');
     updateSlide(slide.id, { assetGenerating: true });
     try {
-      const res = await axios.post(`${API}/generate-video`, { description: slide.videoPrompt || slide.imagePrompt });
-      if (res.data.success && res.data.video) { updateSlide(slide.id, { assetType: 'video', assetUrl: res.data.video, assetGenerating: false }); } else throw new Error('No video');
+      const res = await axios.post(`${API}/generate-video`, { description: slide.videoPrompt || slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: characters || project?.characters });
+      if (res.data.success) {
+        updateSlide(slide.id, {
+          assetType: 'video', assetMode: 'video',
+          assetUrl: res.data.startFrame || res.data.video,
+          startFrame: res.data.startFrame,
+          endFrame: res.data.endFrame,
+          assetGenerating: false,
+        });
+      } else throw new Error('No video');
     } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
     setGenerating(null);
   };
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
     const type = file.type.startsWith('video/') ? 'video' : 'image';
-    updateSlide(slide.id, { assetType: type, assetUrl: url });
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await axios.post(`${API}/upload`, formData);
+      if (res.data.success) updateSlide(slide.id, { assetType: type, assetMode: 'upload', assetUrl: res.data.url });
+    } catch (err) {
+      updateSlide(slide.id, { assetType: type, assetMode: 'upload', assetUrl: URL.createObjectURL(file) });
+    }
   };
+
+  const BASE = process.env.REACT_APP_BACKEND_URL;
+  const resolveUrl = (url) => url?.startsWith('/api') ? `${BASE}${url}` : url;
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="rounded-md border-2 bg-white overflow-hidden card-lift" style={{ borderColor: slide.assetUrl ? cat?.color : '#e2e8f0' }}>
+      {/* Preview */}
       <div className="aspect-video relative bg-slate-50 flex items-center justify-center overflow-hidden">
         {slide.assetUrl ? (
-          <img src={slide.assetUrl.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${slide.assetUrl}` : slide.assetUrl} alt={slide.title} className="w-full h-full object-cover" />
+          slide.assetType === 'video' && slide.assetUrl?.endsWith('.mp4') ? (
+            <video src={resolveUrl(slide.assetUrl)} className="w-full h-full object-cover" muted autoPlay loop playsInline />
+          ) : (
+            <img src={resolveUrl(slide.assetUrl)} alt={slide.title} className="w-full h-full object-cover" />
+          )
         ) : (
           <div className="flex flex-col items-center gap-2 text-center px-4">
             {slide.assetGenerating ? (<><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /><p className="text-xs text-slate-400">Generating...</p></>) : (<><Image className="w-8 h-8 text-slate-300" /><p className="text-xs text-slate-400">No asset</p></>)}
           </div>
         )}
-        {slide.assetUrl && <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-none bg-emerald-500"><Check className="w-2.5 h-2.5 text-white" /><span className="text-[9px] text-white font-bold">Done</span></div>}
+        {slide.assetUrl && <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-none bg-emerald-500"><Check className="w-2.5 h-2.5 text-white" /><span className="text-[9px] text-white font-bold">{slide.assetMode === 'video' ? 'Video' : slide.assetMode === 'upload' ? 'Uploaded' : 'Image'}</span></div>}
         <div className="absolute bottom-2 left-2 text-[9px] font-mono font-bold text-slate-400 bg-white/80 px-1.5 py-0.5 rounded-none">Slide {slide.id}</div>
+        {slide.assetUrl && <button onClick={() => updateSlide(slide.id, { assetUrl: null, assetType: 'none', startFrame: null, endFrame: null })} className="absolute top-2 left-2 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center hover:bg-red-500 transition"><X className="w-3 h-3 text-white" /></button>}
       </div>
+
       <div className="p-3 space-y-2">
         <p className="text-xs font-bold text-slate-900 line-clamp-1">{slide.title}</p>
-        {/* Video Generation Prompt - copyable for external AI tools */}
+
+        {/* Start + End Frame preview for video mode */}
+        {(slide.startFrame || slide.endFrame) && (
+          <div className="flex gap-1.5">
+            {slide.startFrame && (
+              <div className="flex-1 relative">
+                <img src={resolveUrl(slide.startFrame)} alt="Start" className="w-full aspect-video object-cover rounded-sm border border-slate-200" />
+                <span className="absolute bottom-0.5 left-0.5 text-[7px] font-black bg-green-500 text-white px-1 rounded-sm">START</span>
+              </div>
+            )}
+            {slide.endFrame && (
+              <div className="flex-1 relative">
+                <img src={resolveUrl(slide.endFrame)} alt="End" className="w-full aspect-video object-cover rounded-sm border border-slate-200" />
+                <span className="absolute bottom-0.5 left-0.5 text-[7px] font-black bg-red-500 text-white px-1 rounded-sm">END</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Video Gen Prompt - copyable */}
         {(slide.videoPrompt || slide.imagePrompt) && (
           <div className="relative group/prompt">
             <div className="p-2 rounded bg-slate-50 border border-slate-200">
@@ -236,14 +280,18 @@ function SlideAssetCard({ slide, index, cat }) {
             </div>
           </div>
         )}
-        <div className="flex gap-1.5">
-          <button onClick={generateImage} disabled={generating} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-none text-[11px] font-bold text-white disabled:opacity-50 btn-sharp" style={{ background: cat?.color }}>
-            {generating === 'image' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />} Image
+
+        {/* Asset Mode Selector */}
+        <div className="grid grid-cols-3 gap-1">
+          <button onClick={generateImage} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'image' && slide.assetUrl ? 'text-white' : 'border-2 border-slate-200 text-slate-600 hover:border-indigo-300'}`} style={mode === 'image' && slide.assetUrl ? { background: cat?.color } : {}} data-testid={`slide-${slide.id}-gen-image`}>
+            {generating === 'image' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Image className="w-3 h-3" />} Image
           </button>
-          <button onClick={generateVideo} disabled={generating} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-none text-[11px] font-bold text-white disabled:opacity-50 bg-blue-600 btn-sharp">
+          <button onClick={generateVideo} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'video' && slide.assetUrl ? 'bg-blue-600 text-white' : 'border-2 border-slate-200 text-slate-600 hover:border-blue-300'}`} data-testid={`slide-${slide.id}-gen-video`}>
             {generating === 'video' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Film className="w-3 h-3" />} Video
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center px-3 py-2 rounded-none border-2 border-slate-200 text-slate-500 hover:border-indigo-300"><Upload className="w-3 h-3" /></button>
+          <button onClick={() => fileInputRef.current?.click()} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition ${mode === 'upload' && slide.assetUrl ? 'bg-emerald-600 text-white' : 'border-2 border-slate-200 text-slate-600 hover:border-emerald-300'}`} data-testid={`slide-${slide.id}-upload`}>
+            <Upload className="w-3 h-3" /> Upload
+          </button>
           <input ref={fileInputRef} type="file" accept="image/*,video/*" hidden onChange={handleUpload} />
         </div>
       </div>
@@ -252,20 +300,60 @@ function SlideAssetCard({ slide, index, cat }) {
 }
 
 function AssetStep({ onNext, onBack }) {
-  const { project, updateSlide, assetType, videoCategory, preferredVisualStyle } = useProjectStore();
+  const { project, setProject, updateSlide, assetType, videoCategory, preferredVisualStyle } = useProjectStore();
   const cat = CATEGORIES.find(c => c.id === videoCategory);
+  const [characters, setCharacters] = useState(project?.characters || []);
+  const [uploading, setUploading] = useState(false);
   if (!project) return null;
   const doneCount = project.slides.filter(s => s.assetUrl).length;
   const allDone = doneCount === project.slides.length;
 
+  const uploadCharacter = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', `Character ${characters.length + 1}`);
+      formData.append('description', '');
+      const res = await axios.post(`${API}/upload-character`, formData);
+      if (res.data.success) {
+        const newChar = { name: res.data.name, description: res.data.description, imageUrl: res.data.url };
+        const updated = [...characters, newChar];
+        setCharacters(updated);
+        setProject({ ...project, characters: updated });
+      }
+    } catch (e) { console.error('Character upload failed'); }
+    setUploading(false);
+  };
+
+  const updateCharacter = (idx, field, value) => {
+    const updated = [...characters];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setCharacters(updated);
+    setProject({ ...project, characters: updated });
+  };
+
+  const removeCharacter = (idx) => {
+    const updated = characters.filter((_, i) => i !== idx);
+    setCharacters(updated);
+    setProject({ ...project, characters: updated });
+  };
+
   const generateAll = async () => {
     for (const slide of project.slides) {
       if (slide.assetUrl) continue;
+      const mode = slide.assetMode || 'image';
       updateSlide(slide.id, { assetGenerating: true });
       try {
-        const endpoint = assetType === 'video' ? '/generate-video' : '/generate-image';
-        const res = await axios.post(`${API}${endpoint}`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: project?.characters });
-        if (res.data.success) { updateSlide(slide.id, { assetType: assetType, assetUrl: res.data.image || res.data.video, assetGenerating: false }); } else throw new Error('Failed');
+        if (mode === 'video') {
+          const res = await axios.post(`${API}/generate-video`, { description: slide.videoPrompt || slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters });
+          if (res.data.success) { updateSlide(slide.id, { assetType: 'video', assetMode: 'video', assetUrl: res.data.startFrame || res.data.video, startFrame: res.data.startFrame, endFrame: res.data.endFrame, assetGenerating: false }); }
+        } else {
+          const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters });
+          if (res.data.success) { updateSlide(slide.id, { assetType: 'image', assetMode: 'image', assetUrl: res.data.image, assetGenerating: false }); }
+        }
       } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
     }
   };
@@ -285,11 +373,43 @@ function AssetStep({ onNext, onBack }) {
           </motion.button>
         </div>
       </div>
+
+      {/* Character Upload for Consistency */}
+      <div className="mb-6 p-4 rounded-md border-2 border-amber-200 bg-amber-50/50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-amber-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Character Reference</h3>
+            <span className="text-[9px] text-slate-400">Upload for visual consistency across all slides</span>
+          </div>
+          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[10px] font-bold text-amber-700 border-2 border-amber-300 bg-white hover:bg-amber-50 cursor-pointer transition" data-testid="upload-character-btn">
+            {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />} Add Character
+            <input type="file" accept="image/*" hidden onChange={uploadCharacter} />
+          </label>
+        </div>
+        {characters.length > 0 ? (
+          <div className="flex gap-3 flex-wrap">
+            {characters.map((char, i) => (
+              <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-white border-2 border-amber-200 min-w-[200px]">
+                <img src={char.imageUrl?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${char.imageUrl}` : char.imageUrl} alt={char.name} className="w-10 h-10 rounded-sm object-cover border border-slate-200" />
+                <div className="flex-1 min-w-0">
+                  <input type="text" value={char.name} onChange={(e) => updateCharacter(i, 'name', e.target.value)} className="w-full text-[10px] font-bold text-slate-900 bg-transparent border-0 outline-none p-0" data-testid={`char-name-${i}`} />
+                  <input type="text" value={char.description} onChange={(e) => updateCharacter(i, 'description', e.target.value)} placeholder="Description..." className="w-full text-[9px] text-slate-400 bg-transparent border-0 outline-none p-0" data-testid={`char-desc-${i}`} />
+                </div>
+                <button onClick={() => removeCharacter(i)} className="w-5 h-5 rounded-full flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex-shrink-0"><X className="w-3 h-3" /></button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[10px] text-amber-600/60">No characters uploaded yet. Add reference images to maintain consistent character appearances.</p>
+        )}
+      </div>
+
       <div className="mb-6 h-1.5 bg-slate-100 rounded-none overflow-hidden">
         <motion.div className="h-full" style={{ background: `linear-gradient(90deg, ${cat?.color}, #10b981)` }} animate={{ width: `${(doneCount / project.slides.length) * 100}%` }} />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {project.slides.map((slide, idx) => <SlideAssetCard key={slide.id} slide={slide} index={idx} cat={cat} />)}
+        {project.slides.map((slide, idx) => <SlideAssetCard key={slide.id} slide={slide} index={idx} cat={cat} characters={characters} />)}
       </div>
     </div>
   );

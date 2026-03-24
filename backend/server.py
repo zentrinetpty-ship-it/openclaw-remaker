@@ -272,6 +272,9 @@ class ImageGenerateRequest(BaseModel):
 
 class VideoGenerateRequest(BaseModel):
     description: str
+    style: str = "Cinematic"
+    characters: Optional[List[Dict]] = None
+    characterImageUrl: Optional[str] = None
     projectId: Optional[str] = None
     userId: Optional[str] = None
 
@@ -308,7 +311,10 @@ class Slide(BaseModel):
     onScreenText: Optional[str] = None
     visualStyle: str = "realistic"
     assetType: str = "none"
+    assetMode: str = "image"  # image, video, upload
     assetUrl: Optional[str] = None
+    startFrame: Optional[str] = None
+    endFrame: Optional[str] = None
     assetGenerating: bool = False
     voiceUrl: Optional[str] = None
     sfxUrl: Optional[str] = None
@@ -936,14 +942,24 @@ async def generate_image(request: ImageGenerateRequest, user: dict = Depends(get
 
 @api_router.post("/generate-video")
 async def generate_video(request: VideoGenerateRequest, user: dict = Depends(get_current_user)):
-    """Generate video background image using Gemini."""
+    """Generate start frame and end frame for a video slide using Gemini."""
     try:
-        prompt = f"Generate a cinematic, high-quality video background image for the following scene: {request.description}. Wide 16:9 format, photorealistic, 4k quality, dynamic composition."
+        char_desc = ""
+        if request.characters:
+            char_desc = " CONSISTENT CHARACTERS: " + ", ".join([f"{c.get('name','')}: {c.get('description','')}" for c in request.characters])
+        
+        # Generate START frame
+        start_prompt = f"Generate the OPENING FRAME of a cinematic video scene. MANDATORY STYLE: {request.style}. Scene: {request.description}. This is the BEGINNING — show the initial state, establishing shot, calm before action. 16:9 aspect ratio, {request.style} aesthetic, no text.{char_desc}"
+        
+        # Generate END frame
+        end_prompt = f"Generate the CLOSING FRAME of a cinematic video scene. MANDATORY STYLE: {request.style}. Scene: {request.description}. This is the END — show the climax/resolution, dynamic composition, peak moment. 16:9 aspect ratio, {request.style} aesthetic, no text.{char_desc}"
         
         client = get_gemini_client()
-        response = client.models.generate_images(
+        
+        # Generate both frames
+        start_response = client.models.generate_images(
             model='imagen-4.0-generate-001',
-            prompt=prompt,
+            prompt=start_prompt,
             config=genai.types.GenerateImagesConfig(
                 number_of_images=1,
                 aspect_ratio="16:9",
@@ -951,39 +967,85 @@ async def generate_video(request: VideoGenerateRequest, user: dict = Depends(get
             )
         )
         
-        if response.generated_images and len(response.generated_images) > 0:
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            random_suffix = str(uuid.uuid4())[:7]
-            filename = f"video-bg-{timestamp}-{random_suffix}.png"
-            filepath = UPLOADS_DIR / filename
-            
-            image_bytes = response.generated_images[0].image.image_bytes
-            async with aiofiles.open(filepath, 'wb') as f:
-                await f.write(image_bytes)
-            
-            user_id = user.get("id") if user else request.userId
-            asset_doc = {
-                "id": str(uuid.uuid4()),
-                "type": "video",
-                "url": f"/api/uploads/{filename}",
-                "prompt": request.description,
-                "projectId": request.projectId,
-                "userId": user_id,
-                "createdAt": datetime.now(timezone.utc).isoformat()
-            }
-            await db.generated_assets.insert_one(asset_doc)
-            
-            return {
-                "success": True,
-                "video": f"/api/uploads/{filename}",
-                "assetId": asset_doc["id"],
-                "mimeType": "image/png"
-            }
-        else:
-            raise HTTPException(status_code=500, detail="No video background generated")
+        end_response = client.models.generate_images(
+            model='imagen-4.0-generate-001',
+            prompt=end_prompt,
+            config=genai.types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="16:9",
+                output_mime_type="image/png",
+            )
+        )
+        
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        random_suffix = str(uuid.uuid4())[:7]
+        result = {"success": True}
+        
+        # Save start frame
+        if start_response.generated_images and len(start_response.generated_images) > 0:
+            start_filename = f"video-start-{timestamp}-{random_suffix}.png"
+            start_path = UPLOADS_DIR / start_filename
+            async with aiofiles.open(start_path, 'wb') as f:
+                await f.write(start_response.generated_images[0].image.image_bytes)
+            result["startFrame"] = f"/api/uploads/{start_filename}"
+        
+        # Save end frame
+        if end_response.generated_images and len(end_response.generated_images) > 0:
+            end_filename = f"video-end-{timestamp}-{random_suffix}.png"
+            end_path = UPLOADS_DIR / end_filename
+            async with aiofiles.open(end_path, 'wb') as f:
+                await f.write(end_response.generated_images[0].image.image_bytes)
+            result["endFrame"] = f"/api/uploads/{end_filename}"
+        
+        # Use start frame as the main asset
+        result["video"] = result.get("startFrame")
+        
+        # Save to database
+        user_id = user.get("id") if user else request.userId
+        asset_doc = {
+            "id": str(uuid.uuid4()),
+            "type": "video",
+            "url": result.get("startFrame"),
+            "startFrame": result.get("startFrame"),
+            "endFrame": result.get("endFrame"),
+            "prompt": request.description,
+            "style": request.style,
+            "projectId": request.projectId,
+            "userId": user_id,
+            "createdAt": datetime.now(timezone.utc).isoformat()
+        }
+        await db.generated_assets.insert_one(asset_doc)
+        result["assetId"] = asset_doc["id"]
+        
+        if not result.get("startFrame"):
+            raise HTTPException(status_code=500, detail="No frames generated")
+        
+        return result
             
     except Exception as e:
         logger.error(f"Video generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/upload-character")
+async def upload_character(file: UploadFile = File(...), name: str = Form("Character"), description: str = Form("")):
+    """Upload a reference character image for consistency across generations."""
+    try:
+        content = await file.read()
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        random_suffix = str(uuid.uuid4())[:7]
+        ext = Path(file.filename).suffix or '.png'
+        filename = f"character-{timestamp}-{random_suffix}{ext}"
+        filepath = UPLOADS_DIR / filename
+        async with aiofiles.open(filepath, 'wb') as f:
+            await f.write(content)
+        return {
+            "success": True,
+            "url": f"/api/uploads/{filename}",
+            "name": name,
+            "description": description,
+        }
+    except Exception as e:
+        logger.error(f"Character upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/generate-voice")
