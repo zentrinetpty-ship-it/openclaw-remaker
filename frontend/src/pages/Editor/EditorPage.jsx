@@ -166,10 +166,10 @@ export default function EditorPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+      <div className="min-h-screen bg-[#030712] flex items-center justify-center">
         <div className="text-center">
-          <Sparkles className="w-8 h-8 text-indigo-500 animate-pulse mx-auto mb-2" />
-          <p className="text-sm text-slate-400">Loading editor...</p>
+          <Sparkles className="w-8 h-8 text-indigo-400 animate-pulse mx-auto mb-2" />
+          <p className="text-sm text-slate-500">Loading editor...</p>
         </div>
       </div>
     );
@@ -177,30 +177,30 @@ export default function EditorPage() {
 
   if (!project) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+      <div className="min-h-screen bg-[#030712] flex items-center justify-center">
         <div className="text-center">
           <p className="text-slate-500 mb-4">No project loaded</p>
-          <motion.button whileHover={{ scale: 1.02 }} onClick={() => navigate('/')} className="px-6 py-2 rounded-none bg-indigo-600 text-white font-bold text-sm btn-sharp">Go Home</motion.button>
+          <motion.button whileHover={{ scale: 1.02 }} onClick={() => navigate('/')} className="px-6 py-2 rounded-none bg-indigo-500 text-white font-bold text-sm btn-sharp">Go Home</motion.button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#F8FAFC] overflow-hidden" data-testid="editor-page">
+    <div className="h-screen flex flex-col bg-[#030712] overflow-hidden" data-testid="editor-page">
       {/* Export Modal */}
       <AnimatePresence>
         {showExportModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !rendering && setShowExportModal(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-lg bg-white border-2 border-slate-200 rounded-md overflow-hidden shadow-[0_20px_60px_-12px_rgba(79,70,229,0.2)]">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative w-full max-w-lg bg-[#0a0f1a] border-2 border-white/[0.08] rounded-md overflow-hidden shadow-[0_20px_60px_-12px_rgba(129,140,248,0.15)]">
               {renderStatus === 'completed' ? (
                 <div className="p-8 text-center">
-                  <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto mb-5">
-                    <Check className="w-10 h-10 text-emerald-500" />
+                  <div className="w-20 h-20 rounded-full bg-emerald-500/10 border-2 border-emerald-500/20 flex items-center justify-center mx-auto mb-5">
+                    <Check className="w-10 h-10 text-emerald-400" />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2">Video Ready!</h3>
-                  <p className="text-sm text-slate-500 mb-6">Your video has been rendered successfully. Download in your preferred format.</p>
+                  <h3 className="text-2xl font-black text-slate-100 mb-2">Video Ready!</h3>
+                  <p className="text-sm text-slate-400 mb-6">Your video has been rendered successfully. Download in your preferred format.</p>
                   <div className="flex flex-col gap-3 items-center">
                     <a href={`${process.env.REACT_APP_BACKEND_URL}${renderUrl}`} download={`${project?.title || 'video'}.mp4`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-2.5 w-64 justify-center rounded-none bg-emerald-600 text-white font-bold text-sm btn-sharp hover:bg-emerald-700 transition" data-testid="download-video-btn">
                       <Film className="w-4 h-4" /> Download MP4
@@ -211,20 +211,20 @@ export default function EditorPage() {
                     <button onClick={() => exportAs('html')} disabled={exportingHtml} className="inline-flex items-center gap-2 px-6 py-2.5 w-64 justify-center rounded-none bg-purple-600 text-white font-bold text-sm btn-sharp hover:bg-purple-700 transition disabled:opacity-50" data-testid="download-html-btn">
                       {exportingHtml ? <Loader2 className="w-4 h-4 animate-spin" /> : <Monitor className="w-4 h-4" />} Download HTML
                     </button>
-                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition">Close</button>
+                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2 text-slate-500 font-bold text-xs hover:text-slate-300 transition">Close</button>
                   </div>
                 </div>
               ) : renderStatus === 'failed' || renderStatus === 'timeout' ? (
                 <div className="p-8 text-center">
-                  <div className="w-20 h-20 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center mx-auto mb-5">
-                    <X className="w-10 h-10 text-red-500" />
+                  <div className="w-20 h-20 rounded-full bg-red-500/10 border-2 border-red-500/20 flex items-center justify-center mx-auto mb-5">
+                    <X className="w-10 h-10 text-red-400" />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2">{renderStatus === 'timeout' ? 'Render Timed Out' : 'Render Failed'}</h3>
-                  <p className="text-sm text-slate-500 mb-3">{renderStatus === 'timeout' ? 'The render took too long. Please try with fewer slides.' : 'Something went wrong during rendering.'}</p>
-                  {renderStep && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-sm p-3 mb-5 text-left break-words max-h-24 overflow-y-auto font-mono">{renderStep}</p>}
+                  <h3 className="text-2xl font-black text-slate-100 mb-2">{renderStatus === 'timeout' ? 'Render Timed Out' : 'Render Failed'}</h3>
+                  <p className="text-sm text-slate-400 mb-3">{renderStatus === 'timeout' ? 'The render took too long. Please try with fewer slides.' : 'Something went wrong during rendering.'}</p>
+                  {renderStep && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-sm p-3 mb-5 text-left break-words max-h-24 overflow-y-auto font-mono">{renderStep}</p>}
                   <div className="flex gap-3 justify-center">
-                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2.5 rounded-none border-2 border-slate-200 text-slate-600 font-bold text-sm">Close</button>
-                    <button onClick={() => { setShowExportModal(false); startRender(); }} className="px-5 py-2.5 rounded-none bg-indigo-600 text-white font-bold text-sm btn-sharp">Retry</button>
+                    <button onClick={() => setShowExportModal(false)} className="px-5 py-2.5 rounded-none border-2 border-white/[0.08] text-slate-400 font-bold text-sm">Close</button>
+                    <button onClick={() => { setShowExportModal(false); startRender(); }} className="px-5 py-2.5 rounded-none bg-indigo-500 text-white font-bold text-sm btn-sharp">Retry</button>
                   </div>
                 </div>
               ) : (
@@ -236,25 +236,25 @@ export default function EditorPage() {
       </AnimatePresence>
 
       {/* Top Nav */}
-      <nav className="flex items-center justify-between px-4 py-2 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
+      <nav className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06] bg-[#030712]/80 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/')} className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-sm flex items-center justify-center bg-indigo-600"><Sparkles className="w-3.5 h-3.5 text-white" /></div>
+            <div className="w-7 h-7 rounded-sm flex items-center justify-center bg-indigo-500"><Sparkles className="w-3.5 h-3.5 text-white" /></div>
           </button>
-          <span className="text-slate-300">/</span>
-          <span className="text-sm font-bold text-slate-900">{project.title}</span>
+          <span className="text-slate-700">/</span>
+          <span className="text-sm font-bold text-slate-200">{project.title}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowTimeline(t => !t)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 text-sm font-bold transition ${showTimeline ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'}`} data-testid="timeline-toggle-btn">
+          <button onClick={() => setShowTimeline(t => !t)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 text-sm font-bold transition ${showTimeline ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-white/[0.08] text-slate-400 hover:border-indigo-500/30 hover:bg-indigo-500/5'}`} data-testid="timeline-toggle-btn">
             <Layers className="w-4 h-4" /> Timeline
           </button>
-          <button onClick={saveProject} disabled={saving} className="flex items-center gap-1.5 px-4 py-1.5 rounded-none border-2 border-slate-200 text-sm font-bold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 transition disabled:opacity-50" data-testid="save-btn">
+          <button onClick={saveProject} disabled={saving} className="flex items-center gap-1.5 px-4 py-1.5 rounded-none border-2 border-white/[0.08] text-sm font-bold text-slate-400 hover:border-indigo-500/30 hover:bg-indigo-500/5 transition disabled:opacity-50" data-testid="save-btn">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {saving ? 'Saving...' : 'Save'}
           </button>
-          <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 border-blue-200 text-sm font-bold text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" data-testid="export-pdf-btn">
+          <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 border-blue-500/20 text-sm font-bold text-blue-400 hover:bg-blue-500/10 transition disabled:opacity-50" data-testid="export-pdf-btn">
             {exportingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} PDF
           </button>
-          <button onClick={() => exportAs('html')} disabled={exportingHtml} className="flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 border-purple-200 text-sm font-bold text-purple-600 hover:bg-purple-50 transition disabled:opacity-50" data-testid="export-html-btn">
+          <button onClick={() => exportAs('html')} disabled={exportingHtml} className="flex items-center gap-1.5 px-3 py-1.5 rounded-none border-2 border-purple-500/20 text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition disabled:opacity-50" data-testid="export-html-btn">
             {exportingHtml ? <Loader2 className="w-4 h-4 animate-spin" /> : <Monitor className="w-4 h-4" />} HTML
           </button>
           <button onClick={startRender} disabled={rendering} className="flex items-center gap-1.5 px-4 py-1.5 rounded-none text-sm font-bold text-white btn-sharp disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${cat?.color || primaryColor}, #10b981)` }} data-testid="export-btn">

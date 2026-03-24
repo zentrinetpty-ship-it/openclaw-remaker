@@ -5,27 +5,27 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
+  --background: 220 20% 3%;
+  --foreground: 210 40% 96%;
+  --card: 220 18% 6%;
+  --card-foreground: 210 40% 96%;
+  --popover: 220 18% 6%;
+  --popover-foreground: 210 40% 96%;
   --primary: 239 84% 67%;
   --primary-foreground: 0 0% 100%;
   --secondary: 330 81% 60%;
   --secondary-foreground: 0 0% 100%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
+  --muted: 220 14% 11%;
+  --muted-foreground: 215 16% 57%;
   --accent: 187 92% 41%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
+  --border: 220 13% 14%;
+  --input: 220 13% 14%;
   --ring: 239 84% 67%;
   --radius: 0.375rem;
-  --category-color: #4F46E5;
+  --category-color: #818cf8;
 }
 
 * {
@@ -39,8 +39,8 @@ html, body, #root {
 }
 
 body {
-  background: #F8FAFC;
-  color: #0F172A;
+  background: #030712;
+  color: #e2e8f0;
   font-family: 'Poppins', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -54,29 +54,29 @@ h1, h2, h3, h4, h5, h6 {
   body { @apply bg-background text-foreground; }
 }
 
-/* Glass panel - light theme */
+/* Glass panel - dark theme */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(10, 15, 26, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .glass-panel:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(10, 15, 26, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Dark glass panel - for editor/dashboard */
+/* Dark glass panel */
 .glass-panel-dark {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #4F46E5 0%, #EC4899 50%, #06B6D4 100%);
+  background: linear-gradient(135deg, #818cf8 0%, #f472b6 50%, #22d3ee 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -103,14 +103,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* Sharp shadow buttons (Neo-Brutalist) */
+/* Sharp shadow buttons (Neo-Brutalist) - dark mode */
 .btn-sharp {
-  box-shadow: 4px 4px 0px 0px #4F46E5;
+  box-shadow: 4px 4px 0px 0px #818cf8;
   transition: all 0.15s ease;
 }
 .btn-sharp:hover {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px 0px #4F46E5;
+  box-shadow: 2px 2px 0px 0px #818cf8;
 }
 .btn-sharp:active {
   transform: translate(4px, 4px);
@@ -118,12 +118,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-sharp-pink {
-  box-shadow: 4px 4px 0px 0px #DB2777;
+  box-shadow: 4px 4px 0px 0px #f472b6;
   transition: all 0.15s ease;
 }
 .btn-sharp-pink:hover {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px 0px #DB2777;
+  box-shadow: 2px 2px 0px 0px #f472b6;
 }
 .btn-sharp-pink:active {
   transform: translate(4px, 4px);
@@ -140,13 +140,13 @@ h1, h2, h3, h4, h5, h6 {
   animation: marquee-scroll 30s linear infinite;
 }
 
-/* Card hover lift */
+/* Card hover lift - dark */
 .card-lift {
   transition: all 0.25s ease;
 }
 .card-lift:hover {
   transform: translateY(-6px);
-  box-shadow: 0 12px 40px -8px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 12px 40px -8px rgba(129, 140, 248, 0.15);
 }
 
 /* Shimmer animation for progress bar */
@@ -158,6 +158,26 @@ h1, h2, h3, h4, h5, h6 {
   animation: shimmer 2s ease-in-out infinite;
 }
 
+/* Custom scrollbar for dark mode */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0f1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Form elements dark override */
+select, input[type="text"], input[type="email"], input[type="password"], input[type="url"], input[type="number"], textarea {
+  color-scheme: dark;
+}
 
 /* Hide Made with Emergent badge */
 #emergent-badge,

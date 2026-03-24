@@ -10,11 +10,11 @@ import axios from 'axios';
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const LAYER_COLORS = {
-  video: { bg: 'bg-indigo-500', border: 'border-indigo-600', light: 'bg-indigo-100', text: 'text-indigo-700' },
-  voice: { bg: 'bg-emerald-500', border: 'border-emerald-600', light: 'bg-emerald-100', text: 'text-emerald-700' },
-  caption: { bg: 'bg-amber-500', border: 'border-amber-600', light: 'bg-amber-100', text: 'text-amber-700' },
-  music: { bg: 'bg-pink-500', border: 'border-pink-600', light: 'bg-pink-100', text: 'text-pink-700' },
-  sfx: { bg: 'bg-cyan-500', border: 'border-cyan-600', light: 'bg-cyan-100', text: 'text-cyan-700' },
+  video: { bg: 'bg-indigo-500', border: 'border-indigo-600', light: 'bg-indigo-500/10', text: 'text-indigo-400' },
+  voice: { bg: 'bg-emerald-500', border: 'border-emerald-600', light: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  caption: { bg: 'bg-amber-500', border: 'border-amber-600', light: 'bg-amber-500/10', text: 'text-amber-400' },
+  music: { bg: 'bg-pink-500', border: 'border-pink-600', light: 'bg-pink-500/10', text: 'text-pink-400' },
+  sfx: { bg: 'bg-cyan-500', border: 'border-cyan-600', light: 'bg-cyan-500/10', text: 'text-cyan-400' },
 };
 
 const LAYER_ICONS = {
@@ -291,17 +291,17 @@ export default function TimelinePanel({
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: 'auto', opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
-      className={`border-t-2 border-slate-200 bg-white flex flex-col ${panelHeight} select-none`}
+      className={`border-t-2 border-white/[0.06] bg-[#0a0f1a] flex flex-col ${panelHeight} select-none`}
       data-testid="timeline-panel"
     >
       {/* Timeline Header */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 bg-slate-50/80 flex-shrink-0">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-white/[0.02] flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="text-[10px] font-bold text-slate-900 uppercase tracking-wider">Timeline</span>
+            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-[10px] font-bold text-slate-200 uppercase tracking-wider">Timeline</span>
           </div>
-          <span className="text-[9px] text-slate-400 font-mono">{formatTime(effectiveDuration)} total</span>
+          <span className="text-[9px] text-slate-500 font-mono">{formatTime(effectiveDuration)} total</span>
           
           {/* Auto Sync Button */}
           <button
@@ -329,20 +329,20 @@ export default function TimelinePanel({
 
         <div className="flex items-center gap-2">
           {/* Zoom controls */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-sm px-1 py-0.5 border border-slate-200">
-            <button onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="p-0.5 text-slate-400 hover:text-slate-600" data-testid="timeline-zoom-out">
+          <div className="flex items-center gap-1 bg-[#0d1117] rounded-sm px-1 py-0.5 border border-white/[0.06]">
+            <button onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="p-0.5 text-slate-500 hover:text-slate-300" data-testid="timeline-zoom-out">
               <ZoomOut className="w-3 h-3" />
             </button>
             <span className="text-[9px] text-slate-500 font-mono w-8 text-center">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(4, z + 0.25))} className="p-0.5 text-slate-400 hover:text-slate-600" data-testid="timeline-zoom-in">
+            <button onClick={() => setZoom(z => Math.min(4, z + 0.25))} className="p-0.5 text-slate-500 hover:text-slate-300" data-testid="timeline-zoom-in">
               <ZoomIn className="w-3 h-3" />
             </button>
           </div>
           
-          <button onClick={() => setExpanded(!expanded)} className="p-1 text-slate-400 hover:text-slate-600" data-testid="timeline-expand">
+          <button onClick={() => setExpanded(!expanded)} className="p-1 text-slate-500 hover:text-slate-300" data-testid="timeline-expand">
             {expanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
-          <button onClick={onToggle} className="p-1 text-slate-400 hover:text-slate-600" data-testid="timeline-close">
+          <button onClick={onToggle} className="p-1 text-slate-500 hover:text-slate-300" data-testid="timeline-close">
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -351,17 +351,17 @@ export default function TimelinePanel({
       {/* Timeline Body */}
       <div className="flex-1 flex overflow-hidden">
         {/* Layer Labels */}
-        <div className="w-24 flex-shrink-0 border-r border-slate-200 bg-slate-50/50">
+        <div className="w-24 flex-shrink-0 border-r border-white/[0.06] bg-[#060a14]">
           {/* Time ruler header */}
-          <div className="h-5 border-b border-slate-100 flex items-center justify-center">
-            <span className="text-[8px] text-slate-400 font-bold">LAYERS</span>
+          <div className="h-5 border-b border-white/[0.06] flex items-center justify-center">
+            <span className="text-[8px] text-slate-500 font-bold">LAYERS</span>
           </div>
           {layers.map(layer => {
             const Icon = LAYER_ICONS[layer];
             const colors = LAYER_COLORS[layer];
             const hasContent = (blocks[layer] || []).length > 0;
             return (
-              <div key={layer} className={`h-7 flex items-center px-2 gap-1.5 border-b border-slate-100 ${hasContent ? '' : 'opacity-40'}`}>
+              <div key={layer} className={`h-7 flex items-center px-2 gap-1.5 border-b border-white/[0.06] ${hasContent ? '' : 'opacity-40'}`}>
                 <button onClick={() => toggleLock(layer)} className="flex-shrink-0">
                   {lockedLayers[layer] ? <Lock className="w-2.5 h-2.5 text-red-400" /> : <Unlock className="w-2.5 h-2.5 text-slate-300" />}
                 </button>
@@ -378,21 +378,21 @@ export default function TimelinePanel({
         <div className="flex-1 overflow-x-auto overflow-y-hidden" ref={timelineRef} onClick={handleTimelineClick}>
           <div style={{ width: `${100 * zoom}%`, minWidth: '100%' }} className="h-full relative">
             {/* Time ruler */}
-            <div className="h-5 border-b border-slate-100 relative">
+            <div className="h-5 border-b border-white/[0.06] relative">
               {getTimeMarkers().map(t => (
                 <div key={t} className="absolute top-0 bottom-0 flex flex-col items-center" style={{ left: `${(t / effectiveDuration) * 100}%` }}>
-                  <div className="h-full w-px bg-slate-200" />
-                  <span className="text-[7px] text-slate-400 font-mono absolute top-0.5">{formatTime(t)}</span>
+                  <div className="h-full w-px bg-white/[0.06]" />
+                  <span className="text-[7px] text-slate-600 font-mono absolute top-0.5">{formatTime(t)}</span>
                 </div>
               ))}
             </div>
 
             {/* Track rows */}
             {layers.map(layer => (
-              <div key={layer} className="h-7 relative border-b border-slate-100 bg-white hover:bg-slate-50/50">
+              <div key={layer} className="h-7 relative border-b border-white/[0.06] bg-[#0a0f1a] hover:bg-white/[0.02]">
                 {/* Grid lines */}
                 {getTimeMarkers().map(t => (
-                  <div key={t} className="absolute top-0 bottom-0 w-px bg-slate-100" style={{ left: `${(t / effectiveDuration) * 100}%` }} />
+                  <div key={t} className="absolute top-0 bottom-0 w-px bg-white/[0.04]" style={{ left: `${(t / effectiveDuration) * 100}%` }} />
                 ))}
                 {/* Blocks */}
                 {(blocks[layer] || []).map(block => (

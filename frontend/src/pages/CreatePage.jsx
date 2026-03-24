@@ -15,12 +15,12 @@ function StepIndicator({ step }) {
       {steps.map((label, i) => (
         <div key={label} className="flex items-center gap-3">
           <div className="flex flex-col items-center gap-1">
-            <motion.div animate={step > i ? { backgroundColor: '#10b981' } : step === i ? { scale: [1, 1.08, 1] } : {}} transition={{ duration: 1.5, repeat: step === i ? Infinity : 0 }} className="w-7 h-7 rounded-sm border-2 flex items-center justify-center text-xs font-bold" style={{ borderColor: step >= i ? '#10b981' : '#cbd5e1', backgroundColor: step > i ? '#10b981' : step === i ? 'rgba(16,185,129,0.1)' : 'transparent', color: step >= i ? (step > i ? '#fff' : '#10b981') : '#94a3b8' }}>
+            <motion.div animate={step > i ? { backgroundColor: '#10b981' } : step === i ? { scale: [1, 1.08, 1] } : {}} transition={{ duration: 1.5, repeat: step === i ? Infinity : 0 }} className="w-7 h-7 rounded-sm border-2 flex items-center justify-center text-xs font-bold" style={{ borderColor: step >= i ? '#10b981' : '#334155', backgroundColor: step > i ? '#10b981' : step === i ? 'rgba(16,185,129,0.1)' : 'transparent', color: step >= i ? (step > i ? '#fff' : '#10b981') : '#64748b' }}>
               {step > i ? <Check className="w-3.5 h-3.5" /> : i + 1}
             </motion.div>
-            <span className="text-[9px] font-semibold text-slate-400">{label}</span>
+            <span className="text-[9px] font-semibold text-slate-500">{label}</span>
           </div>
-          {i < steps.length - 1 && <div className="w-10 h-px mt-[-16px]" style={{ backgroundColor: step > i ? '#10b981' : '#e2e8f0' }} />}
+          {i < steps.length - 1 && <div className="w-10 h-px mt-[-16px]" style={{ backgroundColor: step > i ? '#10b981' : '#1e293b' }} />}
         </div>
       ))}
     </div>
@@ -38,15 +38,13 @@ function ProcessingStep({ onDone, onError }) {
     called.current = true;
     const run = async () => {
       try {
-        // Phase 1: Generate optimized prompts
         setPhase(1);
         setStatus('Generating optimized prompts with AI...');
         let enhancedInput = rawInput;
         try {
           const promptRes = await axios.post(`${API}/generate-prompt`, { story: rawInput, category: videoCategory, tone: videoTone, slideCount, duration: videoDuration, visualStyle: preferredVisualStyle });
           if (promptRes.data.success && promptRes.data.data) {
-            const promptData = promptRes.data.data;
-            enhancedInput = JSON.stringify(promptData);
+            enhancedInput = JSON.stringify(promptRes.data.data);
             setStatus('Prompts generated! Building storyboard...');
           }
         } catch (promptErr) {
@@ -54,7 +52,6 @@ function ProcessingStep({ onDone, onError }) {
           setStatus('Using direct input for storyboard...');
         }
         
-        // Phase 2: Build storyboard using enhanced prompts
         setPhase(2);
         setStatus(`Building ${slideCount}-slide ${videoCategory} storyboard...`);
         const res = await axios.post(`${API}/restructure-script`, { input: enhancedInput, type: inputType, duration: videoDuration, tone: videoTone, category: videoCategory, slideCount, preferredVisualStyle });
@@ -76,22 +73,22 @@ function ProcessingStep({ onDone, onError }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
       <div className="relative">
-        <motion.div animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 2, repeat: Infinity }} className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, #4F46E5, transparent)', filter: 'blur(20px)' }} />
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: 'linear' }} className="w-20 h-20 rounded-full border-4" style={{ borderColor: '#e2e8f0', borderTopColor: '#4F46E5', borderRightColor: '#EC4899' }} />
-        <div className="absolute inset-0 flex items-center justify-center"><Sparkles className="w-8 h-8 text-indigo-600" /></div>
+        <motion.div animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 2, repeat: Infinity }} className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, #818cf8, transparent)', filter: 'blur(20px)' }} />
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: 'linear' }} className="w-20 h-20 rounded-full border-4" style={{ borderColor: '#1e293b', borderTopColor: '#818cf8', borderRightColor: '#f472b6' }} />
+        <div className="absolute inset-0 flex items-center justify-center"><Sparkles className="w-8 h-8 text-indigo-400" /></div>
       </div>
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-slate-900">AI is crafting your video...</h2>
-        <motion.p key={status} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-slate-500">{status}</motion.p>
+        <h2 className="text-2xl font-bold text-slate-100">AI is crafting your video...</h2>
+        <motion.p key={status} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-slate-400">{status}</motion.p>
       </div>
       <div className="flex gap-3 items-center">
         {phases.map((p, i) => (
           <div key={i} className="flex items-center gap-2">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${phase > i + 1 ? 'bg-emerald-500 border-emerald-500 text-white' : phase === i + 1 ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-white border-slate-200 text-slate-300'}`}>
-              {phase > i + 1 ? '✓' : i + 1}
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${phase > i + 1 ? 'bg-emerald-500 border-emerald-500 text-white' : phase === i + 1 ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-transparent border-slate-700 text-slate-600'}`}>
+              {phase > i + 1 ? <Check className="w-3 h-3" /> : i + 1}
             </div>
-            <span className={`text-[10px] font-bold ${phase > i + 1 ? 'text-emerald-600' : phase === i + 1 ? 'text-indigo-600' : 'text-slate-300'}`}>{p}</span>
-            {i < phases.length - 1 && <div className={`w-8 h-0.5 ${phase > i + 1 ? 'bg-emerald-400' : 'bg-slate-200'}`} />}
+            <span className={`text-[10px] font-bold ${phase > i + 1 ? 'text-emerald-400' : phase === i + 1 ? 'text-indigo-400' : 'text-slate-600'}`}>{p}</span>
+            {i < phases.length - 1 && <div className={`w-8 h-0.5 ${phase > i + 1 ? 'bg-emerald-500' : 'bg-slate-800'}`} />}
           </div>
         ))}
       </div>
@@ -112,7 +109,7 @@ function StoryboardStep({ onNext, onBack }) {
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: cat?.color }} />
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: cat?.color }}>Storyboard Ready</span>
           </div>
-          <h2 className="text-2xl font-black text-slate-900">{project.title}</h2>
+          <h2 className="text-2xl font-black text-slate-100">{project.title}</h2>
           <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 font-semibold">
             <span>{project.slides.length} Slides</span>
             <span>{project.duration}s</span>
@@ -120,7 +117,7 @@ function StoryboardStep({ onNext, onBack }) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-2 border-2 border-slate-200 rounded-none text-sm font-bold text-slate-500 hover:text-slate-700 btn-sharp-pink"><ArrowLeft className="w-4 h-4" /> Back</button>
+          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-2 border-2 border-white/[0.08] rounded-none text-sm font-bold text-slate-400 hover:text-slate-200 btn-sharp-pink"><ArrowLeft className="w-4 h-4" /> Back</button>
           <motion.button whileHover={{ scale: 1.02 }} onClick={onNext} className="flex items-center gap-2 px-5 py-2 rounded-none text-sm font-bold text-white btn-sharp" style={{ background: cat?.color }}>
             Assign Assets <ArrowRight className="w-4 h-4" />
           </motion.button>
@@ -129,14 +126,14 @@ function StoryboardStep({ onNext, onBack }) {
 
       {project.characters?.length > 0 && (
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2"><Wand2 className="w-4 h-4 text-indigo-500" /> Characters</h3>
+          <h3 className="text-lg font-bold text-slate-100 mb-3 flex items-center gap-2"><Wand2 className="w-4 h-4 text-indigo-400" /> Characters</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {project.characters.map((char, i) => (
-              <div key={i} className="p-3 bg-white border-2 border-slate-200 rounded-md flex gap-3 card-lift">
-                <div className="w-10 h-10 rounded-sm bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-lg font-black text-indigo-600">{char.name[0]}</span>
+              <div key={i} className="p-3 bg-[#0a0f1a] border-2 border-white/[0.08] rounded-md flex gap-3 card-lift">
+                <div className="w-10 h-10 rounded-sm bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg font-black text-indigo-400">{char.name[0]}</span>
                 </div>
-                <div><p className="text-sm font-bold text-slate-900">{char.name}</p><p className="text-[10px] text-slate-500 italic">"{char.description}"</p></div>
+                <div><p className="text-sm font-bold text-slate-200">{char.name}</p><p className="text-[10px] text-slate-500 italic">"{char.description}"</p></div>
               </div>
             ))}
           </div>
@@ -145,26 +142,27 @@ function StoryboardStep({ onNext, onBack }) {
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {project.slides.map((slide, idx) => (
-          <motion.div key={slide.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="rounded-md border-2 border-slate-200 bg-white overflow-hidden card-lift">
-            <div className="aspect-video relative flex items-center justify-center bg-slate-50">
+          <motion.div key={slide.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="rounded-md border-2 border-white/[0.08] bg-[#0a0f1a] overflow-hidden card-lift">
+            <div className="aspect-video relative flex items-center justify-center bg-[#0d1117]">
               <div className="text-center px-3">
-                <span className="text-xs font-mono font-bold px-2 py-1 rounded-none border-2 inline-block mb-1" style={{ borderColor: `${cat?.color}60`, color: cat?.color, backgroundColor: `${cat?.color}10` }}>Slide {slide.id}</span>
+                <span className="text-xs font-mono font-bold px-2 py-1 rounded-none border-2 inline-block mb-1" style={{ borderColor: `${cat?.color}40`, color: cat?.color, backgroundColor: `${cat?.color}10` }}>Slide {slide.id}</span>
                 <p className="text-xs text-slate-500 line-clamp-2">{slide.title}</p>
               </div>
-              <div className="absolute bottom-2 right-2 text-[9px] font-mono font-bold text-slate-400">{slide.duration}s</div>
+              <div className="absolute bottom-2 right-2 text-[9px] font-mono font-bold text-slate-600">{slide.duration}s</div>
             </div>
             <div className="p-3 space-y-2">
-              <p className="text-xs font-bold text-slate-900 line-clamp-1">{slide.title}</p>
+              <p className="text-xs font-bold text-slate-200 line-clamp-1">{slide.title}</p>
               <p className="text-[10px] text-slate-500 line-clamp-2">{slide.narration}</p>
-              <details className="group">
-                <summary className="text-[9px] text-indigo-600 font-bold cursor-pointer list-none">Image Prompt</summary>
-                <p className="text-[9px] text-slate-400 mt-1 italic line-clamp-2">{slide.imagePrompt}</p>
-              </details>
+              {/* Show full image prompt by default */}
+              <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
+                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Image Prompt</span>
+                <p className="text-[9px] text-slate-400 mt-1 italic leading-relaxed">{slide.imagePrompt}</p>
+              </div>
               {slide.videoPrompt && (
-                <details className="group">
-                  <summary className="text-[9px] text-blue-600 font-bold cursor-pointer list-none">Video Prompt</summary>
-                  <p className="text-[9px] text-slate-400 mt-1 italic line-clamp-2">{slide.videoPrompt}</p>
-                </details>
+                <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
+                  <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Video Prompt</span>
+                  <p className="text-[9px] text-slate-400 mt-1 italic leading-relaxed">{slide.videoPrompt}</p>
+                </div>
               )}
             </div>
           </motion.div>
@@ -226,9 +224,9 @@ function SlideAssetCard({ slide, index, cat, characters }) {
   const resolveUrl = (url) => url?.startsWith('/api') ? `${BASE}${url}` : url;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="rounded-md border-2 bg-white overflow-hidden card-lift" style={{ borderColor: slide.assetUrl ? cat?.color : '#e2e8f0' }}>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="rounded-md border-2 bg-[#0a0f1a] overflow-hidden card-lift" style={{ borderColor: slide.assetUrl ? cat?.color : 'rgba(255,255,255,0.08)' }}>
       {/* Preview */}
-      <div className="aspect-video relative bg-slate-50 flex items-center justify-center overflow-hidden">
+      <div className="aspect-video relative bg-[#0d1117] flex items-center justify-center overflow-hidden">
         {slide.assetUrl ? (
           slide.assetType === 'video' && slide.assetUrl?.endsWith('.mp4') ? (
             <video src={resolveUrl(slide.assetUrl)} className="w-full h-full object-cover" muted autoPlay loop playsInline />
@@ -237,59 +235,74 @@ function SlideAssetCard({ slide, index, cat, characters }) {
           )
         ) : (
           <div className="flex flex-col items-center gap-2 text-center px-4">
-            {slide.assetGenerating ? (<><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /><p className="text-xs text-slate-400">Generating...</p></>) : (<><Image className="w-8 h-8 text-slate-300" /><p className="text-xs text-slate-400">No asset</p></>)}
+            {slide.assetGenerating ? (<><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /><p className="text-xs text-slate-500">Generating...</p></>) : (<><Image className="w-8 h-8 text-slate-700" /><p className="text-xs text-slate-600">No asset</p></>)}
           </div>
         )}
         {slide.assetUrl && <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-none bg-emerald-500"><Check className="w-2.5 h-2.5 text-white" /><span className="text-[9px] text-white font-bold">{slide.assetMode === 'video' ? 'Video' : slide.assetMode === 'upload' ? 'Uploaded' : 'Image'}</span></div>}
-        <div className="absolute bottom-2 left-2 text-[9px] font-mono font-bold text-slate-400 bg-white/80 px-1.5 py-0.5 rounded-none">Slide {slide.id}</div>
+        <div className="absolute bottom-2 left-2 text-[9px] font-mono font-bold text-slate-500 bg-black/60 px-1.5 py-0.5 rounded-none">Slide {slide.id}</div>
         {slide.assetUrl && <button onClick={() => updateSlide(slide.id, { assetUrl: null, assetType: 'none', startFrame: null, endFrame: null })} className="absolute top-2 left-2 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center hover:bg-red-500 transition"><X className="w-3 h-3 text-white" /></button>}
       </div>
 
       <div className="p-3 space-y-2">
-        <p className="text-xs font-bold text-slate-900 line-clamp-1">{slide.title}</p>
+        <p className="text-xs font-bold text-slate-200 line-clamp-1">{slide.title}</p>
 
         {/* Start + End Frame preview for video mode */}
         {(slide.startFrame || slide.endFrame) && (
           <div className="flex gap-1.5">
             {slide.startFrame && (
               <div className="flex-1 relative">
-                <img src={resolveUrl(slide.startFrame)} alt="Start" className="w-full aspect-video object-cover rounded-sm border border-slate-200" />
+                <img src={resolveUrl(slide.startFrame)} alt="Start" className="w-full aspect-video object-cover rounded-sm border border-white/[0.08]" />
                 <span className="absolute bottom-0.5 left-0.5 text-[7px] font-black bg-green-500 text-white px-1 rounded-sm">START</span>
               </div>
             )}
             {slide.endFrame && (
               <div className="flex-1 relative">
-                <img src={resolveUrl(slide.endFrame)} alt="End" className="w-full aspect-video object-cover rounded-sm border border-slate-200" />
+                <img src={resolveUrl(slide.endFrame)} alt="End" className="w-full aspect-video object-cover rounded-sm border border-white/[0.08]" />
                 <span className="absolute bottom-0.5 left-0.5 text-[7px] font-black bg-red-500 text-white px-1 rounded-sm">END</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Video Gen Prompt - copyable */}
-        {(slide.videoPrompt || slide.imagePrompt) && (
+        {/* Full Image Prompt - shown by default */}
+        {slide.imagePrompt && (
           <div className="relative group/prompt">
-            <div className="p-2 rounded bg-slate-50 border border-slate-200">
+            <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Video Gen Prompt</span>
-                <button onClick={() => { navigator.clipboard.writeText(slide.videoPrompt || slide.imagePrompt); }} className="opacity-0 group-hover/prompt:opacity-100 transition flex items-center gap-1 text-[9px] text-slate-400 hover:text-indigo-600" data-testid={`copy-video-prompt-${slide.id}`}>
+                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Image Prompt</span>
+                <button onClick={() => { navigator.clipboard.writeText(slide.imagePrompt); }} className="opacity-0 group-hover/prompt:opacity-100 transition flex items-center gap-1 text-[9px] text-slate-500 hover:text-indigo-400" data-testid={`copy-image-prompt-${slide.id}`}>
                   <Copy className="w-2.5 h-2.5" /> Copy
                 </button>
               </div>
-              <p className="text-[9px] text-slate-500 leading-relaxed line-clamp-3">{slide.videoPrompt || slide.imagePrompt}</p>
+              <p className="text-[9px] text-slate-400 leading-relaxed">{slide.imagePrompt}</p>
             </div>
           </div>
         )}
 
-        {/* Asset Mode Selector */}
+        {/* Full Video Prompt - shown by default */}
+        {(slide.videoPrompt || slide.imagePrompt) && (
+          <div className="relative group/prompt">
+            <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Video Gen Prompt</span>
+                <button onClick={() => { navigator.clipboard.writeText(slide.videoPrompt || slide.imagePrompt); }} className="opacity-0 group-hover/prompt:opacity-100 transition flex items-center gap-1 text-[9px] text-slate-500 hover:text-indigo-400" data-testid={`copy-video-prompt-${slide.id}`}>
+                  <Copy className="w-2.5 h-2.5" /> Copy
+                </button>
+              </div>
+              <p className="text-[9px] text-slate-400 leading-relaxed">{slide.videoPrompt || slide.imagePrompt}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Asset Mode Selector - Image is default/first */}
         <div className="grid grid-cols-3 gap-1">
-          <button onClick={generateImage} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'image' && slide.assetUrl ? 'text-white' : 'border-2 border-slate-200 text-slate-600 hover:border-indigo-300'}`} style={mode === 'image' && slide.assetUrl ? { background: cat?.color } : {}} data-testid={`slide-${slide.id}-gen-image`}>
+          <button onClick={generateImage} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'image' && slide.assetUrl ? 'text-white' : 'border-2 border-white/[0.08] text-slate-400 hover:border-indigo-500/30'}`} style={mode === 'image' && slide.assetUrl ? { background: cat?.color } : {}} data-testid={`slide-${slide.id}-gen-image`}>
             {generating === 'image' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Image className="w-3 h-3" />} Image
           </button>
-          <button onClick={generateVideo} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'video' && slide.assetUrl ? 'bg-blue-600 text-white' : 'border-2 border-slate-200 text-slate-600 hover:border-blue-300'}`} data-testid={`slide-${slide.id}-gen-video`}>
+          <button onClick={generateVideo} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'video' && slide.assetUrl ? 'bg-blue-600 text-white' : 'border-2 border-white/[0.08] text-slate-400 hover:border-blue-500/30'}`} data-testid={`slide-${slide.id}-gen-video`}>
             {generating === 'video' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Film className="w-3 h-3" />} Video
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition ${mode === 'upload' && slide.assetUrl ? 'bg-emerald-600 text-white' : 'border-2 border-slate-200 text-slate-600 hover:border-emerald-300'}`} data-testid={`slide-${slide.id}-upload`}>
+          <button onClick={() => fileInputRef.current?.click()} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition ${mode === 'upload' && slide.assetUrl ? 'bg-emerald-600 text-white' : 'border-2 border-white/[0.08] text-slate-400 hover:border-emerald-500/30'}`} data-testid={`slide-${slide.id}-upload`}>
             <Upload className="w-3 h-3" /> Upload
           </button>
           <input ref={fileInputRef} type="file" accept="image/*,video/*" hidden onChange={handleUpload} />
@@ -344,6 +357,7 @@ function AssetStep({ onNext, onBack }) {
   const generateAll = async () => {
     for (const slide of project.slides) {
       if (slide.assetUrl) continue;
+      // Default to image generation
       const mode = slide.assetMode || 'image';
       updateSlide(slide.id, { assetGenerating: true });
       try {
@@ -362,12 +376,12 @@ function AssetStep({ onNext, onBack }) {
     <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-black text-slate-900">Assign Slide Assets</h2>
+          <h2 className="text-2xl font-black text-slate-100">Assign Slide Assets</h2>
           <p className="text-sm text-slate-500 mt-1 font-semibold">{doneCount}/{project.slides.length} slides have assets</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-2 border-2 border-slate-200 rounded-none text-sm font-bold text-slate-500"><ArrowLeft className="w-4 h-4" /> Back</button>
-          <button onClick={generateAll} className="flex items-center gap-2 px-4 py-2 border-2 rounded-none text-sm font-bold text-indigo-600 hover:bg-indigo-50" style={{ borderColor: cat?.color }}><Sparkles className="w-3.5 h-3.5" /> Generate All</button>
+          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-2 border-2 border-white/[0.08] rounded-none text-sm font-bold text-slate-400"><ArrowLeft className="w-4 h-4" /> Back</button>
+          <button onClick={generateAll} className="flex items-center gap-2 px-4 py-2 border-2 rounded-none text-sm font-bold text-indigo-400 hover:bg-indigo-500/10" style={{ borderColor: cat?.color }}><Sparkles className="w-3.5 h-3.5" /> Generate All</button>
           <motion.button whileHover={{ scale: 1.02 }} onClick={onNext} className="flex items-center gap-2 px-5 py-2 rounded-none text-sm font-bold text-white btn-sharp" style={{ background: allDone ? '#10b981' : cat?.color }}>
             {allDone ? <><Check className="w-4 h-4" /> Open Editor</> : <>Skip to Editor <ArrowRight className="w-4 h-4" /></>}
           </motion.button>
@@ -375,14 +389,14 @@ function AssetStep({ onNext, onBack }) {
       </div>
 
       {/* Character Upload for Consistency */}
-      <div className="mb-6 p-4 rounded-md border-2 border-amber-200 bg-amber-50/50">
+      <div className="mb-6 p-4 rounded-md border-2 border-amber-500/20 bg-amber-500/5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-amber-600" />
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Character Reference</h3>
-            <span className="text-[9px] text-slate-400">Upload for visual consistency across all slides</span>
+            <User className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">Character Reference</h3>
+            <span className="text-[9px] text-slate-500">Upload for visual consistency across all slides</span>
           </div>
-          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[10px] font-bold text-amber-700 border-2 border-amber-300 bg-white hover:bg-amber-50 cursor-pointer transition" data-testid="upload-character-btn">
+          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[10px] font-bold text-amber-400 border-2 border-amber-500/30 bg-transparent hover:bg-amber-500/10 cursor-pointer transition" data-testid="upload-character-btn">
             {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />} Add Character
             <input type="file" accept="image/*" hidden onChange={uploadCharacter} />
           </label>
@@ -390,22 +404,22 @@ function AssetStep({ onNext, onBack }) {
         {characters.length > 0 ? (
           <div className="flex gap-3 flex-wrap">
             {characters.map((char, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-white border-2 border-amber-200 min-w-[200px]">
-                <img src={char.imageUrl?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${char.imageUrl}` : char.imageUrl} alt={char.name} className="w-10 h-10 rounded-sm object-cover border border-slate-200" />
+              <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-[#0a0f1a] border-2 border-amber-500/20 min-w-[200px]">
+                <img src={char.imageUrl?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${char.imageUrl}` : char.imageUrl} alt={char.name} className="w-10 h-10 rounded-sm object-cover border border-white/[0.08]" />
                 <div className="flex-1 min-w-0">
-                  <input type="text" value={char.name} onChange={(e) => updateCharacter(i, 'name', e.target.value)} className="w-full text-[10px] font-bold text-slate-900 bg-transparent border-0 outline-none p-0" data-testid={`char-name-${i}`} />
-                  <input type="text" value={char.description} onChange={(e) => updateCharacter(i, 'description', e.target.value)} placeholder="Description..." className="w-full text-[9px] text-slate-400 bg-transparent border-0 outline-none p-0" data-testid={`char-desc-${i}`} />
+                  <input type="text" value={char.name} onChange={(e) => updateCharacter(i, 'name', e.target.value)} className="w-full text-[10px] font-bold text-slate-200 bg-transparent border-0 outline-none p-0" data-testid={`char-name-${i}`} />
+                  <input type="text" value={char.description} onChange={(e) => updateCharacter(i, 'description', e.target.value)} placeholder="Description..." className="w-full text-[9px] text-slate-500 bg-transparent border-0 outline-none p-0" data-testid={`char-desc-${i}`} />
                 </div>
-                <button onClick={() => removeCharacter(i)} className="w-5 h-5 rounded-full flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex-shrink-0"><X className="w-3 h-3" /></button>
+                <button onClick={() => removeCharacter(i)} className="w-5 h-5 rounded-full flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 flex-shrink-0"><X className="w-3 h-3" /></button>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-[10px] text-amber-600/60">No characters uploaded yet. Add reference images to maintain consistent character appearances.</p>
+          <p className="text-[10px] text-amber-500/50">No characters uploaded yet. Add reference images to maintain consistent character appearances.</p>
         )}
       </div>
 
-      <div className="mb-6 h-1.5 bg-slate-100 rounded-none overflow-hidden">
+      <div className="mb-6 h-1.5 bg-slate-800 rounded-none overflow-hidden">
         <motion.div className="h-full" style={{ background: `linear-gradient(90deg, ${cat?.color}, #10b981)` }} animate={{ width: `${(doneCount / project.slides.length) * 100}%` }} />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -462,15 +476,15 @@ function ReadyStep({ onOpenEditor, onBack }) {
         <Play className="w-10 h-10 text-white translate-x-0.5" />
       </motion.div>
       <div className="text-center">
-        <h2 className="text-3xl font-black text-slate-900">Your storyboard is ready!</h2>
-        <p className="text-slate-500 mt-2 font-semibold">{project.slides.length} slides · {project.slides.filter(s => s.assetUrl).length} with assets · {project.duration}s total</p>
+        <h2 className="text-3xl font-black text-slate-100">Your storyboard is ready!</h2>
+        <p className="text-slate-400 mt-2 font-semibold">{project.slides.length} slides · {project.slides.filter(s => s.assetUrl).length} with assets · {project.duration}s total</p>
       </div>
       <div className="flex gap-3 flex-wrap justify-center">
-        <button onClick={onBack} className="px-5 py-2.5 border-2 border-slate-200 rounded-none text-sm font-bold text-slate-500">Back</button>
-        <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-blue-200 text-sm font-bold text-blue-600 hover:bg-blue-50 transition disabled:opacity-50" data-testid="ready-export-pdf-btn">
+        <button onClick={onBack} className="px-5 py-2.5 border-2 border-white/[0.08] rounded-none text-sm font-bold text-slate-400">Back</button>
+        <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-blue-500/20 text-sm font-bold text-blue-400 hover:bg-blue-500/10 transition disabled:opacity-50" data-testid="ready-export-pdf-btn">
           {exportingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Film className="w-4 h-4" />} Download PDF
         </button>
-        <button onClick={() => exportAs('html')} disabled={exportingHtml} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-purple-200 text-sm font-bold text-purple-600 hover:bg-purple-50 transition disabled:opacity-50" data-testid="ready-export-html-btn">
+        <button onClick={() => exportAs('html')} disabled={exportingHtml} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-purple-500/20 text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition disabled:opacity-50" data-testid="ready-export-html-btn">
           {exportingHtml ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Download HTML
         </button>
         <motion.button whileHover={{ scale: 1.03 }} onClick={saveAndOpen} disabled={saving} className="flex items-center gap-2 px-8 py-3 rounded-none text-base font-bold text-white disabled:opacity-50 btn-sharp" style={{ background: cat?.color }} data-testid="open-editor-btn">
@@ -499,25 +513,25 @@ export default function CreatePage() {
   const openEditor = (projectId) => navigate(`/editor/${projectId}`);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]" data-testid="create-page">
-      <div className="fixed top-0 left-0 right-0 h-[3px] z-50" style={{ background: `linear-gradient(90deg, transparent, ${cat?.color}, #EC4899, transparent)` }} />
-      <nav className="sticky top-0 z-40 border-b border-slate-200 px-6 py-3 flex items-center justify-between bg-white/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#030712]" data-testid="create-page">
+      <div className="fixed top-0 left-0 right-0 h-[3px] z-50" style={{ background: `linear-gradient(90deg, transparent, ${cat?.color}, #f472b6, transparent)` }} />
+      <nav className="sticky top-0 z-40 border-b border-white/[0.06] px-6 py-3 flex items-center justify-between bg-[#030712]/80 backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/')} className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-sm flex items-center justify-center bg-indigo-600"><Sparkles className="w-3.5 h-3.5 text-white" /></div>
-            <span className="text-sm font-black text-slate-900">ExplainaPro</span>
+            <div className="w-7 h-7 rounded-sm flex items-center justify-center bg-indigo-500"><Sparkles className="w-3.5 h-3.5 text-white" /></div>
+            <span className="text-sm font-black text-slate-200">ExplainaPro</span>
           </button>
-          <span className="text-slate-300">/</span>
+          <span className="text-slate-700">/</span>
           <span className="text-sm font-semibold text-slate-500">Create</span>
         </div>
         <StepIndicator step={localStep} />
-        <button onClick={() => { reset(); navigate('/'); }} className="text-xs font-bold text-slate-400 hover:text-indigo-600 flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> Start over</button>
+        <button onClick={() => { reset(); navigate('/'); }} className="text-xs font-bold text-slate-500 hover:text-indigo-400 flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> Start over</button>
       </nav>
 
       {error && (
-        <div className="max-w-lg mx-auto mt-8 p-4 rounded-md text-center bg-red-50 border-2 border-red-200">
-          <p className="text-sm font-bold text-red-600">Error: {error}</p>
-          <button onClick={() => { setError(null); setLocalStep(0); }} className="mt-3 text-xs underline text-red-500 font-bold">Try again</button>
+        <div className="max-w-lg mx-auto mt-8 p-4 rounded-md text-center bg-red-500/10 border-2 border-red-500/20">
+          <p className="text-sm font-bold text-red-400">Error: {error}</p>
+          <button onClick={() => { setError(null); setLocalStep(0); }} className="mt-3 text-xs underline text-red-400 font-bold">Try again</button>
         </div>
       )}
 

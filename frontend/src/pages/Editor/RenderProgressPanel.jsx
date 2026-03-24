@@ -25,38 +25,38 @@ export function RenderProgressPanel({ progress, step }) {
       <div className="flex items-center gap-3 mb-6">
         <div className="relative w-14 h-14 flex items-center justify-center">
           <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="24" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+            <circle cx="28" cy="28" r="24" fill="none" stroke="#1e293b" strokeWidth="4" />
             <circle cx="28" cy="28" r="24" fill="none" stroke="url(#prog-grad)" strokeWidth="4" strokeLinecap="round"
               strokeDasharray={`${(progress / 100) * 150.8} 150.8`} className="transition-all duration-500" />
-            <defs><linearGradient id="prog-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#4f46e5" /><stop offset="100%" stopColor="#ec4899" /></linearGradient></defs>
+            <defs><linearGradient id="prog-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#818cf8" /><stop offset="100%" stopColor="#f472b6" /></linearGradient></defs>
           </svg>
-          <span className="absolute text-sm font-black text-slate-900">{progress}%</span>
+          <span className="absolute text-sm font-black text-slate-100">{progress}%</span>
         </div>
         <div className="flex-1">
-          <h3 className="text-lg font-black text-slate-900">Rendering Video</h3>
-          <p className="text-xs text-slate-400 font-mono">{formatTime(elapsed)} elapsed</p>
+          <h3 className="text-lg font-black text-slate-100">Rendering Video</h3>
+          <p className="text-xs text-slate-500 font-mono">{formatTime(elapsed)} elapsed</p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200">
-          <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="text-[10px] font-bold text-indigo-600 uppercase">Active</span>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+          <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+          <span className="text-[10px] font-bold text-indigo-400 uppercase">Active</span>
         </div>
       </div>
 
-      <div className="relative w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-6">
+      <div className="relative w-full h-3 bg-slate-800 rounded-full overflow-hidden mb-6">
         <motion.div
           className="h-full rounded-full"
-          style={{ background: 'linear-gradient(90deg, #4f46e5, #8b5cf6, #ec4899)', width: `${progress}%` }}
+          style={{ background: 'linear-gradient(90deg, #818cf8, #a78bfa, #f472b6)', width: `${progress}%` }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         />
         <div className="absolute inset-0 overflow-hidden rounded-full">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-5 px-3 py-2 rounded-sm bg-slate-50 border border-slate-200">
-        <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin flex-shrink-0" />
-        <p className="text-xs text-slate-600 font-semibold truncate">{step || 'Processing...'}</p>
+      <div className="flex items-center gap-2 mb-5 px-3 py-2 rounded-sm bg-[#0d1117] border border-white/[0.06]">
+        <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin flex-shrink-0" />
+        <p className="text-xs text-slate-400 font-semibold truncate">{step || 'Processing...'}</p>
       </div>
 
       <div className="space-y-1">
@@ -65,13 +65,13 @@ export function RenderProgressPanel({ progress, step }) {
           const isDone = progress >= phase.range[1];
           const PhaseIcon = phase.icon;
           return (
-            <div key={phase.key} className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-all ${isActive ? 'bg-indigo-50 border border-indigo-200' : isDone ? 'opacity-50' : 'opacity-30'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-emerald-500' : isActive ? 'bg-indigo-500' : 'bg-slate-300'}`}>
+            <div key={phase.key} className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-all ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20' : isDone ? 'opacity-50' : 'opacity-30'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? 'bg-emerald-500' : isActive ? 'bg-indigo-500' : 'bg-slate-700'}`}>
                 {isDone ? <Check className="w-3 h-3 text-white" /> : isActive ? <PhaseIcon className="w-3 h-3 text-white animate-pulse" /> : <PhaseIcon className="w-3 h-3 text-white" />}
               </div>
-              <span className={`text-xs font-bold flex-1 ${isActive ? 'text-indigo-700' : isDone ? 'text-slate-500' : 'text-slate-400'}`}>{phase.label}</span>
-              {isDone && <span className="text-[9px] text-emerald-600 font-bold">DONE</span>}
-              {isActive && <span className="text-[9px] text-indigo-500 font-bold">IN PROGRESS</span>}
+              <span className={`text-xs font-bold flex-1 ${isActive ? 'text-indigo-400' : isDone ? 'text-slate-500' : 'text-slate-600'}`}>{phase.label}</span>
+              {isDone && <span className="text-[9px] text-emerald-400 font-bold">DONE</span>}
+              {isActive && <span className="text-[9px] text-indigo-400 font-bold">IN PROGRESS</span>}
             </div>
           );
         })}
