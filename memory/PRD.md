@@ -1,48 +1,95 @@
-# ExplainaPro - AI Video Creation Platform
+# ExplainaPro - AI Cinematic Video Creation Platform
 
-## Original Problem Statement
-Build a full-stack AI-powered cinematic video creation platform called "ExplainaPro".
+## Product Requirements Document
 
-## Tech Stack
-- **Frontend:** React/Vite, Tailwind CSS, Shadcn/UI, Framer Motion, Zustand
-- **Backend:** Python, FastAPI
+### Original Problem Statement
+Build a full-stack AI-powered cinematic video creation platform called "ExplainaPro". The platform enables users to create professional videos from text descriptions using AI for script writing, image generation, voiceover, and video rendering.
+
+### Tech Stack
+- **Frontend:** React/Vite with Tailwind CSS + Shadcn/UI
+- **Backend:** FastAPI (Python)
 - **Database:** MongoDB
-- **AI:** Google Gemini API
 - **Video Rendering:** Remotion
-- **Auth:** JWT (bcrypt)
+- **AI:** Google Gemini (text + image generation)
 
-## Architecture
+### Core Features (Implemented)
+- Landing page with comprehensive video creation form (36+ categories, 15 tones, 20+ visual styles)
+- AI storyboard generation (script, slides, narration, prompts)
+- Multi-panel asset generation (image/video per slide, character consistency, start/end frames)
+- Full video editor with canvas preview, timeline, left/right sidebars, AI chat assistant
+- Remotion-based 1080p video rendering with voiceover, captions, BGM, SFX
+- JWT-based authentication
+- Project management (save, load, delete)
+- Business Video Suite (analyze company URL/files for targeted video suggestions)
+- Multi-format export (MP4, PDF storyboard, HTML presentation)
+- User asset library
+
+### Dark Mode UI (Implemented - March 2026)
+- **Dev-style dark theme** applied across ALL pages and components
+- Color palette: #030712 (main bg), #0a0f1a (surfaces), #0d1117 (inputs), white/[0.06] (borders)
+- Accent colors: indigo-500 (primary), pink-400 (secondary), cyan-400 (tertiary)
+- Sharp UI elements with btn-sharp box-shadow effect
+- Poppins font throughout
+- Full generation prompts displayed by default (untruncated)
+- Image generation set as default asset type
+
+### Architecture
 ```
 /app
-├── backend/server.py, render_worker.py
+├── backend/
+│   ├── server.py           # FastAPI monolith
+│   └── render_worker.py    # Detached render process
 ├── frontend/src/
 │   ├── pages/
 │   │   ├── LandingPage.jsx
 │   │   ├── CreatePage.jsx
 │   │   ├── DashboardPage.jsx
-│   │   └── Editor/ (6 files)
-│   ├── store/useProjectStore.js
-│   └── context/AuthContext.js
-├── remotion/src/
+│   │   └── Editor/
+│   │       ├── EditorPage.jsx
+│   │       ├── LeftSidebar.jsx
+│   │       ├── CanvasPreview.jsx
+│   │       ├── RightSidebar.jsx
+│   │       ├── RenderProgressPanel.jsx
+│   │       └── editorConstants.js
+│   ├── components/
+│   │   ├── AuthModal.jsx
+│   │   └── Editor/
+│   │       ├── EditorChatBox.jsx
+│   │       └── TimelinePanel.jsx
+│   ├── store/
+│   └── context/
+├── remotion/
 └── renders/
 ```
 
-## Completed Features
-- Render pipeline hardened: preflight check, expanded node search (nvm+glob), PATH inheritance
-- Image style consistency: preferredVisualStyle passed through all generation calls instead of hardcoded 'Cinematic'
-- Editor refactored into 6 focused files
-- Multi-format export (PDF, HTML, MP4)
-- Business Video Suite (14 categories + URL/file analysis)
-- Video generation prompts (copyable per slide)
-- 36 video categories, 15 tones, visual style picker
-- Full editor, JWT auth, persistent render worker
+### Key API Endpoints
+- `/api/auth/register`, `/api/auth/login` - Authentication
+- `/api/restructure-script` - AI storyboard generation
+- `/api/generate-prompt` - AI prompt optimization
+- `/api/generate-image`, `/api/generate-video` - Asset generation
+- `/api/generate-voice` - TTS voiceover
+- `/api/render` - Video rendering
+- `/api/projects` - CRUD operations
+- `/api/analyze-business` - Business analysis
+- `/api/export/pdf`, `/api/export/html` - Multi-format export
+- `/api/upload-character` - Character image upload
+- `/api/render/preflight` - Render environment check
 
-## Backlog
-- P1: Real SFX generation (ElevenLabs)
-- P1: Stock asset search (Pexels/Pixabay)
-- P2: Backend refactoring (split server.py)
-- P2: Backend pytest suite
-- P3: Tech stack migration
+### DB Schema
+- **users**: `{ _id, email, name, password }`
+- **projects**: `{ _id, userId, title, projectData: { slides, ... } }`
+- **generated_assets**: `{ _id, userId, type, url, prompt, category }`
 
-## Mocked
-- Stock Asset Search, AI SFX Generation
+### What's Working
+- All core features functional
+- Dark mode applied across all pages
+- Authentication, rendering, export all stable
+- No known bugs
+
+### Mocked Features
+- Stock Asset Search (uses static library)
+- SFX Generation (uses static library)
+
+### Test Credentials
+- Email: test@test.com
+- Password: password
