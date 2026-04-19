@@ -130,7 +130,26 @@ export default function EditorPage() {
             const statusRes = await axios.get(`${API}/render/${jobId}`);
             setRenderProgress(statusRes.data.progress || 0);
             if (statusRes.data.step) setRenderStep(statusRes.data.step);
-            if (statusRes.data.status === 'completed') { clearInterval(pollInterval); setRenderStatus('completed'); setRenderUrl(statusRes.data.videoUrl); setRendering(false); }
+            if (statusRes.data.status === 'completed') {
+                clearInterval(pollInterval);
+                setRenderStatus('completed');
+                setRenderUrl(statusRes.data.videoUrl);
+                setRendering(false);
+                // Save rendered video to database
+                try {
+                  const firstSlideWithAsset = project?.slides?.find(s => s.assetUrl);
+                  await axios.post(`${API}/renders/save`, {
+                    videoUrl: statusRes.data.videoUrl,
+                    title: project?.title || 'Untitled Video',
+                    projectId: projectId || 'new',
+                    userId: user?.id || 'guest',
+                    jobId: jobId,
+                    slideCount: project?.slides?.length || 0,
+                    duration: project?.slides?.reduce((sum, s) => sum + (s.duration || 6), 0) || 0,
+                    thumbnailUrl: firstSlideWithAsset?.assetUrl || null,
+                  });
+                } catch (saveErr) { console.error('Failed to save render record:', saveErr); }
+              }
             else if (statusRes.data.status === 'failed') { clearInterval(pollInterval); setRenderStatus('failed'); setRenderStep(statusRes.data.error || 'Render failed'); setRendering(false); }
           } catch (pollErr) { console.error('Poll error:', pollErr); }
         }, 2000);

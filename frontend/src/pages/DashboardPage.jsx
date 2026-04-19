@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink, User, LogOut, Image, Mic, Film, Library, Search, Grid3X3, X, ArrowRight } from 'lucide-react';
+import { Sparkles, Plus, Folder, Clock, Play, Trash2, ExternalLink, User, LogOut, Image, Mic, Film, Library, Search, Grid3X3, X, ArrowRight, Download } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from '../components/AuthModal';
@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [libraryCategory, setLibraryCategory] = useState('all');
   const [librarySearch, setLibrarySearch] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [renderedVideos, setRenderedVideos] = useState([]);
+  const [deletingRenderId, setDeletingRenderId] = useState(null);
 
   const token = localStorage.getItem('token');
 
@@ -55,6 +57,15 @@ export default function DashboardPage() {
         const res = await axios.get(url);
         if (res.data.success) setProjects(res.data.projects || []);
         
+        // Load rendered videos
+        try {
+          const rendersUrl = user?.id ? `${API}/renders/list?userId=${user.id}` : `${API}/renders/list`;
+          const rendersRes = await axios.get(rendersUrl);
+          if (rendersRes.data.success) setRenderedVideos(rendersRes.data.renders || []);
+        } catch (e) {
+          console.log('Could not load rendered videos');
+        }
+
         if (user?.id && token) {
           try {
             const statsRes = await axios.get(`${API}/user/stats`, {
@@ -105,6 +116,24 @@ export default function DashboardPage() {
     : library;
 
   const totalAssets = Object.values(libraryCounts).reduce((a, b) => a + b, 0);
+
+  const handleDeleteRender = async (renderId) => {
+    setDeletingRenderId(renderId);
+    try {
+      await axios.delete(`${API}/renders/${renderId}`);
+      setRenderedVideos(prev => prev.filter(r => r.id !== renderId));
+    } catch (e) {
+      console.error('Delete render failed:', e);
+    }
+    setDeletingRenderId(null);
+  };
+
+  const formatDuration = (s) => {
+    if (!s) return '0s';
+    const mins = Math.floor(s / 60);
+    const secs = Math.round(s % 60);
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
 
   return (
     <div className="min-h-screen bg-[#030712]" data-testid="dashboard-page" style={{ fontFamily: "'Poppins', sans-serif" }}>
@@ -170,6 +199,9 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4 border-b border-white/[0.06] mb-6">
           <button onClick={() => setActiveTab('projects')} className={`pb-3 text-sm font-bold border-b-2 -mb-px transition ${activeTab === 'projects' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`} data-testid="tab-projects">
             Projects ({projects.length})
+          </button>
+          <button onClick={() => setActiveTab('renders')} className={`pb-3 text-sm font-bold border-b-2 -mb-px flex items-center gap-2 transition ${activeTab === 'renders' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`} data-testid="tab-renders">
+            <Film className="w-4 h-4" /> Rendered Videos ({renderedVideos.length})
           </button>
           {isAuthenticated && (
             <button onClick={() => setActiveTab('library')} className={`pb-3 text-sm font-bold border-b-2 -mb-px flex items-center gap-2 transition ${activeTab === 'library' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`} data-testid="tab-library">
@@ -242,6 +274,89 @@ export default function DashboardPage() {
                   </div>
                 </motion.div>
               ))}
+            </div>
+          )
+        ) : activeTab === 'renders' ? (
+          /* Rendered Videos Tab */
+          renderedVideos.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 rounded-md bg-[#0a0f1a] border-2 border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                <Film className="w-10 h-10 text-emerald-700" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-200 mb-2">No rendered videos yet</h2>
+              <p className="text-slate-500 mb-6">Render a video from the editor to see it here</p>
+              <motion.button whileHover={{ scale: 1.02 }} onClick={() => navigate('/')} className="px-6 py-2.5 rounded-none bg-emerald-600 text-white font-bold text-sm btn-sharp inline-flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Create a Video
+              </motion.button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {renderedVideos.map((render, idx) => {
+                const videoSrc = render.videoUrl?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${render.videoUrl}` : render.videoUrl;
+                const thumbSrc = render.thumbnailUrl?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${render.thumbnailUrl}` : render.thumbnailUrl;
+                return (
+                  <motion.div
+                    key={render.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="group rounded-md border-2 border-emerald-500/20 bg-[#0a0f1a] overflow-hidden hover:border-emerald-500/40 transition-all card-lift"
+                    data-testid={`render-card-${render.id}`}
+                  >
+                    <div className="aspect-video relative bg-[#0d1117] flex items-center justify-center">
+                      {thumbSrc ? (
+                        <img src={thumbSrc} className="w-full h-full object-cover" alt={render.title} />
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <Film className="w-12 h-12 text-emerald-700" />
+                          <span className="text-xs text-slate-600 font-semibold">MP4 Video</span>
+                        </div>
+                      )}
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-none text-[9px] font-bold uppercase bg-emerald-500 text-white">
+                        MP4
+                      </div>
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <a href={videoSrc} download={`${render.title || 'video'}.mp4`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-5 py-2.5 rounded-none bg-emerald-500 text-white text-xs font-bold btn-sharp" data-testid={`download-render-${render.id}`}>
+                          <Download className="w-4 h-4" /> Download MP4
+                        </a>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-slate-200 truncate">{render.title || 'Untitled Video'}</h3>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 font-semibold">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDuration(render.duration)}
+                        </span>
+                        {render.slideCount > 0 && <span>{render.slideCount} slides</span>}
+                      </div>
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-[10px] text-slate-600 font-mono">
+                          {render.createdAt ? new Date(render.createdAt).toLocaleDateString() : ''}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <a href={videoSrc} download={`${render.title || 'video'}.mp4`} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1" data-testid={`render-download-link-${render.id}`}>
+                            <Download className="w-3 h-3" /> Download
+                          </a>
+                          <button
+                            onClick={() => handleDeleteRender(render.id)}
+                            disabled={deletingRenderId === render.id}
+                            className="text-[10px] font-bold text-slate-600 hover:text-red-400 flex items-center gap-1 transition"
+                            data-testid={`delete-render-${render.id}`}
+                          >
+                            {deletingRenderId === render.id ? (
+                              <div className="w-3 h-3 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )
         ) : (

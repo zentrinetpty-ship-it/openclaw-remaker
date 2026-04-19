@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Body, Form
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Body, Form, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -2204,6 +2204,58 @@ async def get_render_status(job_id: str):
     if status is None:
         raise HTTPException(status_code=404, detail="Render job not found")
     return {"success": True, **status}
+
+# ─── Rendered Videos Collection ────────────────────────────────────────────────
+
+@api_router.post("/renders/save")
+async def save_rendered_video(request: Request):
+    """Save a completed render to the database for the dashboard."""
+    data = await request.json()
+    video_url = data.get("videoUrl")
+    title = data.get("title", "Untitled Video")
+    project_id = data.get("projectId")
+    user_id = data.get("userId")
+    job_id = data.get("jobId")
+    slide_count = data.get("slideCount", 0)
+    duration = data.get("duration", 0)
+    thumbnail_url = data.get("thumbnailUrl")
+
+    if not video_url:
+        raise HTTPException(status_code=400, detail="videoUrl is required")
+
+    render_doc = {
+        "id": str(uuid.uuid4()),
+        "jobId": job_id,
+        "userId": user_id or "guest",
+        "projectId": project_id,
+        "title": title,
+        "videoUrl": video_url,
+        "thumbnailUrl": thumbnail_url,
+        "slideCount": slide_count,
+        "duration": duration,
+        "status": "completed",
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.rendered_videos.insert_one(render_doc)
+    render_doc.pop("_id", None)
+    return {"success": True, "render": render_doc}
+
+@api_router.get("/renders/list")
+async def list_rendered_videos(userId: str = None):
+    """List all rendered videos, optionally filtered by userId."""
+    query = {}
+    if userId:
+        query["userId"] = userId
+    renders = await db.rendered_videos.find(query, {"_id": 0}).sort("createdAt", -1).to_list(100)
+    return {"success": True, "renders": renders}
+
+@api_router.delete("/renders/{render_id}")
+async def delete_rendered_video(render_id: str):
+    """Delete a rendered video record."""
+    result = await db.rendered_videos.delete_one({"id": render_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Render not found")
+    return {"success": True}
 
 # Include the router in the main app
 app.include_router(api_router)
