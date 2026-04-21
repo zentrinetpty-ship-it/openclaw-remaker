@@ -70,6 +70,9 @@ export function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, vid
 
   const activeSlide = project?.slides?.find(s => s.id === selectedSlideId) || project?.slides?.[0];
 
+  // Helper to get narration text (fallback to voiceScript)
+  const getNarration = (slide) => slide.narration || slide.voiceScript || '';
+
   const generateImage = async (slide) => {
     const prompt = editingPrompts[slide.id] ?? slide.imagePrompt;
     setGenerating(g => ({ ...g, [slide.id]: true }));
@@ -83,11 +86,12 @@ export function LeftSidebar({ activeTab, setActiveTab, project, updateSlide, vid
   };
 
   const generateVoice = async (slide) => {
-    if (!slide.narration) return;
+    const narrationText = slide.narration || slide.voiceScript || '';
+    if (!narrationText) return;
     setGenerating(g => ({ ...g, [`voice_${slide.id}`]: true }));
     try {
-      const res = await axios.post(`${API}/generate-voice`, { text: slide.narration, voiceId: selectedVoice });
-      if (res.data.success) updateSlide(slide.id, { voiceUrl: res.data.url });
+      const res = await axios.post(`${API}/generate-voice`, { text: narrationText, voiceId: selectedVoice });
+      if (res.data.success) updateSlide(slide.id, { voiceUrl: res.data.url, narration: narrationText });
     } catch (e) { console.error('Voice generation error:', e); }
     setGenerating(g => ({ ...g, [`voice_${slide.id}`]: false }));
   };

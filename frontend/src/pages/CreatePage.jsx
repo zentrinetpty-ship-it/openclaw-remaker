@@ -1,548 +1,332 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, ArrowLeft, Check, Loader2, Wand2, Image, Film, Upload, RefreshCcw, Play, Copy, User, X } from 'lucide-react';
-import { useProjectStore, CATEGORIES } from '../store/useProjectStore';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { 
+  Sparkles, 
+  ArrowRight, 
+  ArrowLeft, 
+  Check, 
+  Loader2,
+  Image,
+  Film,
+  Upload,
+  RefreshCcw,
+  Play,
+  X
+} from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
-function StepIndicator({ step }) {
-  const steps = ['Processing', 'Storyboard', 'Assets', 'Ready'];
-  return (
-    <div className="flex items-center gap-3 justify-center">
-      {steps.map((label, i) => (
-        <div key={label} className="flex items-center gap-3">
-          <div className="flex flex-col items-center gap-1">
-            <motion.div animate={step > i ? { backgroundColor: '#10b981' } : step === i ? { scale: [1, 1.08, 1] } : {}} transition={{ duration: 1.5, repeat: step === i ? Infinity : 0 }} className="w-7 h-7 rounded-sm border-2 flex items-center justify-center text-xs font-bold" style={{ borderColor: step >= i ? '#10b981' : '#334155', backgroundColor: step > i ? '#10b981' : step === i ? 'rgba(16,185,129,0.1)' : 'transparent', color: step >= i ? (step > i ? '#fff' : '#10b981') : '#64748b' }}>
-              {step > i ? <Check className="w-3.5 h-3.5" /> : i + 1}
-            </motion.div>
-            <span className="text-[9px] font-semibold text-slate-500">{label}</span>
-          </div>
-          {i < steps.length - 1 && <div className="w-10 h-px mt-[-16px]" style={{ backgroundColor: step > i ? '#10b981' : '#1e293b' }} />}
-        </div>
-      ))}
-    </div>
-  );
-}
+const CATEGORIES = [
+  { id: "explainer", label: "Explainer", color: "#818cf8" },
+  { id: "marketing", label: "Marketing", color: "#f472b6" },
+  { id: "social", label: "Social Media", color: "#10b981" },
+  { id: "education", label: "Education", color: "#f59e0b" },
+  { id: "newsletter", label: "Newsletter", color: "#3b82f6" }
+];
 
-function ProcessingStep({ onDone, onError }) {
-  const { rawInput, inputType, videoDuration, videoTone, videoCategory, slideCount, preferredVisualStyle, setProject } = useProjectStore();
-  const [status, setStatus] = useState('Initializing AI...');
-  const [phase, setPhase] = useState(0);
-  const called = useRef(false);
-
-  useEffect(() => {
-    if (called.current) return;
-    called.current = true;
-    const run = async () => {
-      try {
-        setPhase(1);
-        setStatus('Generating optimized prompts with AI...');
-        let enhancedInput = rawInput;
-        try {
-          const promptRes = await axios.post(`${API}/generate-prompt`, { story: rawInput, category: videoCategory, tone: videoTone, slideCount, duration: videoDuration, visualStyle: preferredVisualStyle });
-          if (promptRes.data.success && promptRes.data.data) {
-            enhancedInput = JSON.stringify(promptRes.data.data);
-            setStatus('Prompts generated! Building storyboard...');
-          }
-        } catch (promptErr) {
-          console.warn('Prompt generator failed, using raw input:', promptErr);
-          setStatus('Using direct input for storyboard...');
-        }
-        
-        setPhase(2);
-        setStatus(`Building ${slideCount}-slide ${videoCategory} storyboard...`);
-        const res = await axios.post(`${API}/restructure-script`, { input: enhancedInput, type: inputType, duration: videoDuration, tone: videoTone, category: videoCategory, slideCount, preferredVisualStyle });
-        if (!res.data.success) throw new Error(res.data.error || 'Failed');
-        
-        setPhase(3);
-        setStatus('Preparing slides...');
-        const project = { ...res.data.data, slides: (res.data.data.slides || []).map(s => ({ ...s, assetType: 'none', assetUrl: null, assetGenerating: false, graphics: (s.graphics || []).map(g => ({ ...g, url: null, assetGenerating: false })) })) };
-        await new Promise(r => setTimeout(r, 500));
-        setProject(project);
-        onDone();
-      } catch (e) { onError(e.response?.data?.detail || e.message || 'Unknown error'); }
-    };
-    run();
-  }, []);
-
-  const phases = ['Prompt Engineering', 'Building Storyboard', 'Preparing Slides'];
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
-      <div className="relative">
-        <motion.div animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 2, repeat: Infinity }} className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, #818cf8, transparent)', filter: 'blur(20px)' }} />
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: 'linear' }} className="w-20 h-20 rounded-full border-4" style={{ borderColor: '#1e293b', borderTopColor: '#818cf8', borderRightColor: '#f472b6' }} />
-        <div className="absolute inset-0 flex items-center justify-center"><Sparkles className="w-8 h-8 text-indigo-400" /></div>
-      </div>
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-slate-100">AI is crafting your video...</h2>
-        <motion.p key={status} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-slate-400">{status}</motion.p>
-      </div>
-      <div className="flex gap-3 items-center">
-        {phases.map((p, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${phase > i + 1 ? 'bg-emerald-500 border-emerald-500 text-white' : phase === i + 1 ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-transparent border-slate-700 text-slate-600'}`}>
-              {phase > i + 1 ? <Check className="w-3 h-3" /> : i + 1}
-            </div>
-            <span className={`text-[10px] font-bold ${phase > i + 1 ? 'text-emerald-400' : phase === i + 1 ? 'text-indigo-400' : 'text-slate-600'}`}>{p}</span>
-            {i < phases.length - 1 && <div className={`w-8 h-0.5 ${phase > i + 1 ? 'bg-emerald-500' : 'bg-slate-800'}`} />}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StoryboardStep({ onNext, onBack }) {
-  const { project, videoCategory } = useProjectStore();
-  const cat = CATEGORIES.find(c => c.id === videoCategory);
-  if (!project) return null;
-
-  return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: cat?.color }} />
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: cat?.color }}>Storyboard Ready</span>
-          </div>
-          <h2 className="text-2xl font-black text-slate-100">{project.title}</h2>
-          <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 font-semibold">
-            <span>{project.slides.length} Slides</span>
-            <span>{project.duration}s</span>
-            <span>{project.style}</span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-2 border-2 border-white/[0.08] rounded-none text-sm font-bold text-slate-400 hover:text-slate-200 btn-sharp-pink"><ArrowLeft className="w-4 h-4" /> Back</button>
-          <motion.button whileHover={{ scale: 1.02 }} onClick={onNext} className="flex items-center gap-2 px-5 py-2 rounded-none text-sm font-bold text-white btn-sharp" style={{ background: cat?.color }}>
-            Assign Assets <ArrowRight className="w-4 h-4" />
-          </motion.button>
-        </div>
-      </div>
-
-      {project.characters?.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-lg font-bold text-slate-100 mb-3 flex items-center gap-2"><Wand2 className="w-4 h-4 text-indigo-400" /> Characters</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {project.characters.map((char, i) => (
-              <div key={i} className="p-3 bg-[#0a0f1a] border-2 border-white/[0.08] rounded-md flex gap-3 card-lift">
-                <div className="w-10 h-10 rounded-sm bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-lg font-black text-indigo-400">{char.name[0]}</span>
-                </div>
-                <div><p className="text-sm font-bold text-slate-200">{char.name}</p><p className="text-[10px] text-slate-500 italic">"{char.description}"</p></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {project.slides.map((slide, idx) => (
-          <motion.div key={slide.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="rounded-md border-2 border-white/[0.08] bg-[#0a0f1a] overflow-hidden card-lift">
-            <div className="aspect-video relative flex items-center justify-center bg-[#0d1117]">
-              <div className="text-center px-3">
-                <span className="text-xs font-mono font-bold px-2 py-1 rounded-none border-2 inline-block mb-1" style={{ borderColor: `${cat?.color}40`, color: cat?.color, backgroundColor: `${cat?.color}10` }}>Slide {slide.id}</span>
-                <p className="text-xs text-slate-500 line-clamp-2">{slide.title}</p>
-              </div>
-              <div className="absolute bottom-2 right-2 text-[9px] font-mono font-bold text-slate-600">{slide.duration}s</div>
-            </div>
-            <div className="p-3 space-y-2">
-              <p className="text-xs font-bold text-slate-200 line-clamp-1">{slide.title}</p>
-              <p className="text-[10px] text-slate-500 line-clamp-2">{slide.narration}</p>
-              {/* Show full image prompt by default */}
-              <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
-                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Image Prompt</span>
-                <p className="text-[9px] text-slate-400 mt-1 italic leading-relaxed">{slide.imagePrompt}</p>
-              </div>
-              {slide.videoPrompt && (
-                <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
-                  <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Video Prompt</span>
-                  <p className="text-[9px] text-slate-400 mt-1 italic leading-relaxed">{slide.videoPrompt}</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SlideAssetCard({ slide, index, cat, characters }) {
-  const { updateSlide, project, preferredVisualStyle } = useProjectStore();
-  const [generating, setGenerating] = useState(null);
-  const fileInputRef = useRef(null);
-  const mode = slide.assetMode || 'image';
-
-  const generateImage = async () => {
-    setGenerating('image');
-    updateSlide(slide.id, { assetGenerating: true });
-    try {
-      const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: characters || project?.characters });
-      if (res.data.success && res.data.image) { updateSlide(slide.id, { assetType: 'image', assetMode: 'image', assetUrl: res.data.image, assetGenerating: false }); } else throw new Error('No image');
-    } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
-    setGenerating(null);
-  };
-
-  const generateVideo = async () => {
-    setGenerating('video');
-    updateSlide(slide.id, { assetGenerating: true });
-    try {
-      const res = await axios.post(`${API}/generate-video`, { description: slide.videoPrompt || slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters: characters || project?.characters });
-      if (res.data.success) {
-        updateSlide(slide.id, {
-          assetType: 'video', assetMode: 'video',
-          assetUrl: res.data.startFrame || res.data.video,
-          startFrame: res.data.startFrame,
-          endFrame: res.data.endFrame,
-          assetGenerating: false,
-        });
-      } else throw new Error('No video');
-    } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
-    setGenerating(null);
-  };
-
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const type = file.type.startsWith('video/') ? 'video' : 'image';
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await axios.post(`${API}/upload`, formData);
-      if (res.data.success) updateSlide(slide.id, { assetType: type, assetMode: 'upload', assetUrl: res.data.url });
-    } catch (err) {
-      updateSlide(slide.id, { assetType: type, assetMode: 'upload', assetUrl: URL.createObjectURL(file) });
-    }
-  };
-
-  const BASE = process.env.REACT_APP_BACKEND_URL;
-  const resolveUrl = (url) => url?.startsWith('/api') ? `${BASE}${url}` : url;
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="rounded-md border-2 bg-[#0a0f1a] overflow-hidden card-lift" style={{ borderColor: slide.assetUrl ? cat?.color : 'rgba(255,255,255,0.08)' }}>
-      {/* Preview */}
-      <div className="aspect-video relative bg-[#0d1117] flex items-center justify-center overflow-hidden">
-        {slide.assetUrl ? (
-          slide.assetType === 'video' && slide.assetUrl?.endsWith('.mp4') ? (
-            <video src={resolveUrl(slide.assetUrl)} className="w-full h-full object-cover" muted autoPlay loop playsInline />
-          ) : (
-            <img src={resolveUrl(slide.assetUrl)} alt={slide.title} className="w-full h-full object-cover" />
-          )
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-center px-4">
-            {slide.assetGenerating ? (<><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /><p className="text-xs text-slate-500">Generating...</p></>) : (<><Image className="w-8 h-8 text-slate-700" /><p className="text-xs text-slate-600">No asset</p></>)}
-          </div>
-        )}
-        {slide.assetUrl && <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-none bg-emerald-500"><Check className="w-2.5 h-2.5 text-white" /><span className="text-[9px] text-white font-bold">{slide.assetMode === 'video' ? 'Video' : slide.assetMode === 'upload' ? 'Uploaded' : 'Image'}</span></div>}
-        <div className="absolute bottom-2 left-2 text-[9px] font-mono font-bold text-slate-500 bg-black/60 px-1.5 py-0.5 rounded-none">Slide {slide.id}</div>
-        {slide.assetUrl && <button onClick={() => updateSlide(slide.id, { assetUrl: null, assetType: 'none', startFrame: null, endFrame: null })} className="absolute top-2 left-2 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center hover:bg-red-500 transition"><X className="w-3 h-3 text-white" /></button>}
-      </div>
-
-      <div className="p-3 space-y-2">
-        <p className="text-xs font-bold text-slate-200 line-clamp-1">{slide.title}</p>
-
-        {/* Start + End Frame preview for video mode */}
-        {(slide.startFrame || slide.endFrame) && (
-          <div className="flex gap-1.5">
-            {slide.startFrame && (
-              <div className="flex-1 relative">
-                <img src={resolveUrl(slide.startFrame)} alt="Start" className="w-full aspect-video object-cover rounded-sm border border-white/[0.08]" />
-                <span className="absolute bottom-0.5 left-0.5 text-[7px] font-black bg-green-500 text-white px-1 rounded-sm">START</span>
-              </div>
-            )}
-            {slide.endFrame && (
-              <div className="flex-1 relative">
-                <img src={resolveUrl(slide.endFrame)} alt="End" className="w-full aspect-video object-cover rounded-sm border border-white/[0.08]" />
-                <span className="absolute bottom-0.5 left-0.5 text-[7px] font-black bg-red-500 text-white px-1 rounded-sm">END</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Full Image Prompt - shown by default */}
-        {slide.imagePrompt && (
-          <div className="relative group/prompt">
-            <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Image Prompt</span>
-                <button onClick={() => { navigator.clipboard.writeText(slide.imagePrompt); }} className="opacity-0 group-hover/prompt:opacity-100 transition flex items-center gap-1 text-[9px] text-slate-500 hover:text-indigo-400" data-testid={`copy-image-prompt-${slide.id}`}>
-                  <Copy className="w-2.5 h-2.5" /> Copy
-                </button>
-              </div>
-              <p className="text-[9px] text-slate-400 leading-relaxed">{slide.imagePrompt}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Full Video Prompt - shown by default */}
-        {(slide.videoPrompt || slide.imagePrompt) && (
-          <div className="relative group/prompt">
-            <div className="p-2 rounded bg-[#0d1117] border border-white/[0.06]">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Video Gen Prompt</span>
-                <button onClick={() => { navigator.clipboard.writeText(slide.videoPrompt || slide.imagePrompt); }} className="opacity-0 group-hover/prompt:opacity-100 transition flex items-center gap-1 text-[9px] text-slate-500 hover:text-indigo-400" data-testid={`copy-video-prompt-${slide.id}`}>
-                  <Copy className="w-2.5 h-2.5" /> Copy
-                </button>
-              </div>
-              <p className="text-[9px] text-slate-400 leading-relaxed">{slide.videoPrompt || slide.imagePrompt}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Asset Mode Selector - Image is default/first */}
-        <div className="grid grid-cols-3 gap-1">
-          <button onClick={generateImage} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'image' && slide.assetUrl ? 'text-white' : 'border-2 border-white/[0.08] text-slate-400 hover:border-indigo-500/30'}`} style={mode === 'image' && slide.assetUrl ? { background: cat?.color } : {}} data-testid={`slide-${slide.id}-gen-image`}>
-            {generating === 'image' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Image className="w-3 h-3" />} Image
-          </button>
-          <button onClick={generateVideo} disabled={generating} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition disabled:opacity-50 ${mode === 'video' && slide.assetUrl ? 'bg-blue-600 text-white' : 'border-2 border-white/[0.08] text-slate-400 hover:border-blue-500/30'}`} data-testid={`slide-${slide.id}-gen-video`}>
-            {generating === 'video' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Film className="w-3 h-3" />} Video
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} className={`flex items-center justify-center gap-1 py-2 rounded-none text-[10px] font-bold transition ${mode === 'upload' && slide.assetUrl ? 'bg-emerald-600 text-white' : 'border-2 border-white/[0.08] text-slate-400 hover:border-emerald-500/30'}`} data-testid={`slide-${slide.id}-upload`}>
-            <Upload className="w-3 h-3" /> Upload
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*,video/*" hidden onChange={handleUpload} />
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function AssetStep({ onNext, onBack }) {
-  const { project, setProject, updateSlide, assetType, videoCategory, preferredVisualStyle } = useProjectStore();
-  const cat = CATEGORIES.find(c => c.id === videoCategory);
-  const [characters, setCharacters] = useState(project?.characters || []);
-  const [uploading, setUploading] = useState(false);
-  if (!project) return null;
-  const doneCount = project.slides.filter(s => s.assetUrl).length;
-  const allDone = doneCount === project.slides.length;
-
-  const uploadCharacter = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('name', `Character ${characters.length + 1}`);
-      formData.append('description', '');
-      const res = await axios.post(`${API}/upload-character`, formData);
-      if (res.data.success) {
-        const newChar = { name: res.data.name, description: res.data.description, imageUrl: res.data.url };
-        const updated = [...characters, newChar];
-        setCharacters(updated);
-        setProject({ ...project, characters: updated });
-      }
-    } catch (e) { console.error('Character upload failed'); }
-    setUploading(false);
-  };
-
-  const updateCharacter = (idx, field, value) => {
-    const updated = [...characters];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setCharacters(updated);
-    setProject({ ...project, characters: updated });
-  };
-
-  const removeCharacter = (idx) => {
-    const updated = characters.filter((_, i) => i !== idx);
-    setCharacters(updated);
-    setProject({ ...project, characters: updated });
-  };
-
-  const generateAll = async () => {
-    for (const slide of project.slides) {
-      if (slide.assetUrl) continue;
-      // Default to image generation
-      const mode = slide.assetMode || 'image';
-      updateSlide(slide.id, { assetGenerating: true });
-      try {
-        if (mode === 'video') {
-          const res = await axios.post(`${API}/generate-video`, { description: slide.videoPrompt || slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters });
-          if (res.data.success) { updateSlide(slide.id, { assetType: 'video', assetMode: 'video', assetUrl: res.data.startFrame || res.data.video, startFrame: res.data.startFrame, endFrame: res.data.endFrame, assetGenerating: false }); }
-        } else {
-          const res = await axios.post(`${API}/generate-image`, { description: slide.imagePrompt, style: preferredVisualStyle || 'Cinematic', characters });
-          if (res.data.success) { updateSlide(slide.id, { assetType: 'image', assetMode: 'image', assetUrl: res.data.image, assetGenerating: false }); }
-        }
-      } catch (e) { updateSlide(slide.id, { assetGenerating: false }); }
-    }
-  };
-
-  return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-black text-slate-100">Assign Slide Assets</h2>
-          <p className="text-sm text-slate-500 mt-1 font-semibold">{doneCount}/{project.slides.length} slides have assets</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={onBack} className="flex items-center gap-1.5 px-4 py-2 border-2 border-white/[0.08] rounded-none text-sm font-bold text-slate-400"><ArrowLeft className="w-4 h-4" /> Back</button>
-          <button onClick={generateAll} className="flex items-center gap-2 px-4 py-2 border-2 rounded-none text-sm font-bold text-indigo-400 hover:bg-indigo-500/10" style={{ borderColor: cat?.color }}><Sparkles className="w-3.5 h-3.5" /> Generate All</button>
-          <motion.button whileHover={{ scale: 1.02 }} onClick={onNext} className="flex items-center gap-2 px-5 py-2 rounded-none text-sm font-bold text-white btn-sharp" style={{ background: allDone ? '#10b981' : cat?.color }}>
-            {allDone ? <><Check className="w-4 h-4" /> Open Editor</> : <>Skip to Editor <ArrowRight className="w-4 h-4" /></>}
-          </motion.button>
-        </div>
-      </div>
-
-      {/* Character Upload for Consistency */}
-      <div className="mb-6 p-4 rounded-md border-2 border-amber-500/20 bg-amber-500/5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-amber-400" />
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">Character Reference</h3>
-            <span className="text-[9px] text-slate-500">Upload for visual consistency across all slides</span>
-          </div>
-          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[10px] font-bold text-amber-400 border-2 border-amber-500/30 bg-transparent hover:bg-amber-500/10 cursor-pointer transition" data-testid="upload-character-btn">
-            {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />} Add Character
-            <input type="file" accept="image/*" hidden onChange={uploadCharacter} />
-          </label>
-        </div>
-        {characters.length > 0 ? (
-          <div className="flex gap-3 flex-wrap">
-            {characters.map((char, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 rounded-md bg-[#0a0f1a] border-2 border-amber-500/20 min-w-[200px]">
-                <img src={char.imageUrl?.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${char.imageUrl}` : char.imageUrl} alt={char.name} className="w-10 h-10 rounded-sm object-cover border border-white/[0.08]" />
-                <div className="flex-1 min-w-0">
-                  <input type="text" value={char.name} onChange={(e) => updateCharacter(i, 'name', e.target.value)} className="w-full text-[10px] font-bold text-slate-200 bg-transparent border-0 outline-none p-0" data-testid={`char-name-${i}`} />
-                  <input type="text" value={char.description} onChange={(e) => updateCharacter(i, 'description', e.target.value)} placeholder="Description..." className="w-full text-[9px] text-slate-500 bg-transparent border-0 outline-none p-0" data-testid={`char-desc-${i}`} />
-                </div>
-                <button onClick={() => removeCharacter(i)} className="w-5 h-5 rounded-full flex items-center justify-center bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 flex-shrink-0"><X className="w-3 h-3" /></button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[10px] text-amber-500/50">No characters uploaded yet. Add reference images to maintain consistent character appearances.</p>
-        )}
-      </div>
-
-      <div className="mb-6 h-1.5 bg-slate-800 rounded-none overflow-hidden">
-        <motion.div className="h-full" style={{ background: `linear-gradient(90deg, ${cat?.color}, #10b981)` }} animate={{ width: `${(doneCount / project.slides.length) * 100}%` }} />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {project.slides.map((slide, idx) => <SlideAssetCard key={slide.id} slide={slide} index={idx} cat={cat} characters={characters} />)}
-      </div>
-    </div>
-  );
-}
-
-function ReadyStep({ onOpenEditor, onBack }) {
-  const { project, videoCategory } = useProjectStore();
-  const { user } = useAuth();
-  const cat = CATEGORIES.find(c => c.id === videoCategory);
-  const [saving, setSaving] = useState(false);
-  const [exportingPdf, setExportingPdf] = useState(false);
-  const [exportingHtml, setExportingHtml] = useState(false);
-  if (!project) return null;
-
-  const saveAndOpen = async () => {
-    setSaving(true);
-    try {
-      const userId = user?.id || 'guest_' + Math.random().toString(36).slice(2, 10);
-      const res = await axios.post(`${API}/projects`, { title: project.title, project, userId });
-      if (res.data.success) { onOpenEditor(res.data.project.id); } else { onOpenEditor('new'); }
-    } catch (e) { onOpenEditor('new'); }
-    setSaving(false);
-  };
-
-  const exportAs = async (format) => {
-    const setter = format === 'pdf' ? setExportingPdf : setExportingHtml;
-    setter(true);
-    try {
-      const res = await axios.post(`${API}/export/${format}`, {
-        title: project.title || 'Video Storyboard',
-        slides: project.slides,
-        format,
-      });
-      if (res.data.success && res.data.url) {
-        const link = document.createElement('a');
-        link.href = `${process.env.REACT_APP_BACKEND_URL}${res.data.url}`;
-        link.download = res.data.filename;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (e) { alert(`Export failed: ${e.response?.data?.detail || e.message}`); }
-    finally { setter(false); }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 px-6">
-      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-24 h-24 rounded-sm flex items-center justify-center shadow-xl" style={{ background: cat?.color }}>
-        <Play className="w-10 h-10 text-white translate-x-0.5" />
-      </motion.div>
-      <div className="text-center">
-        <h2 className="text-3xl font-black text-slate-100">Your storyboard is ready!</h2>
-        <p className="text-slate-400 mt-2 font-semibold">{project.slides.length} slides · {project.slides.filter(s => s.assetUrl).length} with assets · {project.duration}s total</p>
-      </div>
-      <div className="flex gap-3 flex-wrap justify-center">
-        <button onClick={onBack} className="px-5 py-2.5 border-2 border-white/[0.08] rounded-none text-sm font-bold text-slate-400">Back</button>
-        <button onClick={() => exportAs('pdf')} disabled={exportingPdf} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-blue-500/20 text-sm font-bold text-blue-400 hover:bg-blue-500/10 transition disabled:opacity-50" data-testid="ready-export-pdf-btn">
-          {exportingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Film className="w-4 h-4" />} Download PDF
-        </button>
-        <button onClick={() => exportAs('html')} disabled={exportingHtml} className="flex items-center gap-2 px-5 py-2.5 rounded-none border-2 border-purple-500/20 text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition disabled:opacity-50" data-testid="ready-export-html-btn">
-          {exportingHtml ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Download HTML
-        </button>
-        <motion.button whileHover={{ scale: 1.03 }} onClick={saveAndOpen} disabled={saving} className="flex items-center gap-2 px-8 py-3 rounded-none text-base font-bold text-white disabled:opacity-50 btn-sharp" style={{ background: cat?.color }} data-testid="open-editor-btn">
-          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-          {saving ? 'Saving...' : 'Open in Editor'}
-        </motion.button>
-      </div>
-    </div>
-  );
-}
+const VISUAL_STYLES = [
+  { id: "Cinematic", label: "Cinematic" },
+  { id: "Modern", label: "Modern" },
+  { id: "Minimal", label: "Minimal" },
+  { id: "Professional", label: "Professional" },
+  { id: "Creative", label: "Creative" }
+];
 
 export default function CreatePage() {
   const navigate = useNavigate();
-  const { rawInput, error, setError, reset, videoCategory, project, step } = useProjectStore();
-  const [localStep, setLocalStep] = useState(() => {
-    if (project && step === 'storyboard') return 1;
-    return 0;
-  });
-  const cat = CATEGORIES.find(c => c.id === videoCategory);
+  const location = useLocation();
+  const [step, setStep] = useState(1);
+  const [input, setInput] = useState('');
+  const [category, setCategory] = useState('explainer');
+  const [slideCount, setSlideCount] = useState(5);
+  const [duration, setDuration] = useState(30);
+  const [visualStyle, setVisualStyle] = useState('Cinematic');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [projectData, setProjectData] = useState(null);
 
+  // Check if we came from landing page with pre-generated data
   useEffect(() => {
-    if (!rawInput && !project) navigate('/');
-  }, [rawInput, project, navigate]);
+    if (location.state?.projectData) {
+      console.log('Received project data from landing:', location.state.projectData);
+      const data = location.state.projectData;
+      setInput(location.state.input || '');
+      setCategory(location.state.category || 'explainer');
+      setDuration(location.state.duration || 30);
+      setSlideCount(location.state.slideCount || 5);
+      
+      if (data.slides) {
+        setProjectData({
+          title: (location.state.input || 'Video').slice(0, 60),
+          slides: data.slides.map((s, i) => ({
+            id: i + 1,
+            title: s.text || s.title || `Slide ${i + 1}`,
+            text: s.text || s.title || '',
+            duration: s.duration || 6,
+            imagePrompt: s.visualDescription || s.imagePrompt || '',
+            videoPrompt: s.videoPrompt || '',
+            voiceScript: s.voiceScript || s.narration || '',
+            narration: s.narration || s.voiceScript || '',
+            assetType: 'none',
+            assetUrl: null,
+            assetGenerating: false
+          })),
+          category: location.state.category || 'explainer',
+          style: 'Cinematic',
+          duration: location.state.duration || 30
+        });
+        setStep(2); // Go straight to storyboard view
+      }
+    }
+  }, [location.state]);
 
-  const goBack = () => { if (localStep === 0) navigate('/'); else setLocalStep(localStep - 1); };
-  const openEditor = (projectId) => navigate(`/editor/${projectId}`);
+  const cat = CATEGORIES.find(c => c.id === category) || CATEGORIES[0];
+
+  const handleGenerate = async () => {
+    if (!input.trim()) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Sending request to API...');
+      console.log('Payload:', { input, type: "idea", duration, tone: "professional", category, slideCount, preferredVisualStyle: visualStyle });
+      
+      const res = await axios.post(`${API}/restructure-script`, {
+        input: input,
+        type: "idea",
+        duration: duration,
+        tone: "professional",
+        category: category,
+        slideCount: slideCount,
+        preferredVisualStyle: visualStyle
+      }, { timeout: 180000 });
+      
+      console.log('Response received:', res.data);
+      
+      if (res.data.success && res.data.data?.slides) {
+        console.log('Success! Setting project data with', res.data.data.slides.length, 'slides');
+        setProjectData({
+          title: input.slice(0, 60),
+          slides: res.data.data.slides.map((s, i) => ({
+            id: i + 1,
+            title: s.text || s.title || `Slide ${i + 1}`,
+            text: s.text || s.title || '',
+            duration: s.duration || 6,
+            imagePrompt: s.visualDescription || s.imagePrompt || '',
+            videoPrompt: s.videoPrompt || '',
+            voiceScript: s.voiceScript || s.narration || '',
+            narration: s.narration || s.voiceScript || '',
+            assetType: 'none',
+            assetUrl: null,
+            assetGenerating: false
+          })),
+          category,
+          style: visualStyle,
+          duration
+        });
+        setStep(2);
+      } else {
+        console.log('API returned success=false or no slides:', res.data);
+        setError(res.data.error || 'Failed to generate storyboard');
+      }
+    } catch (err) {
+      console.error('API Error:', err);
+      console.error('Error response:', err.response?.data);
+      const msg = err.response?.data?.detail || err.response?.data?.error || err.message;
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = () => {
+    // Navigate to editor with the project data
+    navigate('/editor/new', { state: { project: projectData } });
+  };
 
   return (
-    <div className="min-h-screen bg-[#030712]" data-testid="create-page">
-      <div className="fixed top-0 left-0 right-0 h-[3px] z-50" style={{ background: `linear-gradient(90deg, transparent, ${cat?.color}, #f472b6, transparent)` }} />
-      <nav className="sticky top-0 z-40 border-b border-white/[0.06] px-6 py-3 flex items-center justify-between bg-[#030712]/80 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-sm flex items-center justify-center bg-indigo-500"><Sparkles className="w-3.5 h-3.5 text-white" /></div>
-            <span className="text-sm font-black text-slate-200">ExplainaPro</span>
+    <div className="min-h-screen bg-[#030712] text-white">
+      {/* Header */}
+      <nav className="sticky top-0 z-40 border-b border-white/[0.06] px-6 py-4 bg-[#030712]/80 backdrop-blur-xl">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold">SundayRemaker</span>
+            </button>
+            <span className="text-slate-600">/</span>
+            <span className="text-slate-400">Create</span>
+          </div>
+          <button 
+            onClick={() => { setInput(''); setStep(1); setError(null); }}
+            className="text-sm text-slate-400 hover:text-white flex items-center gap-1"
+          >
+            <RefreshCcw className="w-4 h-4" /> Reset
           </button>
-          <span className="text-slate-700">/</span>
-          <span className="text-sm font-semibold text-slate-500">Create</span>
         </div>
-        <StepIndicator step={localStep} />
-        <button onClick={() => { reset(); navigate('/'); }} className="text-xs font-bold text-slate-500 hover:text-indigo-400 flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> Start over</button>
       </nav>
 
-      {error && (
-        <div className="max-w-lg mx-auto mt-8 p-4 rounded-md text-center bg-red-500/10 border-2 border-red-500/20">
-          <p className="text-sm font-bold text-red-400">Error: {error}</p>
-          <button onClick={() => { setError(null); setLocalStep(0); }} className="mt-3 text-xs underline text-red-400 font-bold">Try again</button>
-        </div>
-      )}
+      <div className="max-w-3xl mx-auto px-6 py-12">
+        {step === 1 && (
+          <div>
+            <h1 className="text-3xl font-black mb-2">Create your video</h1>
+            <p className="text-slate-400 mb-8">Describe your video idea and let AI generate a complete storyboard</p>
 
-      <AnimatePresence mode="wait">
-        <motion.div key={localStep} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}>
-          {localStep === 0 && <ProcessingStep onDone={() => setLocalStep(1)} onError={(e) => setError(e)} />}
-          {localStep === 1 && <StoryboardStep onNext={() => setLocalStep(2)} onBack={goBack} />}
-          {localStep === 2 && <AssetStep onNext={() => setLocalStep(3)} onBack={goBack} />}
-          {localStep === 3 && <ReadyStep onOpenEditor={openEditor} onBack={() => setLocalStep(2)} />}
-        </motion.div>
-      </AnimatePresence>
+            {/* Input Section */}
+            <div className="mb-8">
+              <label className="text-sm font-semibold text-slate-300 mb-2 block">What is your video about?</label>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="e.g., The history of the Iranian revolution in 60 seconds..."
+                className="w-full h-32 bg-[#0d1117] border border-white/[0.08] rounded-xl p-4 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 resize-none"
+              />
+            </div>
+
+            {/* Options Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div>
+                <label className="text-xs text-slate-500 mb-2 block">Category</label>
+                <select 
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-[#0d1117] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                >
+                  {CATEGORIES.map(c => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-2 block">Duration</label>
+                <select 
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  className="w-full bg-[#0d1117] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                >
+                  <option value={15}>15 sec</option>
+                  <option value={30}>30 sec</option>
+                  <option value={60}>60 sec</option>
+                  <option value={120}>2 min</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-2 block">Slides</label>
+                <select 
+                  value={slideCount}
+                  onChange={(e) => setSlideCount(Number(e.target.value))}
+                  className="w-full bg-[#0d1117] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                >
+                  {[3, 5, 8, 10, 12].map(n => (
+                    <option key={n} value={n}>{n} slides</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-2 block">Visual Style</label>
+                <select 
+                  value={visualStyle}
+                  onChange={(e) => setVisualStyle(e.target.value)}
+                  className="w-full bg-[#0d1117] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                >
+                  {VISUAL_STYLES.map(s => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                <p className="text-red-400 text-sm">{error}</p>
+                <button 
+                  onClick={() => setError(null)}
+                  className="mt-2 text-xs text-red-400/60 hover:text-red-400"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={handleGenerate}
+              disabled={loading || !input.trim()}
+              className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Generating storyboard...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  Generate Storyboard
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {step === 2 && projectData && (
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-3xl font-black mb-2">Your storyboard</h1>
+                <p className="text-slate-400">{projectData.slides.length} slides generated • {projectData.duration}s duration</p>
+              </div>
+              <button 
+                onClick={() => setStep(1)}
+                className="flex items-center gap-2 px-4 py-2 border border-white/[0.08] rounded-lg text-sm text-slate-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4" /> Regenerate
+              </button>
+            </div>
+
+            {/* Slides Preview */}
+            <div className="space-y-4 mb-8">
+              {projectData.slides.map((slide, idx) => (
+                <div 
+                  key={slide.id}
+                  className="bg-[#0d1117] border border-white/[0.08] rounded-xl p-5"
+                >
+                  <div className="flex items-start gap-4">
+                    <div 
+                      className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0"
+                      style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+                    >
+                      {slide.id}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg mb-2">{slide.title}</h3>
+                      <p className="text-sm text-slate-400 mb-3">{slide.voiceScript}</p>
+                      <div className="bg-[#161b22] rounded-lg p-3">
+                        <span className="text-xs text-indigo-400 font-semibold uppercase tracking-wider">Image Prompt</span>
+                        <p className="text-xs text-slate-400 mt-1">{slide.imagePrompt}</p>
+                      </div>
+                    </div>
+                    <div className="text-sm text-slate-500 flex-shrink-0">
+                      {slide.duration}s
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={handleExport}
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition"
+            >
+              <Play className="w-5 h-5" />
+              Open in Editor
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

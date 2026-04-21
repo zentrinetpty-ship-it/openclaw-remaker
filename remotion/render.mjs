@@ -3,9 +3,40 @@ import { renderMedia, selectComposition } from "@remotion/renderer";
 import { readFileSync, existsSync, writeFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import os from "os";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLE_CACHE_FILE = path.resolve(__dirname, ".bundle_cache");
+
+// Detect browser based on platform
+function getBrowserPath() {
+  const platform = os.platform();
+  
+  if (platform === "win32") {
+    // Windows - common Chrome paths
+    const possiblePaths = [
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+      process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
+    ];
+    for (const p of possiblePaths) {
+      if (existsSync(p)) return p;
+    }
+  } else if (platform === "darwin") {
+    // macOS
+    const macPath = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    if (existsSync(macPath)) return macPath;
+  } else {
+    // Linux
+    const linuxPaths = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"];
+    for (const p of linuxPaths) {
+      if (existsSync(p)) return p;
+    }
+  }
+  
+  // Return null - Remotion will download Chrome automatically
+  return null;
+}
 
 async function getBundleLocation() {
   // Check cache
@@ -39,30 +70,40 @@ async function main() {
   const data = JSON.parse(readFileSync(dataPath, "utf8"));
   console.error(`[Remotion] Rendering ${data.slides?.length || 0} slides...`);
 
-  // Ensure browser is available - use system chromium
-  const browserExePath = "/usr/bin/chromium";
+  // Detect browser or let Remotion download Chrome
+  const browserExePath = getBrowserPath();
+  if (browserExePath) {
+    console.error(`[Remotion] Using browser: ${browserExePath}`);
+  } else {
+    console.error("[Remotion] Browser not found - Remotion will download Chrome automatically");
+  }
 
   const bundleLocation = await getBundleLocation();
 
-  const composition = await selectComposition({
+  const compositionConfig = {
     serveUrl: bundleLocation,
     id: "ExplainerVideo",
     inputProps: data,
-    browserExecutable: browserExePath,
     chromiumOptions: { disableWebSecurity: true },
-  });
+  };
+  
+  if (browserExePath) {
+    compositionConfig.browserExecutable = browserExePath;
+  }
+
+  const composition = await selectComposition(compositionConfig);
 
   console.error(`[Remotion] Composition: ${composition.durationInFrames} frames @ ${composition.fps}fps (${(composition.durationInFrames / composition.fps).toFixed(1)}s)`);
 
   let lastProgress = 0;
-  await renderMedia({
+  
+  const renderConfig = {
     composition,
     serveUrl: bundleLocation,
     codec: "h264",
     outputLocation: outputPath,
     inputProps: data,
     chromiumOptions: { disableWebSecurity: true, gl: "swangle" },
-    browserExecutable: browserExePath,
     concurrency: 2,
     onProgress: ({ progress }) => {
       const pct = Math.round(progress * 100);
@@ -71,7 +112,13 @@ async function main() {
         lastProgress = pct;
       }
     },
-  });
+  };
+  
+  if (browserExePath) {
+    renderConfig.browserExecutable = browserExePath;
+  }
+  
+  await renderMedia(renderConfig);
 
   // Signal completion via stdout
   console.log(JSON.stringify({ success: true, output: outputPath }));

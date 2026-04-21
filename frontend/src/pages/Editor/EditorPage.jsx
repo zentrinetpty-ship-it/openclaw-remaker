@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Save, Download, Layers, Loader2, Check, X, Film, FileText, Monitor } from 'lucide-react';
 import { useProjectStore, useBrandKitStore, useCaptionStore, CATEGORIES } from '../../store/useProjectStore';
@@ -15,6 +15,7 @@ import axios from 'axios';
 
 export default function EditorPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { projectId } = useParams();
   const { user } = useAuth();
   const { project, setProject, updateSlide, videoCategory } = useProjectStore();
@@ -38,6 +39,14 @@ export default function EditorPage() {
 
   useEffect(() => {
     const loadProject = async () => {
+      // Check if we have project data passed from CreatePage
+      if (location.state?.project) {
+        console.log('Loading project from navigation state:', location.state.project);
+        setProject(location.state.project);
+        setLoading(false);
+        return;
+      }
+      
       if (projectId && projectId !== 'new' && !project) {
         try {
           const res = await axios.get(`${API}/projects/${projectId}`);
@@ -47,7 +56,7 @@ export default function EditorPage() {
       setLoading(false);
     };
     loadProject();
-  }, [projectId]);
+  }, [projectId, location.state, setProject]);
 
   useEffect(() => {
     if (project?.slides?.length && !selectedSlideId) setSelectedSlideId(project.slides[0].id);
