@@ -12,8 +12,11 @@ import {
   Upload,
   RefreshCcw,
   Play,
-  X
+  X,
+  Search
 } from 'lucide-react';
+import ResearchPanel from '../components/Research/ResearchPanel';
+
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -83,6 +86,31 @@ export default function CreatePage() {
 
   const cat = CATEGORIES.find(c => c.id === category) || CATEGORIES[0];
 
+  const handleResearchScript = (scriptData) => {
+    if (!scriptData) return;
+    const slides = scriptData.slides || [];
+    setProjectData({
+      title: scriptData.title || input.slice(0, 60),
+      slides: slides.map((s, i) => ({
+        id: i + 1,
+        title: s.title || `Slide ${i + 1}`,
+        text: s.narration || '',
+        duration: s.duration || 12,
+        imagePrompt: s.image_prompt || '',
+        videoPrompt: s.videoPrompt || '',
+        voiceScript: s.narration || '',
+        narration: s.narration || '',
+        assetType: 'none',
+        assetUrl: null,
+        assetGenerating: false
+      })),
+      category: category,
+      style: visualStyle,
+      duration: scriptData.duration || duration
+    });
+    setStep(2);
+  };
+  
   const handleGenerate = async () => {
     if (!input.trim()) return;
     
@@ -187,7 +215,21 @@ export default function CreatePage() {
               />
             </div>
 
-            {/* Options Grid */}
+            {/* Research Panel (NEW) */}
+            <div className="mb-8 border-t border-white/[0.06] pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Search size={16} className="text-amber-400" />
+                <h2 className="text-lg font-black text-slate-200">Research & Script Generator</h2>
+              </div>
+              <p className="text-xs text-slate-400 mb-4">
+                Use research-backed script generation instead of raw AI. Research the web, save to Obsidian, and get fact-based scripts.
+              </p>
+              <ResearchPanel onScriptGenerated={handleResearchScript} />
+            </div>
+
+            <div className="text-center text-xs text-slate-600 mb-6">or continue below with direct AI generation</div>
+
+            {/* Original Options Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <div>
                 <label className="text-xs text-slate-500 mb-2 block">Category</label>
